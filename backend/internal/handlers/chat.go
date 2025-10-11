@@ -12,12 +12,10 @@ import (
 	"mylittleprice/internal/models"
 )
 
-// ChatHandler handles chat-related requests
 type ChatHandler struct {
 	container *container.Container
 }
 
-// NewChatHandler creates a new chat handler with dependency injection
 func NewChatHandler(c *container.Container) *ChatHandler {
 	return &ChatHandler{
 		container: c,
@@ -33,10 +31,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 1: VALIDATE REQUEST
-	// ═══════════════════════════════════════════════════════════
-
+	// Validate
 	if req.Message == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
 			Error:   "validation_error",
@@ -44,7 +39,6 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	// Set defaults
 	if req.Country == "" {
 		req.Country = "CH"
 	}
@@ -53,10 +47,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		req.Language = h.container.SessionService.GetLanguageForCountry(req.Country)
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 2: GET OR CREATE SESSION
-	// ═══════════════════════════════════════════════════════════
-
+	// Get or create session
 	var session *models.ChatSession
 	var err error
 
@@ -82,10 +73,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		}
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 3: HANDLE NEW SEARCH REQUEST
-	// ═══════════════════════════════════════════════════════════
-
+	// Handle new search
 	if req.NewSearch {
 		fmt.Printf("🔄 New search requested for session %s\n", req.SessionID)
 
@@ -114,10 +102,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		fmt.Printf("✅ Search status changed: idle → in_progress\n")
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 4: CHECK IF SEARCH IS BLOCKED
-	// ═══════════════════════════════════════════════════════════
-
+	// Check if blocked
 	if h.container.SessionService.IsSearchCompleted(req.SessionID) {
 		fmt.Printf("⛔ Search completed, chat blocked for session %s\n", req.SessionID)
 
@@ -130,10 +115,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 5: CHECK MESSAGE LIMIT
-	// ═══════════════════════════════════════════════════════════
-
+	// Check message limit
 	canSend, err := h.container.SessionService.CanSendMessage(req.SessionID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
@@ -149,10 +131,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 6: SAVE USER MESSAGE
-	// ═══════════════════════════════════════════════════════════
-
+	// Save user message
 	userMessage := &models.Message{
 		ID:        uuid.New(),
 		SessionID: session.ID,
@@ -176,10 +155,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 7: GET CONVERSATION HISTORY
-	// ═══════════════════════════════════════════════════════════
-
+	// Get history
 	history, err := h.container.SessionService.GetConversationHistory(req.SessionID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
@@ -188,10 +164,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 8: PROCESS WITH GEMINI AI
-	// ═══════════════════════════════════════════════════════════
-
+	// Process with Gemini
 	fmt.Printf("🤖 Processing message for session %s\n", req.SessionID)
 	if session.SearchState.Category != "" {
 		fmt.Printf("   📂 Using existing category: %s\n", session.SearchState.Category)
@@ -219,31 +192,15 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 9: SAVE CATEGORY IF NEWLY DETERMINED
-	// ═══════════════════════════════════════════════════════════
-
+	// Save category if new
 	if geminiResponse.Category != "" && session.SearchState.Category == "" {
 		h.container.SessionService.SetCategory(req.SessionID, geminiResponse.Category)
 		session.SearchState.Category = geminiResponse.Category
 		fmt.Printf("   📂 Category saved: %s\n", geminiResponse.Category)
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 10: PROCESS RESPONSE BASED ON TYPE
-	// ═══════════════════════════════════════════════════════════
-
+	// Process response
 	var response models.ChatResponse
-
-	// Check if we should force search after too many questions
-	if geminiResponse.ResponseType == "dialogue" && session.MessageCount >= 6 {
-		fmt.Printf("⚠️  Too many questions (%d), forcing category search\n", session.MessageCount)
-
-		searchPhrase := fmt.Sprintf("%s %s", session.SearchState.Category, strings.Join(session.SearchState.CollectedParams, " "))
-		geminiResponse.ResponseType = "search"
-		geminiResponse.SearchPhrase = strings.TrimSpace(searchPhrase)
-		geminiResponse.SearchType = "category"
-	}
 
 	switch geminiResponse.ResponseType {
 	case "dialogue":
@@ -263,10 +220,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	// ═══════════════════════════════════════════════════════════
-	// STEP 11: SAVE ASSISTANT MESSAGE
-	// ═══════════════════════════════════════════════════════════
-
+	// Save assistant message
 	assistantMessage := &models.Message{
 		ID:           uuid.New(),
 		SessionID:    session.ID,
@@ -285,14 +239,41 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// handleDialogueResponse handles dialogue responses
 func (h *ChatHandler) handleDialogueResponse(
 	req models.ChatRequest,
 	session *models.ChatSession,
 	geminiResponse *models.GeminiResponse,
 ) models.ChatResponse {
+	// Save meaningful params
 	if h.isMeaningfulParam(req.Message) {
 		h.container.SessionService.AddCollectedParam(req.SessionID, req.Message)
+	}
+
+	// Force search after 8 messages (increased from 6)
+	if session.MessageCount >= 8 {
+		fmt.Printf("⚠️  Too many questions (%d), forcing search\n", session.MessageCount)
+
+		params := strings.Join(session.SearchState.CollectedParams, " ")
+		searchPhrase := fmt.Sprintf("%s %s", session.SearchState.Category, params)
+		searchPhrase = strings.TrimSpace(searchPhrase)
+
+		geminiResponse.ResponseType = "search"
+		geminiResponse.SearchPhrase = searchPhrase
+		geminiResponse.SearchType = "parameters" // Changed from "category"
+
+		searchResponse, err := h.handleSearchResponse(req, session, geminiResponse)
+		if err != nil {
+			// Fallback to dialogue
+			return models.ChatResponse{
+				Type:         "text",
+				Output:       geminiResponse.Output,
+				QuickReplies: geminiResponse.QuickReplies,
+				SessionID:    req.SessionID,
+				MessageCount: session.MessageCount + 1,
+				SearchState:  h.container.SessionService.GetSearchStateInfo(req.SessionID),
+			}
+		}
+		return searchResponse
 	}
 
 	return models.ChatResponse{
@@ -305,19 +286,17 @@ func (h *ChatHandler) handleDialogueResponse(
 	}
 }
 
-// handleSearchResponse handles search responses
 func (h *ChatHandler) handleSearchResponse(
 	req models.ChatRequest,
 	session *models.ChatSession,
 	geminiResponse *models.GeminiResponse,
 ) (models.ChatResponse, error) {
-	// Validate query
+	// Validate
 	isValid, errMsg := h.container.Optimizer.ValidateQuery(geminiResponse.SearchPhrase)
 	if !isValid {
 		return models.ChatResponse{}, fiber.NewError(fiber.StatusBadRequest, errMsg)
 	}
 
-	// Check if query is product-related
 	if !h.container.Optimizer.IsProductQuery(geminiResponse.SearchPhrase) {
 		return models.ChatResponse{
 			Type:         "text",
@@ -328,11 +307,11 @@ func (h *ChatHandler) handleSearchResponse(
 		}, nil
 	}
 
-	// Optimize query
+	// Optimize
 	optimizedQuery := h.container.Optimizer.OptimizeQuery(geminiResponse.SearchPhrase, geminiResponse.SearchType)
 	fmt.Printf("   🔍 Search query: '%s' → '%s'\n", geminiResponse.SearchPhrase, optimizedQuery)
 
-	// Search products with caching
+	// Search
 	startTime := time.Now()
 	products, keyIndex, err := h.container.SerpService.SearchWithCache(
 		optimizedQuery,
@@ -363,7 +342,7 @@ func (h *ChatHandler) handleSearchResponse(
 		}, nil
 	}
 
-	// Mark search as completed
+	// Mark completed
 	h.container.SessionService.MarkSearchCompleted(req.SessionID)
 	fmt.Printf("   ✅ Search completed! Found %d products. Chat blocked.\n", len(products))
 
@@ -383,7 +362,6 @@ func (h *ChatHandler) handleSearchResponse(
 	}, nil
 }
 
-// isMeaningfulParam checks if user message is a meaningful parameter
 func (h *ChatHandler) isMeaningfulParam(message string) bool {
 	message = strings.TrimSpace(strings.ToLower(message))
 
