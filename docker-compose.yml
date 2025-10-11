@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: mylittleprice_postgres
+    environment:
+      POSTGRES_USER: mylittleprice
+      POSTGRES_PASSWORD: mylittleprice_dev_pass
+      POSTGRES_DB: mylittleprice
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mylittleprice"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    container_name: mylittleprice_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mylittleprice_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgres://mylittleprice:mylittleprice_dev_pass@postgres:5432/mylittleprice?sslmode=disable
+      - REDIS_URL=redis:6379
+      - PORT=8080
+      - ENV=development
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: mylittleprice_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
