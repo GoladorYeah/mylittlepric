@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/genai"
 
@@ -389,7 +390,42 @@ func (g *GeminiService) buildGroundingPrompt(
 		categoryInfo = fmt.Sprintf("\nCATEGORY: %s (already determined)", currentCategory)
 	}
 
-	prompt := fmt.Sprintf(`You are a shopping assistant for %s with Google Search access.
+	// Detect if this is a brand selection query
+	isBrandSelection := g.detectBrandSelection(userMessage, history)
+
+	var prompt string
+
+	if isBrandSelection {
+		// Special prompt for getting latest models after brand selection
+		currentYear := time.Now().Year()
+		prompt = fmt.Sprintf(`You are a shopping assistant for %s with Google Search access.
+Language: %s, Currency: %s%s
+
+# YOUR TASK
+User selected a brand (%s). Use Google Search to find the LATEST available models for this brand.
+
+IMPORTANT: Search for models available in %d and %d!
+
+Then respond with JSON format:
+
+{
+  "response_type": "dialogue",
+  "output": "Which model? (max 150 chars)",
+  "quick_replies": ["Latest Model 1", "Latest Model 2", "Previous Model 1", "Previous Model 2"]
+}
+
+CRITICAL: 
+- quick_replies MUST contain the newest/latest models first!
+- Include both current year (%d) and previous year models
+- Use REAL model names from Google Search results
+- Order: Newest → Older
+
+`, country, languageName, currency, categoryInfo, userMessage,
+			currentYear, currentYear+1, currentYear)
+
+	} else {
+		// Regular grounding prompt for product verification
+		prompt = fmt.Sprintf(`You are a shopping assistant for %s with Google Search access.
 Language: %s, Currency: %s%s
 
 # YOUR TASK
@@ -415,6 +451,7 @@ Then respond with JSON format:
 }
 
 `, country, languageName, currency, categoryInfo)
+	}
 
 	if len(history) > 0 {
 		maxHistory := 3
@@ -434,9 +471,48 @@ Then respond with JSON format:
 		}
 	}
 
-	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nUse Google Search to verify, then respond with JSON only:\n", userMessage)
+	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nUse Google Search, then respond with JSON only:\n", userMessage)
 
 	return prompt
+}
+
+// Helper function to detect brand selection
+func (g *GeminiService) detectBrandSelection(userMessage string, history []map[string]string) bool {
+	messageLower := strings.ToLower(userMessage)
+
+	brands := []string{
+		"apple", "iphone", "samsung", "google", "pixel",
+		"xiaomi", "oneplus", "sony", "lg", "dell", "hp",
+		"lenovo", "asus", "acer", "msi", "huawei",
+	}
+
+	isBrand := false
+	for _, brand := range brands {
+		if strings.Contains(messageLower, brand) {
+			isBrand = true
+			break
+		}
+	}
+
+	if !isBrand {
+		return false
+	}
+
+	// Check if previous question was about brand
+	if len(history) > 0 {
+		for i := len(history) - 1; i >= 0; i-- {
+			if history[i]["role"] == "assistant" {
+				lastQuestion := strings.ToLower(history[i]["content"])
+				if strings.Contains(lastQuestion, "which brand") ||
+					strings.Contains(lastQuestion, "what brand") {
+					return true
+				}
+				break
+			}
+		}
+	}
+
+	return false
 }
 
 func (g *GeminiService) parseGeminiResponse(responseText string, currentCategory string) (*models.GeminiResponse, int, error) {

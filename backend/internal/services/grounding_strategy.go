@@ -1,7 +1,9 @@
 package services
 
 import (
+	"fmt"
 	"strings"
+	"time"
 )
 
 // GroundingStrategy determines when to use grounding (Google Search)
@@ -61,6 +63,15 @@ func NewGroundingStrategy(mode string) *GroundingStrategy {
 func (gs *GroundingStrategy) Decide(userMessage string, history []map[string]string) GroundingDecision {
 	messageLower := strings.ToLower(userMessage)
 	wordCount := len(strings.Fields(userMessage))
+
+	// 🆕 PRIORITY 0: Brand selection for latest models (НОВОЕ!)
+	if gs.isBrandSelectionForLatestModels(messageLower, history) {
+		return GroundingDecision{
+			ShouldUseGrounding: true,
+			Reason:             "brand_selection_latest_models",
+			Confidence:         0.98,
+		}
+	}
 
 	// PRIORITY 1: Specific product model (HIGHEST)
 	if gs.hasSpecificModelPattern(messageLower, wordCount) {
@@ -124,6 +135,52 @@ func (gs *GroundingStrategy) Decide(userMessage string, history []map[string]str
 	}
 }
 
+// 🆕 NEW: Detect when user selected brand and we need latest models
+func (gs *GroundingStrategy) isBrandSelectionForLatestModels(messageLower string, history []map[string]string) bool {
+	// Check if this is a brand selection response
+	majorBrands := []string{
+		"apple", "iphone", "samsung", "google", "pixel",
+		"xiaomi", "oneplus", "sony", "lg", "huawei",
+	}
+
+	isBrandMention := false
+	for _, brand := range majorBrands {
+		if strings.Contains(messageLower, brand) {
+			isBrandMention = true
+			break
+		}
+	}
+
+	if !isBrandMention {
+		return false
+	}
+
+	// Check conversation history for "which brand" pattern
+	if len(history) > 0 {
+		lastAssistantMessage := ""
+		for i := len(history) - 1; i >= 0; i-- {
+			if history[i]["role"] == "assistant" {
+				lastAssistantMessage = strings.ToLower(history[i]["content"])
+				break
+			}
+		}
+
+		// If last question was about brand/model, use grounding for latest info
+		brandQuestionPatterns := []string{
+			"which brand", "what brand", "which iphone", "which model",
+			"which samsung", "which google", "which phone",
+		}
+
+		for _, pattern := range brandQuestionPatterns {
+			if strings.Contains(lastAssistantMessage, pattern) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // hasSpecificModelPattern checks for specific product models
 func (gs *GroundingStrategy) hasSpecificModelPattern(messageLower string, wordCount int) bool {
 	if wordCount < gs.config.MinWordsForProduct {
@@ -133,20 +190,20 @@ func (gs *GroundingStrategy) hasSpecificModelPattern(messageLower string, wordCo
 	// Known brand + model patterns
 	knownBrandModels := []string{
 		// Apple
-		"iphone 15", "iphone 14", "iphone 13", "iphone 16",
+		"iphone 15", "iphone 16", "iphone 17", "iphone 14", "iphone 13",
 		"macbook pro", "macbook air", "ipad pro", "ipad air",
 		"apple watch", "airpods pro", "airpods max",
 
 		// Samsung
-		"galaxy s24", "galaxy s25", "galaxy s23", "galaxy a54",
+		"galaxy s24", "galaxy s25", "galaxy s26", "galaxy s23", "galaxy a54",
 		"galaxy z fold", "galaxy z flip", "galaxy tab", "galaxy watch",
 
 		// Google
-		"pixel 8", "pixel 9", "pixel 7", "pixel fold",
+		"pixel 8", "pixel 9", "pixel 10", "pixel 7", "pixel fold",
 
 		// Other brands
-		"xiaomi 13", "xiaomi 14", "redmi note",
-		"oneplus 11", "oneplus 12", "oneplus nord",
+		"xiaomi 13", "xiaomi 14", "xiaomi 15", "redmi note",
+		"oneplus 11", "oneplus 12", "oneplus 13", "oneplus nord",
 		"dell xps", "hp spectre", "lenovo thinkpad",
 		"asus rog", "acer predator", "msi gaming",
 		"sony wh-", "bose quietcomfort",
@@ -244,7 +301,7 @@ func (gs *GroundingStrategy) hasVerificationIntent(messageLower string) bool {
 	verificationPhrases := []string{
 		"is there", "does exist", "is available", "can i buy",
 		"has been released", "is out", "already out",
-		"in stock", "available now",
+		"in stock", "available now", "latest version",
 	}
 
 	for _, phrase := range verificationPhrases {
@@ -258,10 +315,18 @@ func (gs *GroundingStrategy) hasVerificationIntent(messageLower string) bool {
 
 // hasRecencyIntent checks for requests about new products
 func (gs *GroundingStrategy) hasRecencyIntent(messageLower string) bool {
+	currentYear := time.Now().Year()
+
 	recencyKeywords := []string{
-		"new", "newest", "latest", "recent",
+		"new", "newest", "latest", "recent", "current",
 		"2024", "2025", "2026", "2027",
 	}
+
+	// Add current year and next year
+	recencyKeywords = append(recencyKeywords,
+		fmt.Sprintf("%d", currentYear),
+		fmt.Sprintf("%d", currentYear+1),
+	)
 
 	for _, keyword := range recencyKeywords {
 		if strings.Contains(messageLower, keyword) {
