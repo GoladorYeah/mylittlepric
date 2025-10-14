@@ -22,7 +22,10 @@ func NewPromptManager() *PromptManager {
 
 func (pm *PromptManager) loadPrompts() {
 	promptFiles := map[string]string{
-		"master": "internal/services/prompts/master_prompt.txt",
+		"master":        "internal/services/prompts/master_prompt.txt",
+		"electronics":   "internal/services/prompts/specialized_electronics.txt",
+		"parametric":    "internal/services/prompts/specialized_parametric.txt",
+		"generic_model": "internal/services/prompts/specialized_generic_model.txt",
 	}
 
 	pm.mu.Lock()
@@ -57,4 +60,17 @@ func (pm *PromptManager) GetPrompt(key, country, language, currency, category st
 	prompt = strings.ReplaceAll(prompt, "{category}", category)
 
 	return prompt
+}
+
+func (pm *PromptManager) GetPromptKey(category string) string {
+	switch category {
+	case "electronics":
+		return "electronics"
+	case "generic_model":
+		return "generic_model"
+	case "clothing", "furniture", "kitchen", "sports", "tools", "decor", "textiles":
+		return "parametric"
+	default:
+		return "master"
+	}
 }

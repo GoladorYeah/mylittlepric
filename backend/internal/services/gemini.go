@@ -76,7 +76,8 @@ func (g *GeminiService) ProcessMessageWithContext(
 
 	currency := getCurrencyForCountry(country)
 
-	systemPrompt := g.promptManager.GetPrompt("master", country, language, currency, currentCategory)
+	promptKey := g.promptManager.GetPromptKey(currentCategory)
+	systemPrompt := g.promptManager.GetPrompt(promptKey, country, language, currency, currentCategory)
 	fullPrompt := g.buildFullPrompt(systemPrompt, conversationHistory, userMessage)
 
 	useGrounding := g.shouldUseGrounding(userMessage, conversationHistory)
