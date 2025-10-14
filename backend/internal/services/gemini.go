@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -22,8 +21,7 @@ type GeminiService struct {
 	groundingStrategy *GroundingStrategy
 	groundingStats    *GroundingStats
 	tokenStats        *TokenStats
-	categoryPrompts   map[string]string
-	promptMutex       sync.RWMutex
+	promptManager     *PromptManager
 	ctx               context.Context
 }
 
@@ -50,11 +48,10 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config) *GeminiS
 		groundingStrategy: NewGroundingStrategy(groundingMode),
 		groundingStats:    &GroundingStats{ReasonCounts: make(map[string]int)},
 		tokenStats:        &TokenStats{},
-		categoryPrompts:   make(map[string]string),
+		promptManager:     NewPromptManager(),
 		ctx:               context.Background(),
 	}
 
-	service.loadCategoryPrompts()
 	return service
 }
 
@@ -79,11 +76,7 @@ func (g *GeminiService) ProcessMessageWithContext(
 		return nil, keyIndex, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	fmt.Printf("🚀 Processing message with smart tool selection...\n")
-
-	if currentCategory != "" {
-		fmt.Printf("   📂 Using existing category: %s (NO function call needed)\n", currentCategory)
-	}
+	fmt.Printf("🚀 Processing with category: %s\n", currentCategory)
 
 	decision := g.groundingStrategy.Decide(userMessage, conversationHistory)
 	g.groundingStats.RecordDecision(decision)
@@ -91,63 +84,12 @@ func (g *GeminiService) ProcessMessageWithContext(
 	useGrounding := decision.ShouldUseGrounding && g.config.GeminiUseGrounding
 
 	if useGrounding {
-		fmt.Printf("   🔍 Strategy: GROUNDING (reason: %s, confidence: %.2f)\n", decision.Reason, decision.Confidence)
+		fmt.Printf("   🔍 GROUNDING (reason: %s)\n", decision.Reason)
 		return g.processWithGrounding(client, userMessage, conversationHistory, country, language, currentCategory, keyIndex)
 	} else {
-		fmt.Printf("   💬 Strategy: DIRECT JSON (reason: %s)\n", decision.Reason)
+		fmt.Printf("   💬 DIRECT (reason: %s)\n", decision.Reason)
 		return g.processWithDirectJSON(client, userMessage, conversationHistory, country, language, currentCategory, keyIndex)
 	}
-}
-
-func (g *GeminiService) processWithGrounding(
-	client *genai.Client,
-	userMessage string,
-	history []map[string]string,
-	country string,
-	language string,
-	currentCategory string,
-	keyIndex int,
-) (*models.GeminiResponse, int, error) {
-
-	prompt := g.buildGroundingPrompt(history, userMessage, country, language, currentCategory)
-
-	tools := []*genai.Tool{
-		{
-			GoogleSearch: &genai.GoogleSearch{},
-		},
-	}
-
-	generateConfig := &genai.GenerateContentConfig{
-		Temperature:     &g.config.GeminiTemperature,
-		MaxOutputTokens: int32(g.config.GeminiMaxOutputTokens),
-		Tools:           tools,
-	}
-
-	result, err := client.Models.GenerateContent(
-		g.ctx,
-		g.config.GeminiModel,
-		genai.Text(prompt),
-		generateConfig,
-	)
-	if err != nil {
-		return nil, keyIndex, fmt.Errorf("Gemini API error: %w", err)
-	}
-
-	if result.UsageMetadata != nil {
-		g.logTokenUsage(result.UsageMetadata, true)
-	}
-
-	if len(result.Candidates) > 0 && result.Candidates[0].GroundingMetadata != nil {
-		g.logGroundingUsage(result.Candidates[0].GroundingMetadata)
-	}
-
-	responseText := g.extractResponseText(result)
-
-	if strings.TrimSpace(responseText) == "" {
-		return nil, keyIndex, fmt.Errorf("empty response from Gemini")
-	}
-
-	return g.parseGeminiResponse(responseText, currentCategory)
 }
 
 func (g *GeminiService) processWithDirectJSON(
@@ -160,7 +102,46 @@ func (g *GeminiService) processWithDirectJSON(
 	keyIndex int,
 ) (*models.GeminiResponse, int, error) {
 
-	prompt := g.buildDirectJSONPrompt(history, userMessage, country, language, currentCategory)
+	currency := getCurrencyForCountry(country)
+
+	var promptKey string
+	if currentCategory == "" {
+		promptKey = "master"
+	} else if currentCategory == "electronics" {
+		promptKey = "specialized_electronics"
+	} else if currentCategory == "generic_model" {
+		promptKey = "specialized_generic"
+	} else {
+		promptKey = "specialized_parametric"
+	}
+
+	basePrompt := g.promptManager.GetPrompt(promptKey, country, language, currency, currentCategory)
+
+	if basePrompt == "" {
+		return nil, keyIndex, fmt.Errorf("prompt not found: %s", promptKey)
+	}
+
+	prompt := basePrompt
+
+	if len(history) > 0 {
+		maxHistory := 4
+		startIdx := 0
+		if len(history) > maxHistory {
+			startIdx = len(history) - maxHistory
+		}
+
+		prompt += "\n# CONVERSATION HISTORY\n"
+		for i := startIdx; i < len(history); i++ {
+			msg := history[i]
+			if msg["role"] == "user" {
+				prompt += fmt.Sprintf("User: %s\n", msg["content"])
+			} else if msg["role"] == "assistant" {
+				prompt += fmt.Sprintf("You: %s\n", msg["content"])
+			}
+		}
+	}
+
+	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nRespond with JSON ONLY:\n", userMessage)
 
 	generateConfig := &genai.GenerateContentConfig{
 		Temperature:     &g.config.GeminiTemperature,
@@ -190,266 +171,64 @@ func (g *GeminiService) processWithDirectJSON(
 	return g.parseGeminiResponse(responseText, currentCategory)
 }
 
-func (g *GeminiService) buildDirectJSONPrompt(
-	history []map[string]string,
+func (g *GeminiService) processWithGrounding(
+	client *genai.Client,
 	userMessage string,
+	history []map[string]string,
 	country string,
 	language string,
 	currentCategory string,
-) string {
+	keyIndex int,
+) (*models.GeminiResponse, int, error) {
 
-	languageName := getLanguageName(language)
 	currency := getCurrencyForCountry(country)
-
-	var prompt string
-
-	if currentCategory != "" {
-		g.promptMutex.RLock()
-		categoryPrompt, hasCustomPrompt := g.categoryPrompts[currentCategory]
-		g.promptMutex.RUnlock()
-
-		if hasCustomPrompt {
-			prompt = strings.ReplaceAll(categoryPrompt, "{country}", country)
-			prompt = strings.ReplaceAll(prompt, "{language}", languageName)
-			prompt = strings.ReplaceAll(prompt, "{currency}", currency)
-		} else {
-			prompt = g.buildDefaultCategoryPrompt(country, languageName, currency, currentCategory)
-		}
-	} else {
-		prompt = g.buildFirstMessagePrompt(country, languageName, currency)
-	}
-
-	if len(history) > 0 {
-		maxHistory := 4
-		startIdx := 0
-		if len(history) > maxHistory {
-			startIdx = len(history) - maxHistory
-		}
-
-		prompt += "\n# CONVERSATION HISTORY\n"
-		for i := startIdx; i < len(history); i++ {
-			msg := history[i]
-			if msg["role"] == "user" {
-				prompt += fmt.Sprintf("User: %s\n", msg["content"])
-			} else if msg["role"] == "assistant" {
-				prompt += fmt.Sprintf("You: %s\n", msg["content"])
-			}
-		}
-	}
-
-	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nRespond with JSON ONLY (no explanations):\n", userMessage)
-
-	return prompt
-}
-
-func (g *GeminiService) buildFirstMessagePrompt(country, languageName, currency string) string {
-	return fmt.Sprintf(`You are a shopping assistant for %s.
-Language: %s, Currency: %s
-
-# YOUR TASK
-Analyze user's message and respond with JSON format.
-
-# CATEGORY MAPPING
-- electronics: phones, laptops, tablets, TVs, cameras, headphones, smartwatches
-- clothing: jackets, shirts, pants, shoes, dresses, accessories (bags, belts)
-- furniture: sofas, tables, chairs, beds, desks, shelves, wardrobes
-- kitchen: pans, pots, knives, appliances (coffee makers, blenders, toasters)
-- sports: gym equipment, yoga mats, dumbbells, fitness trackers, bicycles
-- tools: drills, saws, screwdrivers, power tools, hand tools
-- decor: lamps, mirrors, vases, wall art, candles, frames
-- textiles: pillows, blankets, bedding, towels, carpets, curtains
-
-# RESPONSE FORMAT
-
-## If user mentions a product category, respond:
-{
-  "response_type": "dialogue",
-  "output": "Ask clarifying question (max 200 chars)",
-  "quick_replies": ["Option1", "Option2", "Option3", "Option4"],
-  "category": "electronics|clothing|furniture|kitchen|sports|tools|decor|textiles"
-}
-
-## If user gives specific product (brand + model), respond:
-{
-  "response_type": "search",
-  "search_phrase": "exact product name",
-  "search_type": "exact",
-  "category": "electronics|clothing|furniture|kitchen|sports|tools|decor|textiles"
-}
-
-# EXAMPLES
-
-User: "need phone"
-→ {"response_type":"dialogue","output":"Which brand?","quick_replies":["Apple","Samsung","Google","Xiaomi"],"category":"electronics"}
-
-User: "iPhone 15 Pro"
-→ {"response_type":"search","search_phrase":"iPhone 15 Pro","search_type":"exact","category":"electronics"}
-
-User: "need pillow"
-→ {"response_type":"dialogue","output":"What size?","quick_replies":["50x70cm","70x70cm","40x60cm","Other"],"category":"textiles"}
-
-User: "looking for lamp"
-→ {"response_type":"dialogue","output":"What type?","quick_replies":["Table lamp","Floor lamp","Desk lamp","Wall lamp"],"category":"decor"}
-
-`, country, languageName, currency)
-}
-
-func (g *GeminiService) buildDefaultCategoryPrompt(country, languageName, currency, category string) string {
-	return fmt.Sprintf(`You are a shopping assistant for %s.
-Language: %s, Currency: %s
-CATEGORY: %s (ALREADY DETERMINED)
-
-# YOUR TASK
-Help user find products. Ask MAXIMUM 1-2 questions, then SEARCH.
-
-# CRITICAL RULES
-1. After 1-2 questions → ALWAYS search
-2. If user gave specifications → SEARCH immediately
-3. Don't ask more than 2 questions total
-4. Prefer searching over asking
-
-# RESPONSE FORMAT
-
-## If need ONE more detail (max 2 questions total):
-{
-  "response_type": "dialogue",
-  "output": "One specific question (max 150 chars)",
-  "quick_replies": ["Option1", "Option2", "Option3", "Option4"]
-}
-
-## If have enough info OR asked 1+ questions already:
-{
-  "response_type": "search",
-  "search_phrase": "product with all known specifications",
-  "search_type": "exact|parameters|category"
-}
-
-# SEARCH TYPE
-- "exact": User gave specific brand+model (Brother CS10)
-- "parameters": User gave category+specs (pillow 50x70 memory foam)
-- "category": General category search (pillow)
-
-# EXAMPLES FOR %s
-
-User: "soft" (after asking about pillow type)
-→ SEARCH: {"response_type":"search","search_phrase":"pillow soft","search_type":"parameters"}
-
-User: "memory foam" (first specification given)
-→ SEARCH: {"response_type":"search","search_phrase":"pillow memory foam","search_type":"parameters"}
-
-User: "50x70" (size specification)
-→ SEARCH: {"response_type":"search","search_phrase":"pillow 50x70","search_type":"parameters"}
-
-REMEMBER: After 1-2 questions → ALWAYS SEARCH! Don't keep asking.
-
-`, country, languageName, currency, category, category)
-}
-
-func (g *GeminiService) loadCategoryPrompts() {
-	categories := []string{
-		"electronics", "clothing", "furniture", "kitchen",
-		"sports", "tools", "decor", "textiles",
-	}
-
-	g.promptMutex.Lock()
-	defer g.promptMutex.Unlock()
-
-	loadedCount := 0
-
-	for _, category := range categories {
-		promptPath := fmt.Sprintf("internal/services/prompts/%s_prompt.txt", category)
-		content, err := os.ReadFile(promptPath)
-		if err != nil {
-			continue
-		}
-
-		g.categoryPrompts[category] = string(content)
-		loadedCount++
-	}
-
-	if loadedCount > 0 {
-		fmt.Printf("✅ Loaded %d custom category prompts\n", loadedCount)
-	} else {
-		fmt.Printf("ℹ️  No custom prompts found - using default prompts\n")
-	}
-}
-
-func (g *GeminiService) buildGroundingPrompt(
-	history []map[string]string,
-	userMessage string,
-	country string,
-	language string,
-	currentCategory string,
-) string {
-
 	languageName := getLanguageName(language)
-	currency := getCurrencyForCountry(country)
 
 	categoryInfo := ""
 	if currentCategory != "" {
 		categoryInfo = fmt.Sprintf("\nCATEGORY: %s (already determined)", currentCategory)
 	}
 
-	// Detect if this is a brand selection query
 	isBrandSelection := g.detectBrandSelection(userMessage, history)
 
 	var prompt string
 
 	if isBrandSelection {
-		// Special prompt for getting latest models after brand selection
 		currentYear := time.Now().Year()
-		prompt = fmt.Sprintf(`You are a shopping assistant for %s with Google Search access.
+		prompt = fmt.Sprintf(`Shopping assistant for %s with Google Search.
 Language: %s, Currency: %s%s
 
-# YOUR TASK
-User selected a brand (%s). Use Google Search to find the LATEST available models for this brand.
+# TASK
+User selected brand (%s). Use Google Search to find LATEST models.
 
-IMPORTANT: Search for models available in %d and %d!
+Search for models from %d and %d!
 
-Then respond with JSON format:
-
+Response JSON:
 {
   "response_type": "dialogue",
   "output": "Which model? (max 150 chars)",
-  "quick_replies": ["Latest Model 1", "Latest Model 2", "Previous Model 1", "Previous Model 2"]
+  "quick_replies": ["Latest Model 1 ($X)", "Latest Model 2 ($Y)", "Model 3 ($Z)", "Older Model"]
 }
 
-CRITICAL: 
-- quick_replies MUST contain the newest/latest models first!
-- Include both current year (%d) and previous year models
-- Use REAL model names from Google Search results
-- Order: Newest → Older
-
-`, country, languageName, currency, categoryInfo, userMessage,
-			currentYear, currentYear+1, currentYear)
-
+CRITICAL: quick_replies must have newest models first with prices!
+`, country, languageName, currency, categoryInfo, userMessage, currentYear, currentYear+1)
 	} else {
-		// Regular grounding prompt for product verification
-		prompt = fmt.Sprintf(`You are a shopping assistant for %s with Google Search access.
+		prompt = fmt.Sprintf(`Shopping assistant for %s with Google Search.
 Language: %s, Currency: %s%s
 
-# YOUR TASK
-User asked about a SPECIFIC product. Use Google Search to:
-1. Verify the product exists
-2. Check if it's currently available
-3. Confirm the exact model name
+# TASK
+User asked about specific product. Use Google Search to:
+1. Verify product exists
+2. Check availability
+3. Confirm exact model name
 
-Then respond with JSON format:
+Response JSON:
 
-## If product EXISTS and is available:
-{
-  "response_type": "search",
-  "search_phrase": "exact product name",
-  "search_type": "exact"
-}
+## If product EXISTS:
+{"response_type":"search","search_phrase":"exact product","search_type":"exact"}
 
-## If product DOESN'T EXIST or is unavailable:
-{
-  "response_type": "dialogue",
-  "output": "That product isn't available. Here are alternatives:",
-  "quick_replies": ["Alternative 1", "Alternative 2", "Alternative 3"]
-}
-
+## If NOT available:
+{"response_type":"dialogue","output":"Not available. Alternatives:","quick_replies":["Alt1","Alt2","Alt3"]}
 `, country, languageName, currency, categoryInfo)
 	}
 
@@ -471,12 +250,45 @@ Then respond with JSON format:
 		}
 	}
 
-	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nUse Google Search, then respond with JSON only:\n", userMessage)
+	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nUse Google Search, respond JSON:\n", userMessage)
 
-	return prompt
+	tools := []*genai.Tool{
+		{GoogleSearch: &genai.GoogleSearch{}},
+	}
+
+	generateConfig := &genai.GenerateContentConfig{
+		Temperature:     &g.config.GeminiTemperature,
+		MaxOutputTokens: int32(g.config.GeminiMaxOutputTokens),
+		Tools:           tools,
+	}
+
+	result, err := client.Models.GenerateContent(
+		g.ctx,
+		g.config.GeminiModel,
+		genai.Text(prompt),
+		generateConfig,
+	)
+	if err != nil {
+		return nil, keyIndex, fmt.Errorf("Gemini API error: %w", err)
+	}
+
+	if result.UsageMetadata != nil {
+		g.logTokenUsage(result.UsageMetadata, true)
+	}
+
+	if len(result.Candidates) > 0 && result.Candidates[0].GroundingMetadata != nil {
+		g.logGroundingUsage(result.Candidates[0].GroundingMetadata)
+	}
+
+	responseText := g.extractResponseText(result)
+
+	if strings.TrimSpace(responseText) == "" {
+		return nil, keyIndex, fmt.Errorf("empty response")
+	}
+
+	return g.parseGeminiResponse(responseText, currentCategory)
 }
 
-// Helper function to detect brand selection
 func (g *GeminiService) detectBrandSelection(userMessage string, history []map[string]string) bool {
 	messageLower := strings.ToLower(userMessage)
 
@@ -498,7 +310,6 @@ func (g *GeminiService) detectBrandSelection(userMessage string, history []map[s
 		return false
 	}
 
-	// Check if previous question was about brand
 	if len(history) > 0 {
 		for i := len(history) - 1; i >= 0; i-- {
 			if history[i]["role"] == "assistant" {
@@ -594,25 +405,20 @@ func (g *GeminiService) logTokenUsage(metadata *genai.GenerateContentResponseUsa
 	outputTokens := int64(metadata.CandidatesTokenCount)
 	totalTokens := int64(metadata.TotalTokenCount)
 
-	fmt.Printf("   📊 Tokens: Input=%d, Output=%d, Total=%d\n",
-		inputTokens, outputTokens, totalTokens,
-	)
+	fmt.Printf("   📊 Tokens: In=%d, Out=%d, Total=%d\n", inputTokens, outputTokens, totalTokens)
 
 	g.recordTokenUsage(inputTokens, outputTokens, totalTokens, withGrounding)
 }
 
 func (g *GeminiService) logGroundingUsage(metadata *genai.GroundingMetadata) {
-	fmt.Printf("   ✅ Grounding was used!\n")
+	fmt.Printf("   ✅ Grounding used!\n")
 
 	if len(metadata.WebSearchQueries) > 0 {
-		fmt.Printf("   🔎 Search queries: %v\n", metadata.WebSearchQueries)
+		fmt.Printf("   🔎 Queries: %v\n", metadata.WebSearchQueries)
 	}
 
 	if len(metadata.GroundingChunks) > 0 {
-		fmt.Printf("   📚 Retrieved %d grounding chunks\n", len(metadata.GroundingChunks))
-		if metadata.GroundingChunks[0].Web != nil {
-			fmt.Printf("      📄 %s\n", metadata.GroundingChunks[0].Web.Title)
-		}
+		fmt.Printf("   📚 Chunks: %d\n", len(metadata.GroundingChunks))
 	}
 }
 
