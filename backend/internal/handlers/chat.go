@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -10,18 +9,15 @@ import (
 
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/models"
-	"mylittleprice/internal/services"
 )
 
 type ChatHandler struct {
-	container        *container.Container
-	categoryDetector *services.CategoryDetector
+	container *container.Container
 }
 
 func NewChatHandler(c *container.Container) *ChatHandler {
 	return &ChatHandler{
-		container:        c,
-		categoryDetector: services.NewCategoryDetector(),
+		container: c,
 	}
 }
 
@@ -128,15 +124,6 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	if session.SearchState.Category == "" {
-		detectedCategory := h.categoryDetector.DetectCategory(req.Message)
-		if detectedCategory != "" {
-			session.SearchState.Category = detectedCategory
-			h.container.SessionService.SetCategory(req.SessionID, detectedCategory)
-			fmt.Printf("   🎯 Auto-detected category: %s\n", detectedCategory)
-		}
-	}
-
 	userMessage := &models.Message{
 		ID:        uuid.New(),
 		SessionID: session.ID,
@@ -193,7 +180,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 	if geminiResponse.Category != "" && session.SearchState.Category == "" {
 		h.container.SessionService.SetCategory(req.SessionID, geminiResponse.Category)
 		session.SearchState.Category = geminiResponse.Category
-		fmt.Printf("   📂 Category set: %s\n", geminiResponse.Category)
+		fmt.Printf("   📂 Category set: %s\n\n", geminiResponse.Category)
 	}
 
 	var response models.ChatResponse
@@ -240,20 +227,12 @@ func (h *ChatHandler) handleDialogueResponse(
 	geminiResponse *models.GeminiResponse,
 ) models.ChatResponse {
 
-	if h.isMeaningfulParam(req.Message) {
-		h.container.SessionService.AddCollectedParam(req.SessionID, req.Message)
-	}
-
 	if session.MessageCount >= 8 {
 		fmt.Printf("⚠️  Too many questions (%d), forcing search\n", session.MessageCount)
 
-		params := strings.Join(session.SearchState.CollectedParams, " ")
-		searchPhrase := fmt.Sprintf("%s %s", session.SearchState.Category, params)
-		searchPhrase = strings.TrimSpace(searchPhrase)
-
 		geminiResponse.ResponseType = "search"
-		geminiResponse.SearchPhrase = searchPhrase
-		geminiResponse.SearchType = "parameters"
+		geminiResponse.SearchPhrase = geminiResponse.Output
+		geminiResponse.SearchType = "category"
 
 		searchResponse, err := h.handleSearchResponse(req, session, geminiResponse)
 		if err != nil {
@@ -350,21 +329,4 @@ func (h *ChatHandler) handleSearchResponse(
 		MessageCount: session.MessageCount + 1,
 		SearchState:  h.container.SessionService.GetSearchStateInfo(req.SessionID),
 	}, nil
-}
-
-func (h *ChatHandler) isMeaningfulParam(message string) bool {
-	message = strings.TrimSpace(strings.ToLower(message))
-
-	skipWords := []string{
-		"hello", "hi", "hey", "yes", "no", "ok", "okay",
-		"thanks", "thank you", "bye", "goodbye",
-	}
-
-	for _, word := range skipWords {
-		if message == word {
-			return false
-		}
-	}
-
-	return len(message) > 2
 }

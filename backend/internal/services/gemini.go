@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"google.golang.org/genai"
 
@@ -16,13 +15,12 @@ import (
 )
 
 type GeminiService struct {
-	keyRotator        *utils.KeyRotator
-	config            *config.Config
-	groundingStrategy *GroundingStrategy
-	groundingStats    *GroundingStats
-	tokenStats        *TokenStats
-	promptManager     *PromptManager
-	ctx               context.Context
+	keyRotator     *utils.KeyRotator
+	config         *config.Config
+	promptManager  *PromptManager
+	groundingStats *GroundingStats
+	tokenStats     *TokenStats
+	ctx            context.Context
 }
 
 type TokenStats struct {
@@ -36,23 +34,23 @@ type TokenStats struct {
 	AverageOutputTokens   float64
 }
 
+type GroundingStats struct {
+	TotalDecisions    int
+	GroundingEnabled  int
+	GroundingDisabled int
+	ReasonCounts      map[string]int
+	AverageConfidence float32
+}
+
 func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config) *GeminiService {
-	groundingMode := cfg.GeminiGroundingMode
-	if groundingMode == "" {
-		groundingMode = "balanced"
+	return &GeminiService{
+		keyRotator:     keyRotator,
+		config:         cfg,
+		promptManager:  NewPromptManager(),
+		groundingStats: &GroundingStats{ReasonCounts: make(map[string]int)},
+		tokenStats:     &TokenStats{},
+		ctx:            context.Background(),
 	}
-
-	service := &GeminiService{
-		keyRotator:        keyRotator,
-		config:            cfg,
-		groundingStrategy: NewGroundingStrategy(groundingMode),
-		groundingStats:    &GroundingStats{ReasonCounts: make(map[string]int)},
-		tokenStats:        &TokenStats{},
-		promptManager:     NewPromptManager(),
-		ctx:               context.Background(),
-	}
-
-	return service
 }
 
 func (g *GeminiService) ProcessMessageWithContext(
@@ -76,52 +74,26 @@ func (g *GeminiService) ProcessMessageWithContext(
 		return nil, keyIndex, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	fmt.Printf("🚀 Processing with category: %s\n", currentCategory)
-
-	decision := g.groundingStrategy.Decide(userMessage, conversationHistory)
-	g.groundingStats.RecordDecision(decision)
-
-	useGrounding := decision.ShouldUseGrounding && g.config.GeminiUseGrounding
-
-	if useGrounding {
-		fmt.Printf("   🔍 GROUNDING (reason: %s)\n", decision.Reason)
-		return g.processWithGrounding(client, userMessage, conversationHistory, country, language, currentCategory, keyIndex)
-	} else {
-		fmt.Printf("   💬 DIRECT (reason: %s)\n", decision.Reason)
-		return g.processWithDirectJSON(client, userMessage, conversationHistory, country, language, currentCategory, keyIndex)
-	}
-}
-
-func (g *GeminiService) processWithDirectJSON(
-	client *genai.Client,
-	userMessage string,
-	history []map[string]string,
-	country string,
-	language string,
-	currentCategory string,
-	keyIndex int,
-) (*models.GeminiResponse, int, error) {
-
 	currency := getCurrencyForCountry(country)
 
-	var promptKey string
-	if currentCategory == "" {
-		promptKey = "master"
-	} else if currentCategory == "electronics" {
-		promptKey = "specialized_electronics"
-	} else if currentCategory == "generic_model" {
-		promptKey = "specialized_generic"
-	} else {
-		promptKey = "specialized_parametric"
+	systemPrompt := g.promptManager.GetPrompt("master", country, language, currency, currentCategory)
+	fullPrompt := g.buildFullPrompt(systemPrompt, conversationHistory, userMessage)
+
+	useGrounding := g.shouldUseGrounding(userMessage, conversationHistory)
+
+	if useGrounding {
+		fmt.Printf("   🔍 GROUNDING\n")
+		g.groundingStats.GroundingEnabled++
+		return g.processWithGrounding(client, fullPrompt, keyIndex, currentCategory)
 	}
 
-	basePrompt := g.promptManager.GetPrompt(promptKey, country, language, currency, currentCategory)
+	fmt.Printf("   💬 DIRECT\n")
+	g.groundingStats.GroundingDisabled++
+	return g.processDirect(client, fullPrompt, keyIndex, currentCategory)
+}
 
-	if basePrompt == "" {
-		return nil, keyIndex, fmt.Errorf("prompt not found: %s", promptKey)
-	}
-
-	prompt := basePrompt
+func (g *GeminiService) buildFullPrompt(systemPrompt string, history []map[string]string, userMessage string) string {
+	prompt := systemPrompt
 
 	if len(history) > 0 {
 		maxHistory := 4
@@ -130,7 +102,7 @@ func (g *GeminiService) processWithDirectJSON(
 			startIdx = len(history) - maxHistory
 		}
 
-		prompt += "\n# CONVERSATION HISTORY\n"
+		prompt += "\n\n# CONVERSATION HISTORY\n"
 		for i := startIdx; i < len(history); i++ {
 			msg := history[i]
 			if msg["role"] == "user" {
@@ -141,8 +113,52 @@ func (g *GeminiService) processWithDirectJSON(
 		}
 	}
 
-	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nRespond with JSON ONLY:\n", userMessage)
+	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nRespond with JSON only:\n", userMessage)
+	return prompt
+}
 
+func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[string]string) bool {
+	if !g.config.GeminiUseGrounding {
+		return false
+	}
+
+	messageLower := strings.ToLower(userMessage)
+	wordCount := len(strings.Fields(userMessage))
+
+	if wordCount < g.config.GeminiGroundingMinWords {
+		return false
+	}
+
+	greetings := []string{"hello", "hi", "hey", "thanks", "bye", "yes", "no", "ok"}
+	for _, greeting := range greetings {
+		if messageLower == greeting {
+			return false
+		}
+	}
+
+	if len(history) >= 2 {
+		for i := len(history) - 1; i >= 0; i-- {
+			if history[i]["role"] == "assistant" {
+				lastQ := strings.ToLower(history[i]["content"])
+				if strings.Contains(lastQ, "which brand") || strings.Contains(lastQ, "what brand") {
+					return true
+				}
+				break
+			}
+		}
+	}
+
+	recencyKeywords := []string{"latest", "newest", "new", "2024", "2025", "2026"}
+	for _, kw := range recencyKeywords {
+		if strings.Contains(messageLower, kw) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (g *GeminiService) processDirect(client *genai.Client, prompt string, keyIndex int, currentCategory string) (*models.GeminiResponse, int, error) {
 	generateConfig := &genai.GenerateContentConfig{
 		Temperature:     &g.config.GeminiTemperature,
 		MaxOutputTokens: int32(g.config.GeminiMaxOutputTokens),
@@ -163,95 +179,14 @@ func (g *GeminiService) processWithDirectJSON(
 	}
 
 	responseText := g.extractResponseText(result)
-
 	if strings.TrimSpace(responseText) == "" {
-		return nil, keyIndex, fmt.Errorf("empty response from Gemini")
+		return nil, keyIndex, fmt.Errorf("empty response")
 	}
 
 	return g.parseGeminiResponse(responseText, currentCategory)
 }
 
-func (g *GeminiService) processWithGrounding(
-	client *genai.Client,
-	userMessage string,
-	history []map[string]string,
-	country string,
-	language string,
-	currentCategory string,
-	keyIndex int,
-) (*models.GeminiResponse, int, error) {
-
-	currency := getCurrencyForCountry(country)
-	languageName := getLanguageName(language)
-
-	categoryInfo := ""
-	if currentCategory != "" {
-		categoryInfo = fmt.Sprintf("\nCATEGORY: %s (already determined)", currentCategory)
-	}
-
-	isBrandSelection := g.detectBrandSelection(userMessage, history)
-
-	var prompt string
-
-	if isBrandSelection {
-		currentYear := time.Now().Year()
-		prompt = fmt.Sprintf(`Shopping assistant for %s with Google Search.
-Language: %s, Currency: %s%s
-
-# TASK
-User selected brand (%s). Use Google Search to find LATEST models.
-
-Search for models from %d and %d!
-
-Response JSON:
-{
-  "response_type": "dialogue",
-  "output": "Which model? (max 150 chars)",
-  "quick_replies": ["Latest Model 1 ($X)", "Latest Model 2 ($Y)", "Model 3 ($Z)", "Older Model"]
-}
-
-CRITICAL: quick_replies must have newest models first with prices!
-`, country, languageName, currency, categoryInfo, userMessage, currentYear, currentYear+1)
-	} else {
-		prompt = fmt.Sprintf(`Shopping assistant for %s with Google Search.
-Language: %s, Currency: %s%s
-
-# TASK
-User asked about specific product. Use Google Search to:
-1. Verify product exists
-2. Check availability
-3. Confirm exact model name
-
-Response JSON:
-
-## If product EXISTS:
-{"response_type":"search","search_phrase":"exact product","search_type":"exact"}
-
-## If NOT available:
-{"response_type":"dialogue","output":"Not available. Alternatives:","quick_replies":["Alt1","Alt2","Alt3"]}
-`, country, languageName, currency, categoryInfo)
-	}
-
-	if len(history) > 0 {
-		maxHistory := 3
-		startIdx := 0
-		if len(history) > maxHistory {
-			startIdx = len(history) - maxHistory
-		}
-
-		prompt += "\n# RECENT CONVERSATION\n"
-		for i := startIdx; i < len(history); i++ {
-			msg := history[i]
-			if msg["role"] == "user" {
-				prompt += fmt.Sprintf("User: %s\n", msg["content"])
-			} else if msg["role"] == "assistant" {
-				prompt += fmt.Sprintf("You: %s\n", msg["content"])
-			}
-		}
-	}
-
-	prompt += fmt.Sprintf("\n# USER MESSAGE\nUser: %s\n\nUse Google Search, respond JSON:\n", userMessage)
-
+func (g *GeminiService) processWithGrounding(client *genai.Client, prompt string, keyIndex int, currentCategory string) (*models.GeminiResponse, int, error) {
 	tools := []*genai.Tool{
 		{GoogleSearch: &genai.GoogleSearch{}},
 	}
@@ -281,49 +216,11 @@ Response JSON:
 	}
 
 	responseText := g.extractResponseText(result)
-
 	if strings.TrimSpace(responseText) == "" {
 		return nil, keyIndex, fmt.Errorf("empty response")
 	}
 
 	return g.parseGeminiResponse(responseText, currentCategory)
-}
-
-func (g *GeminiService) detectBrandSelection(userMessage string, history []map[string]string) bool {
-	messageLower := strings.ToLower(userMessage)
-
-	brands := []string{
-		"apple", "iphone", "samsung", "google", "pixel",
-		"xiaomi", "oneplus", "sony", "lg", "dell", "hp",
-		"lenovo", "asus", "acer", "msi", "huawei",
-	}
-
-	isBrand := false
-	for _, brand := range brands {
-		if strings.Contains(messageLower, brand) {
-			isBrand = true
-			break
-		}
-	}
-
-	if !isBrand {
-		return false
-	}
-
-	if len(history) > 0 {
-		for i := len(history) - 1; i >= 0; i-- {
-			if history[i]["role"] == "assistant" {
-				lastQuestion := strings.ToLower(history[i]["content"])
-				if strings.Contains(lastQuestion, "which brand") ||
-					strings.Contains(lastQuestion, "what brand") {
-					return true
-				}
-				break
-			}
-		}
-	}
-
-	return false
 }
 
 func (g *GeminiService) parseGeminiResponse(responseText string, currentCategory string) (*models.GeminiResponse, int, error) {
@@ -347,13 +244,9 @@ func (g *GeminiService) parseGeminiResponse(responseText string, currentCategory
 		}
 	}
 
-	if cleaned == "" {
-		return nil, -1, fmt.Errorf("empty response")
-	}
-
 	var geminiResp models.GeminiResponse
 	if err := json.Unmarshal([]byte(cleaned), &geminiResp); err != nil {
-		return nil, -1, fmt.Errorf("JSON parse error: %w\nResponse: %s", err, cleaned)
+		return nil, -1, fmt.Errorf("JSON parse error: %w", err)
 	}
 
 	if geminiResp.ResponseType != "dialogue" && geminiResp.ResponseType != "search" {

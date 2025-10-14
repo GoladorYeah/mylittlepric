@@ -22,10 +22,7 @@ func NewPromptManager() *PromptManager {
 
 func (pm *PromptManager) loadPrompts() {
 	promptFiles := map[string]string{
-		"master":                  "internal/services/prompts/master_prompt.txt",
-		"specialized_electronics": "internal/services/prompts/specialized_electronics.txt",
-		"specialized_parametric":  "internal/services/prompts/specialized_parametric.txt",
-		"specialized_generic":     "internal/services/prompts/specialized_generic_model.txt",
+		"master": "internal/services/prompts/master_prompt.txt",
 	}
 
 	pm.mu.Lock()
