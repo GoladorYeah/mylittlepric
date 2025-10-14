@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: oklch(100% 0 0);
+  --color-foreground: oklch(9% 0 0);
+  --color-border: oklch(90% 0 0);
+  --color-input: oklch(90% 0 0);
+  --color-primary: oklch(9% 0 0);
+  --color-primary-foreground: oklch(98% 0 0);
+  --color-secondary: oklch(96% 0 0);
+  --color-secondary-foreground: oklch(9% 0 0);
+  --color-muted: oklch(96% 0 0);
+  --color-muted-foreground: oklch(45% 0 0);
+  --color-accent: oklch(96% 0 0);
+  --color-accent-foreground: oklch(9% 0 0);
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root.dark {
+  --color-background: oklch(10% 0 0);
+  --color-foreground: oklch(98% 0 0);
+  --color-border: oklch(20% 0 0);
+  --color-input: oklch(20% 0 0);
+  --color-primary: oklch(98% 0 0);
+  --color-primary-foreground: oklch(9% 0 0);
+  --color-secondary: oklch(15% 0 0);
+  --color-secondary-foreground: oklch(98% 0 0);
+  --color-muted: oklch(15% 0 0);
+  --color-muted-foreground: oklch(64% 0 0);
+  --color-accent: oklch(15% 0 0);
+  --color-accent-foreground: oklch(98% 0 0);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
