@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -19,34 +20,29 @@ import (
 )
 
 func main() {
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize dependency container
 	c, err := container.NewContainer(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize container: %v", err)
 	}
 	defer c.Close()
 
-	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
 		AppName:      "MyLittlePrice API",
 		ServerHeader: "Fiber",
 		ErrorHandler: customErrorHandler,
 	})
 
-	// Middleware
 	app.Use(recover.New())
 	app.Use(logger.New(logger.Config{
 		Format:     "${time} | ${status} | ${latency} | ${method} ${path}\n",
 		TimeFormat: "15:04:05",
 	}))
 
-	// CORS
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     joinStrings(cfg.CORSOrigins, ","),
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
@@ -54,7 +50,6 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Health check
 	app.Get("/health", func(ctx *fiber.Ctx) error {
 		return ctx.JSON(fiber.Map{
 			"status":    "ok",
@@ -63,16 +58,13 @@ func main() {
 		})
 	})
 
-	// Setup routes
 	setupRoutes(app, c)
 
-	// Start server
 	port := cfg.Port
 	log.Printf("🚀 Server starting on port %s", port)
 	log.Printf("🔒 Environment: %s", cfg.Env)
 	log.Printf("🌍 Allowed origins: %v", cfg.CORSOrigins)
 
-	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -87,31 +79,38 @@ func main() {
 		log.Println("✅ Server stopped gracefully")
 	}()
 
-	// Start server
 	if err := app.Listen(fmt.Sprintf(":%s", port)); err != nil {
 		log.Fatalf("❌ Failed to start server: %v", err)
 	}
 }
 
-// setupRoutes configures all application routes
 func setupRoutes(app *fiber.App, c *container.Container) {
 	api := app.Group("/api")
 
-	// Chat routes
+	wsHandler := handlers.NewWSHandler(c)
+
+	app.Use("/ws", func(ctx *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(ctx) {
+			ctx.Locals("allowed", true)
+			return ctx.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+
+	app.Get("/ws", websocket.New(func(conn *websocket.Conn) {
+		wsHandler.HandleWebSocket(conn)
+	}))
+
 	chatHandler := handlers.NewChatHandler(c)
 	api.Post("/chat", chatHandler.HandleChat)
 
-	// Product details
 	productHandler := handlers.NewProductHandler(c)
 	api.Post("/product-details", productHandler.HandleProductDetails)
 
-	// Statistics endpoints
 	setupStatsRoutes(api, c)
 }
 
-// setupStatsRoutes configures statistics endpoints
 func setupStatsRoutes(api fiber.Router, c *container.Container) {
-	// Key rotation stats
 	api.Get("/stats/keys", func(ctx *fiber.Ctx) error {
 		geminiStats, _ := c.GeminiRotator.GetAllStats()
 		serpStats, _ := c.SerpRotator.GetAllStats()
@@ -122,7 +121,6 @@ func setupStatsRoutes(api fiber.Router, c *container.Container) {
 		})
 	})
 
-	// Grounding statistics
 	api.Get("/stats/grounding", func(ctx *fiber.Ctx) error {
 		stats := c.GeminiService.GetGroundingStats()
 
@@ -146,7 +144,6 @@ func setupStatsRoutes(api fiber.Router, c *container.Container) {
 		})
 	})
 
-	// Token usage statistics
 	api.Get("/stats/tokens", func(ctx *fiber.Ctx) error {
 		tokenStats := c.GeminiService.GetTokenStats()
 
@@ -156,7 +153,6 @@ func setupStatsRoutes(api fiber.Router, c *container.Container) {
 		})
 	})
 
-	// Combined statistics
 	api.Get("/stats/all", func(ctx *fiber.Ctx) error {
 		geminiStats, _ := c.GeminiRotator.GetAllStats()
 		serpStats, _ := c.SerpRotator.GetAllStats()
@@ -188,7 +184,6 @@ func setupStatsRoutes(api fiber.Router, c *container.Container) {
 	})
 }
 
-// customErrorHandler handles all errors
 func customErrorHandler(ctx *fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 	message := "Internal Server Error"
@@ -205,7 +200,6 @@ func customErrorHandler(ctx *fiber.Ctx, err error) error {
 	})
 }
 
-// joinStrings joins string slice with separator
 func joinStrings(slice []string, sep string) string {
 	result := ""
 	for i, s := range slice {
