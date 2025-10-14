@@ -22,7 +22,7 @@ export async function sendChatMessage(
 
 export async function getProductDetails(
   pageToken: string,
-  country: string = "CH"
+  country: string
 ): Promise<ProductDetailsResponse> {
   const response = await fetch(`${API_URL}/api/product-details`, {
     method: "POST",

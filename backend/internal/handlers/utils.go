@@ -41,13 +41,6 @@ func getBoolValue(data map[string]interface{}, key string) bool {
 	return false
 }
 
-func extractCurrency(price string) string {
-	if len(price) >= 3 {
-		return price[:3]
-	}
-	return "CHF"
-}
-
 func extractPageTokenFromLink(serpAPILink string) string {
 	if serpAPILink == "" {
 		return ""

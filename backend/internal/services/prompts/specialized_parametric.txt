@@ -1,4 +1,4 @@
-Parametric Assistant for {country}. Language: {language}, Currency: {currency}.
+Parametric Assistant for {country}. Language: {language}.
 CATEGORY: {category}
 
 # CATEGORIES

@@ -32,14 +32,12 @@ func NewSessionService(redisClient *redis.Client, sessionTTL int, maxMessages in
 }
 
 func (s *SessionService) CreateSession(sessionID, country, language string) (*models.ChatSession, error) {
-	currency := getCurrencyForCountry(country)
-
 	session := &models.ChatSession{
 		ID:           uuid.New(),
 		SessionID:    sessionID,
 		CountryCode:  country,
 		LanguageCode: language,
-		Currency:     currency,
+		Currency:     "",
 		MessageCount: 0,
 		SearchState: models.SearchState{
 			Status:          models.SearchStatusIdle,
@@ -89,12 +87,18 @@ func (s *SessionService) UpdateSession(session *models.ChatSession) error {
 
 func (s *SessionService) saveSession(session *models.ChatSession) error {
 	key := fmt.Sprintf(constants.CachePrefixSession+"%s", session.SessionID)
+
 	data, err := json.Marshal(session)
 	if err != nil {
 		return fmt.Errorf("failed to marshal session: %w", err)
 	}
 
-	return s.redis.Set(s.ctx, key, data, s.ttl).Err()
+	err = s.redis.Set(s.ctx, key, data, s.ttl).Err()
+	if err != nil {
+		return fmt.Errorf("failed to save session: %w", err)
+	}
+
+	return nil
 }
 
 func (s *SessionService) StartNewSearch(sessionID string) error {
@@ -104,98 +108,26 @@ func (s *SessionService) StartNewSearch(sessionID string) error {
 	}
 
 	session.SearchState = models.SearchState{
-		Status:          models.SearchStatusInProgress,
+		Status:          models.SearchStatusIdle,
 		Category:        "",
 		ProductType:     "",
 		Brand:           "",
 		CollectedParams: []string{},
-		SearchCount:     session.SearchState.SearchCount + 1,
-		LastSearchTime:  time.Time{},
+		SearchCount:     0,
 		LastProduct:     nil,
 	}
 
 	return s.UpdateSession(session)
 }
 
-func (s *SessionService) UpdateSearchState(sessionID string, update func(*models.SearchState)) error {
+func (s *SessionService) SetCategory(sessionID, category string) error {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
 		return err
 	}
 
-	update(&session.SearchState)
-
+	session.SearchState.Category = category
 	return s.UpdateSession(session)
-}
-
-func (s *SessionService) SetCategory(sessionID, category string) error {
-	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
-		if state.Category == "" {
-			state.Category = category
-		}
-	})
-}
-
-func (s *SessionService) SetProductType(sessionID, productType string) error {
-	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
-		if state.ProductType == "" {
-			state.ProductType = productType
-		}
-	})
-}
-
-func (s *SessionService) SetBrand(sessionID, brand string) error {
-	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
-		if state.Brand == "" {
-			state.Brand = brand
-		}
-	})
-}
-
-func (s *SessionService) AddCollectedParam(sessionID, param string) error {
-	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
-		for _, p := range state.CollectedParams {
-			if p == param {
-				return
-			}
-		}
-		state.CollectedParams = append(state.CollectedParams, param)
-	})
-}
-
-func (s *SessionService) SetLastProduct(sessionID, name string, price float64) error {
-	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
-		state.LastProduct = &models.ProductInfo{
-			Name:  name,
-			Price: price,
-		}
-	})
-}
-
-func (s *SessionService) MarkSearchCompleted(sessionID string) error {
-	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
-		state.Status = models.SearchStatusCompleted
-		state.LastSearchTime = time.Now()
-	})
-}
-
-func (s *SessionService) ResetSearchStatus(sessionID string) error {
-	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
-		state.Status = models.SearchStatusInProgress
-	})
-}
-
-func (s *SessionService) CanStartNewSearch(sessionID string) (bool, string) {
-	return true, ""
-}
-
-func (s *SessionService) IsSearchInProgress(sessionID string) bool {
-	session, err := s.GetSession(sessionID)
-	if err != nil {
-		return false
-	}
-
-	return session.SearchState.Status == models.SearchStatusInProgress
 }
 
 func (s *SessionService) IsSearchCompleted(sessionID string) bool {
@@ -203,31 +135,38 @@ func (s *SessionService) IsSearchCompleted(sessionID string) bool {
 	if err != nil {
 		return false
 	}
-
 	return session.SearchState.Status == models.SearchStatusCompleted
 }
 
-func (s *SessionService) GetSearchStateInfo(sessionID string) *models.SearchStateInfo {
+func (s *SessionService) ResetSearchStatus(sessionID string) error {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
-		return nil
+		return err
 	}
 
-	info := &models.SearchStateInfo{
-		Status:      session.SearchState.Status,
-		Category:    session.SearchState.Category,
-		SearchCount: session.SearchState.SearchCount,
-		MaxSearches: s.maxSearches,
-		CanContinue: true,
+	session.SearchState.Status = models.SearchStatusIdle
+	return s.UpdateSession(session)
+}
+
+func (s *SessionService) GetSessionInfo(sessionID string) map[string]interface{} {
+	session, err := s.GetSession(sessionID)
+	if err != nil {
+		return map[string]interface{}{
+			"error": err.Error(),
+		}
 	}
 
-	switch session.SearchState.Status {
-	case models.SearchStatusCompleted:
-		info.Message = "Search completed"
-	case models.SearchStatusInProgress:
-		info.Message = "Collecting product information..."
-	case models.SearchStatusIdle:
-		info.Message = "Ready to start searching!"
+	info := map[string]interface{}{
+		"session_id":    session.SessionID,
+		"country":       session.CountryCode,
+		"language":      session.LanguageCode,
+		"currency":      session.Currency,
+		"message_count": session.MessageCount,
+		"search_state":  session.SearchState,
+		"created_at":    session.CreatedAt,
+		"updated_at":    session.UpdatedAt,
+		"expires_at":    session.ExpiresAt,
+		"ttl_seconds":   int(time.Until(session.ExpiresAt).Seconds()),
 	}
 
 	return info
@@ -335,36 +274,6 @@ func (s *SessionService) DeleteSession(sessionID string) error {
 	return err
 }
 
-func getCurrencyForCountry(country string) string {
-	currencyMap := map[string]string{
-		"CH": "CHF", "DE": "EUR", "AT": "EUR", "FR": "EUR",
-		"IT": "EUR", "ES": "EUR", "PT": "EUR", "NL": "EUR",
-		"BE": "EUR", "PL": "PLN", "CZ": "CZK", "SE": "SEK",
-		"NO": "NOK", "DK": "DKK", "FI": "EUR", "GB": "GBP",
-		"US": "USD",
-	}
-	if currency, ok := currencyMap[country]; ok {
-		return currency
-	}
-	return "EUR"
-}
-
-func (s *SessionService) GetLanguageForCountry(country string) string {
-	languageMap := map[string]string{
-		"CH": "de", "DE": "de", "AT": "de",
-		"FR": "fr", "IT": "it", "ES": "es",
-		"PT": "pt", "NL": "nl", "BE": "nl",
-		"PL": "pl", "CZ": "cs", "SE": "sv",
-		"NO": "no", "DK": "da", "FI": "fi",
-		"GB": "en", "US": "en",
-	}
-
-	if language, ok := languageMap[country]; ok {
-		return language
-	}
-	return "en"
-}
-
 func (s *SessionService) SetMaxSearches(max int) {
 	s.maxSearches = max
 }
@@ -385,6 +294,7 @@ func (s *SessionService) GetSessionStats(sessionID string) (map[string]interface
 		"session_id":     session.SessionID,
 		"country":        session.CountryCode,
 		"language":       session.LanguageCode,
+		"currency":       session.Currency,
 		"message_count":  session.MessageCount,
 		"search_count":   session.SearchState.SearchCount,
 		"search_status":  session.SearchState.Status,

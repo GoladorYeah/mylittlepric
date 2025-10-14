@@ -9,12 +9,10 @@ import (
 	"mylittleprice/internal/models"
 )
 
-// ProductHandler handles product-related requests
 type ProductHandler struct {
 	container *container.Container
 }
 
-// NewProductHandler creates a new product handler with dependency injection
 func NewProductHandler(c *container.Container) *ProductHandler {
 	return &ProductHandler{
 		container: c,
@@ -30,7 +28,6 @@ func (h *ProductHandler) HandleProductDetails(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate request
 	if req.PageToken == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
 			Error:   "validation_error",
@@ -42,13 +39,11 @@ func (h *ProductHandler) HandleProductDetails(c *fiber.Ctx) error {
 		req.Country = "CH"
 	}
 
-	// Check cache first
 	cachedProduct, err := h.container.CacheService.GetProductByToken(req.PageToken)
 	if err == nil && cachedProduct != nil {
 		return h.formatProductResponse(c, cachedProduct)
 	}
 
-	// Fetch from SERP API
 	startTime := time.Now()
 	productDetails, keyIndex, err := h.container.SerpService.GetProductDetailsByToken(req.PageToken)
 	responseTime := time.Since(startTime)
@@ -62,7 +57,6 @@ func (h *ProductHandler) HandleProductDetails(c *fiber.Ctx) error {
 		})
 	}
 
-	// Cache the result
 	if err := h.container.CacheService.SetProductByToken(req.PageToken, productDetails, h.container.Config.CacheImmersiveTTL); err != nil {
 		c.Context().Logger().Printf("Warning: Failed to cache product details: %v", err)
 	}
@@ -87,12 +81,10 @@ func (h *ProductHandler) formatProductResponse(c *fiber.Ctx, productData map[str
 		Reviews: getIntValue(productResults, "reviews"),
 	}
 
-	// Extract description
 	if aboutProduct, ok := productResults["about_the_product"].(map[string]interface{}); ok {
 		response.Description = getStringValue(aboutProduct, "description")
 	}
 
-	// Extract thumbnails
 	if thumbnails, ok := productResults["thumbnails"].([]interface{}); ok {
 		for _, thumb := range thumbnails {
 			if thumbStr, ok := thumb.(string); ok {
@@ -101,105 +93,64 @@ func (h *ProductHandler) formatProductResponse(c *fiber.Ctx, productData map[str
 		}
 	}
 
-	// Extract specifications
 	if specs, ok := productResults["specifications"].([]interface{}); ok {
-		for _, specData := range specs {
-			if spec, ok := specData.(map[string]interface{}); ok {
-				response.Specifications = append(response.Specifications, models.ProductSpec{
-					Title: getStringValue(spec, "title"),
-					Value: getStringValue(spec, "value"),
+		for _, spec := range specs {
+			if specMap, ok := spec.(map[string]interface{}); ok {
+				response.Specifications = append(response.Specifications, models.Specification{
+					Title: getStringValue(specMap, "title"),
+					Value: getStringValue(specMap, "value"),
 				})
 			}
 		}
 	}
 
-	// Extract variants
 	if variants, ok := productResults["variants"].([]interface{}); ok {
-		for _, variantData := range variants {
-			if variant, ok := variantData.(map[string]interface{}); ok {
-				productVariant := models.ProductVariant{
-					Title: getStringValue(variant, "title"),
-					Items: []models.VariantItem{},
+		for _, variant := range variants {
+			if variantMap, ok := variant.(map[string]interface{}); ok {
+				items := []interface{}{}
+				if variantItems, ok := variantMap["items"].([]interface{}); ok {
+					items = variantItems
 				}
 
-				if items, ok := variant["items"].([]interface{}); ok {
-					for _, itemData := range items {
-						if item, ok := itemData.(map[string]interface{}); ok {
-							pageToken := extractPageTokenFromLink(getStringValue(item, "serpapi_link"))
-
-							productVariant.Items = append(productVariant.Items, models.VariantItem{
-								Name:      getStringValue(item, "name"),
-								Selected:  getBoolValue(item, "selected"),
-								Available: getBoolValue(item, "available"),
-								PageToken: pageToken,
-							})
-						}
-					}
-				}
-
-				response.Variants = append(response.Variants, productVariant)
-			}
-		}
-	}
-
-	// Extract offers
-	if offers, ok := productResults["offers"].([]interface{}); ok {
-		for _, offerData := range offers {
-			if offer, ok := offerData.(map[string]interface{}); ok {
-				response.Offers = append(response.Offers, models.ProductOffer{
-					Merchant:     getStringValue(offer, "name"),
-					Price:        getStringValue(offer, "price"),
-					Currency:     extractCurrency(getStringValue(offer, "price")),
-					Link:         getStringValue(offer, "link"),
-					Availability: getStringValue(offer, "details_and_offers"),
-					Shipping:     getStringValue(offer, "shipping"),
-					Rating:       float32(getFloatValue(offer, "rating")),
+				response.Variants = append(response.Variants, models.Variant{
+					Title: getStringValue(variantMap, "title"),
+					Items: items,
 				})
 			}
 		}
 	}
 
-	// Extract videos
+	if sellers, ok := productResults["sellers"].([]interface{}); ok {
+		for _, seller := range sellers {
+			if sellerMap, ok := seller.(map[string]interface{}); ok {
+				offer := models.Offer{
+					Merchant:     getStringValue(sellerMap, "name"),
+					Price:        getStringValue(sellerMap, "price"),
+					Currency:     getStringValue(sellerMap, "currency"),
+					Link:         getStringValue(sellerMap, "link"),
+					Availability: getStringValue(sellerMap, "availability"),
+					Shipping:     getStringValue(sellerMap, "shipping"),
+					Rating:       float32(getFloatValue(sellerMap, "rating")),
+				}
+				response.Offers = append(response.Offers, offer)
+			}
+		}
+	}
+
 	if videos, ok := productResults["videos"].([]interface{}); ok {
-		for _, videoData := range videos {
-			if video, ok := videoData.(map[string]interface{}); ok {
-				response.Videos = append(response.Videos, models.ProductVideo{
-					Title:     getStringValue(video, "title"),
-					Link:      getStringValue(video, "link"),
-					Source:    getStringValue(video, "source"),
-					Channel:   getStringValue(video, "channel"),
-					Duration:  getStringValue(video, "duration"),
-					Thumbnail: getStringValue(video, "thumbnail"),
-				})
-			}
-		}
+		response.Videos = videos
 	}
 
-	// Extract more options
 	if moreOptions, ok := productResults["more_options"].([]interface{}); ok {
-		for _, optionData := range moreOptions {
-			if option, ok := optionData.(map[string]interface{}); ok {
-				pageToken := extractPageTokenFromLink(getStringValue(option, "serpapi_link"))
-
-				response.MoreOptions = append(response.MoreOptions, models.AlternativeProduct{
-					Title:     getStringValue(option, "title"),
-					Thumbnail: getStringValue(option, "thumbnail"),
-					Price:     getStringValue(option, "price"),
-					Rating:    float32(getFloatValue(option, "rating")),
-					Reviews:   getIntValue(option, "reviews"),
-					PageToken: pageToken,
-				})
-			}
-		}
+		response.MoreOptions = moreOptions
 	}
 
-	// Extract rating breakdown
-	if ratings, ok := productResults["ratings"].([]interface{}); ok {
-		for _, ratingData := range ratings {
-			if rating, ok := ratingData.(map[string]interface{}); ok {
-				response.RatingBreakdown = append(response.RatingBreakdown, models.RatingBreakdown{
-					Stars:  getIntValue(rating, "stars"),
-					Amount: getIntValue(rating, "amount"),
+	if ratingBreakdown, ok := productResults["rating_breakdown"].([]interface{}); ok {
+		for _, item := range ratingBreakdown {
+			if itemMap, ok := item.(map[string]interface{}); ok {
+				response.RatingBreakdown = append(response.RatingBreakdown, models.RatingBreakdownItem{
+					Stars:  getIntValue(itemMap, "stars"),
+					Amount: getIntValue(itemMap, "amount"),
 				})
 			}
 		}

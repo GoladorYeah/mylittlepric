@@ -24,6 +24,7 @@ export interface ChatRequest {
   message: string;
   country: string;
   language: string;
+  currency: string;
   new_search: boolean;
 }
 

@@ -43,7 +43,7 @@ func (pm *PromptManager) loadPrompts() {
 	fmt.Printf("✅ Loaded %d prompts\n", len(pm.prompts))
 }
 
-func (pm *PromptManager) GetPrompt(key, country, language, currency, category string) string {
+func (pm *PromptManager) GetPrompt(key, country, language, category string) string {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
@@ -52,11 +52,8 @@ func (pm *PromptManager) GetPrompt(key, country, language, currency, category st
 		return ""
 	}
 
-	languageName := getLanguageName(language)
-
 	prompt = strings.ReplaceAll(prompt, "{country}", country)
-	prompt = strings.ReplaceAll(prompt, "{language}", languageName)
-	prompt = strings.ReplaceAll(prompt, "{currency}", currency)
+	prompt = strings.ReplaceAll(prompt, "{language}", language)
 	prompt = strings.ReplaceAll(prompt, "{category}", category)
 
 	return prompt
