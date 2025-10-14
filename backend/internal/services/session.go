@@ -13,7 +13,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// SessionService handles chat session management with optimized Redis operations
 type SessionService struct {
 	redis       *redis.Client
 	ctx         context.Context
@@ -22,18 +21,16 @@ type SessionService struct {
 	maxSearches int
 }
 
-// NewSessionService creates a new session service
 func NewSessionService(redisClient *redis.Client, sessionTTL int, maxMessages int) *SessionService {
 	return &SessionService{
 		redis:       redisClient,
 		ctx:         context.Background(),
 		ttl:         time.Duration(sessionTTL) * time.Second,
 		maxMsgs:     maxMessages,
-		maxSearches: 3, // Will be configurable
+		maxSearches: 999999,
 	}
 }
 
-// CreateSession creates a new chat session
 func (s *SessionService) CreateSession(sessionID, country, language string) (*models.ChatSession, error) {
 	currency := getCurrencyForCountry(country)
 
@@ -51,6 +48,7 @@ func (s *SessionService) CreateSession(sessionID, country, language string) (*mo
 			Brand:           "",
 			CollectedParams: []string{},
 			SearchCount:     0,
+			LastProduct:     nil,
 		},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -64,7 +62,6 @@ func (s *SessionService) CreateSession(sessionID, country, language string) (*mo
 	return session, nil
 }
 
-// GetSession retrieves a session from Redis
 func (s *SessionService) GetSession(sessionID string) (*models.ChatSession, error) {
 	key := fmt.Sprintf(constants.CachePrefixSession+"%s", sessionID)
 
@@ -85,13 +82,11 @@ func (s *SessionService) GetSession(sessionID string) (*models.ChatSession, erro
 	return &session, nil
 }
 
-// UpdateSession updates session data in Redis (optimized with pipeline)
 func (s *SessionService) UpdateSession(session *models.ChatSession) error {
 	session.UpdatedAt = time.Now()
 	return s.saveSession(session)
 }
 
-// saveSession saves session to Redis
 func (s *SessionService) saveSession(session *models.ChatSession) error {
 	key := fmt.Sprintf(constants.CachePrefixSession+"%s", session.SessionID)
 	data, err := json.Marshal(session)
@@ -102,22 +97,12 @@ func (s *SessionService) saveSession(session *models.ChatSession) error {
 	return s.redis.Set(s.ctx, key, data, s.ttl).Err()
 }
 
-// ═══════════════════════════════════════════════════════════
-// SEARCH STATE MANAGEMENT (OPTIMIZED)
-// ═══════════════════════════════════════════════════════════
-
-// StartNewSearch resets search state for new product search
 func (s *SessionService) StartNewSearch(sessionID string) error {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
 		return err
 	}
 
-	if session.SearchState.SearchCount >= s.maxSearches {
-		return fmt.Errorf("maximum searches per session reached")
-	}
-
-	// Reset search state
 	session.SearchState = models.SearchState{
 		Status:          models.SearchStatusInProgress,
 		Category:        "",
@@ -126,12 +111,12 @@ func (s *SessionService) StartNewSearch(sessionID string) error {
 		CollectedParams: []string{},
 		SearchCount:     session.SearchState.SearchCount + 1,
 		LastSearchTime:  time.Time{},
+		LastProduct:     nil,
 	}
 
 	return s.UpdateSession(session)
 }
 
-// UpdateSearchState updates the current search state
 func (s *SessionService) UpdateSearchState(sessionID string, update func(*models.SearchState)) error {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
@@ -143,7 +128,6 @@ func (s *SessionService) UpdateSearchState(sessionID string, update func(*models
 	return s.UpdateSession(session)
 }
 
-// SetCategory sets category for current search
 func (s *SessionService) SetCategory(sessionID, category string) error {
 	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
 		if state.Category == "" {
@@ -152,7 +136,6 @@ func (s *SessionService) SetCategory(sessionID, category string) error {
 	})
 }
 
-// SetProductType sets product type for current search
 func (s *SessionService) SetProductType(sessionID, productType string) error {
 	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
 		if state.ProductType == "" {
@@ -161,7 +144,6 @@ func (s *SessionService) SetProductType(sessionID, productType string) error {
 	})
 }
 
-// SetBrand sets brand for current search
 func (s *SessionService) SetBrand(sessionID, brand string) error {
 	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
 		if state.Brand == "" {
@@ -170,10 +152,8 @@ func (s *SessionService) SetBrand(sessionID, brand string) error {
 	})
 }
 
-// AddCollectedParam adds a parameter to collected params
 func (s *SessionService) AddCollectedParam(sessionID, param string) error {
 	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
-		// Avoid duplicates
 		for _, p := range state.CollectedParams {
 			if p == param {
 				return
@@ -183,7 +163,15 @@ func (s *SessionService) AddCollectedParam(sessionID, param string) error {
 	})
 }
 
-// MarkSearchCompleted marks search as completed
+func (s *SessionService) SetLastProduct(sessionID, name string, price float64) error {
+	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
+		state.LastProduct = &models.ProductInfo{
+			Name:  name,
+			Price: price,
+		}
+	})
+}
+
 func (s *SessionService) MarkSearchCompleted(sessionID string) error {
 	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
 		state.Status = models.SearchStatusCompleted
@@ -191,21 +179,16 @@ func (s *SessionService) MarkSearchCompleted(sessionID string) error {
 	})
 }
 
-// CanStartNewSearch checks if user can start a new search
+func (s *SessionService) ResetSearchStatus(sessionID string) error {
+	return s.UpdateSearchState(sessionID, func(state *models.SearchState) {
+		state.Status = models.SearchStatusInProgress
+	})
+}
+
 func (s *SessionService) CanStartNewSearch(sessionID string) (bool, string) {
-	session, err := s.GetSession(sessionID)
-	if err != nil {
-		return false, "Session not found"
-	}
-
-	if session.SearchState.SearchCount >= s.maxSearches {
-		return false, fmt.Sprintf("Maximum %d searches per session reached. Please start a new session.", s.maxSearches)
-	}
-
 	return true, ""
 }
 
-// IsSearchInProgress checks if there's an active search
 func (s *SessionService) IsSearchInProgress(sessionID string) bool {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
@@ -215,7 +198,6 @@ func (s *SessionService) IsSearchInProgress(sessionID string) bool {
 	return session.SearchState.Status == models.SearchStatusInProgress
 }
 
-// IsSearchCompleted checks if search was completed
 func (s *SessionService) IsSearchCompleted(sessionID string) bool {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
@@ -225,7 +207,6 @@ func (s *SessionService) IsSearchCompleted(sessionID string) bool {
 	return session.SearchState.Status == models.SearchStatusCompleted
 }
 
-// GetSearchStateInfo returns search state info for frontend
 func (s *SessionService) GetSearchStateInfo(sessionID string) *models.SearchStateInfo {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
@@ -237,15 +218,12 @@ func (s *SessionService) GetSearchStateInfo(sessionID string) *models.SearchStat
 		Category:    session.SearchState.Category,
 		SearchCount: session.SearchState.SearchCount,
 		MaxSearches: s.maxSearches,
-		CanContinue: session.SearchState.SearchCount < s.maxSearches,
+		CanContinue: true,
 	}
 
-	// Set appropriate message
 	switch session.SearchState.Status {
 	case models.SearchStatusCompleted:
-		info.Message = "Search completed. Start a new search to find another product."
-	case models.SearchStatusBlocked:
-		info.Message = fmt.Sprintf("Maximum %d searches reached. Please create a new session.", s.maxSearches)
+		info.Message = "Search completed"
 	case models.SearchStatusInProgress:
 		info.Message = "Collecting product information..."
 	case models.SearchStatusIdle:
@@ -255,11 +233,6 @@ func (s *SessionService) GetSearchStateInfo(sessionID string) *models.SearchStat
 	return info
 }
 
-// ═══════════════════════════════════════════════════════════
-// MESSAGE MANAGEMENT (OPTIMIZED WITH PIPELINE)
-// ═══════════════════════════════════════════════════════════
-
-// IncrementMessageCount increments the message count
 func (s *SessionService) IncrementMessageCount(sessionID string) error {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
@@ -270,17 +243,10 @@ func (s *SessionService) IncrementMessageCount(sessionID string) error {
 	return s.UpdateSession(session)
 }
 
-// CanSendMessage checks if user can send more messages
 func (s *SessionService) CanSendMessage(sessionID string) (bool, error) {
-	session, err := s.GetSession(sessionID)
-	if err != nil {
-		return false, err
-	}
-
-	return session.MessageCount < s.maxMsgs, nil
+	return true, nil
 }
 
-// AddMessage adds a message to session history (optimized)
 func (s *SessionService) AddMessage(sessionID string, message *models.Message) error {
 	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
 
@@ -289,7 +255,6 @@ func (s *SessionService) AddMessage(sessionID string, message *models.Message) e
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	// Use pipeline for atomic operations
 	pipe := s.redis.Pipeline()
 	pipe.RPush(s.ctx, key, data)
 	pipe.Expire(s.ctx, key, s.ttl)
@@ -298,7 +263,6 @@ func (s *SessionService) AddMessage(sessionID string, message *models.Message) e
 	return err
 }
 
-// GetMessages retrieves all messages for a session
 func (s *SessionService) GetMessages(sessionID string) ([]*models.Message, error) {
 	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
 
@@ -320,7 +284,6 @@ func (s *SessionService) GetMessages(sessionID string) ([]*models.Message, error
 	return messages, nil
 }
 
-// GetConversationHistory returns formatted conversation for AI
 func (s *SessionService) GetConversationHistory(sessionID string) ([]map[string]string, error) {
 	messages, err := s.GetMessages(sessionID)
 	if err != nil {
@@ -338,7 +301,6 @@ func (s *SessionService) GetConversationHistory(sessionID string) ([]map[string]
 	return history, nil
 }
 
-// GetRecentMessages retrieves last N messages
 func (s *SessionService) GetRecentMessages(sessionID string, count int) ([]*models.Message, error) {
 	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
 
@@ -361,11 +323,6 @@ func (s *SessionService) GetRecentMessages(sessionID string, count int) ([]*mode
 	return messages, nil
 }
 
-// ═══════════════════════════════════════════════════════════
-// SESSION CLEANUP (OPTIMIZED WITH PIPELINE)
-// ═══════════════════════════════════════════════════════════
-
-// DeleteSession deletes a session and its messages atomically
 func (s *SessionService) DeleteSession(sessionID string) error {
 	sessionKey := fmt.Sprintf(constants.CachePrefixSession+"%s", sessionID)
 	messagesKey := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
@@ -378,11 +335,6 @@ func (s *SessionService) DeleteSession(sessionID string) error {
 	return err
 }
 
-// ═══════════════════════════════════════════════════════════
-// HELPER METHODS
-// ═══════════════════════════════════════════════════════════
-
-// getCurrencyForCountry maps country code to currency
 func getCurrencyForCountry(country string) string {
 	currencyMap := map[string]string{
 		"CH": "CHF", "DE": "EUR", "AT": "EUR", "FR": "EUR",
@@ -397,7 +349,6 @@ func getCurrencyForCountry(country string) string {
 	return "EUR"
 }
 
-// GetLanguageForCountry returns default language for country
 func (s *SessionService) GetLanguageForCountry(country string) string {
 	languageMap := map[string]string{
 		"CH": "de", "DE": "de", "AT": "de",
@@ -414,17 +365,14 @@ func (s *SessionService) GetLanguageForCountry(country string) string {
 	return "en"
 }
 
-// SetMaxSearches sets maximum searches per session
 func (s *SessionService) SetMaxSearches(max int) {
 	s.maxSearches = max
 }
 
-// GetMaxSearches returns current max searches setting
 func (s *SessionService) GetMaxSearches() int {
 	return s.maxSearches
 }
 
-// GetSessionStats returns statistics about a session
 func (s *SessionService) GetSessionStats(sessionID string) (map[string]interface{}, error) {
 	session, err := s.GetSession(sessionID)
 	if err != nil {

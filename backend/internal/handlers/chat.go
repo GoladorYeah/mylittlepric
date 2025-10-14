@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -73,14 +75,6 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 	if req.NewSearch {
 		fmt.Printf("🔄 New search for session %s\n", req.SessionID)
 
-		canStart, message := h.container.SessionService.CanStartNewSearch(req.SessionID)
-		if !canStart {
-			return c.Status(fiber.StatusTooManyRequests).JSON(models.ErrorResponse{
-				Error:   "max_searches_reached",
-				Message: message,
-			})
-		}
-
 		if err := h.container.SessionService.StartNewSearch(req.SessionID); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
 				Error:   "session_error",
@@ -89,39 +83,28 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		}
 
 		session, _ = h.container.SessionService.GetSession(req.SessionID)
-		fmt.Printf("✅ New search started (%d/%d)\n",
-			session.SearchState.SearchCount,
-			h.container.SessionService.GetMaxSearches())
+		fmt.Printf("✅ New search started (%d)\n", session.SearchState.SearchCount)
 	} else if session.SearchState.Status == models.SearchStatusIdle {
 		session.SearchState.Status = models.SearchStatusInProgress
 		h.container.SessionService.UpdateSession(session)
 	}
 
 	if h.container.SessionService.IsSearchCompleted(req.SessionID) {
-		fmt.Printf("⛔ Search completed, blocked\n")
+		messageLower := strings.ToLower(req.Message)
+		refinementWords := []string{"cheap", "expensive", "premium", "budget", "price", "cost", "less", "more"}
+		isRefinement := false
+		for _, word := range refinementWords {
+			if strings.Contains(messageLower, word) {
+				isRefinement = true
+				break
+			}
+		}
 
-		return c.JSON(models.ChatResponse{
-			Type:         "search_blocked",
-			Output:       "Search complete. Click 'New Search' to continue.",
-			SessionID:    req.SessionID,
-			MessageCount: session.MessageCount,
-			SearchState:  h.container.SessionService.GetSearchStateInfo(req.SessionID),
-		})
-	}
-
-	canSend, err := h.container.SessionService.CanSendMessage(req.SessionID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error:   "session_error",
-			Message: "Failed to check message limit",
-		})
-	}
-
-	if !canSend {
-		return c.Status(fiber.StatusTooManyRequests).JSON(models.ErrorResponse{
-			Error:   "message_limit_exceeded",
-			Message: fmt.Sprintf("Max %d messages per session.", h.container.Config.MaxMessagesPerSession),
-		})
+		if isRefinement {
+			h.container.SessionService.ResetSearchStatus(req.SessionID)
+			session.SearchState.Status = models.SearchStatusInProgress
+			h.container.SessionService.UpdateSession(session)
+		}
 	}
 
 	userMessage := &models.Message{
@@ -164,6 +147,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		session.CountryCode,
 		session.LanguageCode,
 		session.SearchState.Category,
+		session.SearchState.LastProduct,
 	)
 	responseTime := time.Since(startTime)
 
@@ -227,27 +211,6 @@ func (h *ChatHandler) handleDialogueResponse(
 	geminiResponse *models.GeminiResponse,
 ) models.ChatResponse {
 
-	if session.MessageCount >= 8 {
-		fmt.Printf("⚠️  Too many questions (%d), forcing search\n", session.MessageCount)
-
-		geminiResponse.ResponseType = "search"
-		geminiResponse.SearchPhrase = geminiResponse.Output
-		geminiResponse.SearchType = "category"
-
-		searchResponse, err := h.handleSearchResponse(req, session, geminiResponse)
-		if err != nil {
-			return models.ChatResponse{
-				Type:         "text",
-				Output:       geminiResponse.Output,
-				QuickReplies: geminiResponse.QuickReplies,
-				SessionID:    req.SessionID,
-				MessageCount: session.MessageCount + 1,
-				SearchState:  h.container.SessionService.GetSearchStateInfo(req.SessionID),
-			}
-		}
-		return searchResponse
-	}
-
 	return models.ChatResponse{
 		Type:         "text",
 		Output:       geminiResponse.Output,
@@ -280,7 +243,15 @@ func (h *ChatHandler) handleSearchResponse(
 	}
 
 	optimizedQuery := h.container.Optimizer.OptimizeQuery(geminiResponse.SearchPhrase, geminiResponse.SearchType)
+
+	if geminiResponse.PriceFilter != "" && session.SearchState.LastProduct != nil {
+		optimizedQuery = session.SearchState.LastProduct.Name
+	}
+
 	fmt.Printf("   🔍 Query: '%s' → '%s'\n", geminiResponse.SearchPhrase, optimizedQuery)
+	if geminiResponse.PriceFilter != "" {
+		fmt.Printf("   💰 Price filter: %s (ref: %.2f)\n", geminiResponse.PriceFilter, session.SearchState.LastProduct.Price)
+	}
 
 	startTime := time.Now()
 	products, keyIndex, err := h.container.SerpService.SearchWithCache(
@@ -312,12 +283,27 @@ func (h *ChatHandler) handleSearchResponse(
 		}, nil
 	}
 
+	if geminiResponse.PriceFilter != "" && session.SearchState.LastProduct != nil {
+		products = h.filterByPrice(products, session.SearchState.LastProduct.Price, geminiResponse.PriceFilter, session.Currency)
+	}
+
+	if len(products) > 0 {
+		firstProduct := products[0]
+		price := h.extractPrice(firstProduct.Price)
+		h.container.SessionService.SetLastProduct(req.SessionID, firstProduct.Name, price)
+	}
+
 	h.container.SessionService.MarkSearchCompleted(req.SessionID)
-	fmt.Printf("   ✅ Found %d products. Chat blocked.\n", len(products))
+	fmt.Printf("   ✅ Found %d products.\n", len(products))
 
 	output := "Here are the best options:"
 	if geminiResponse.SearchType == "exact" {
 		output = "Here is the product:"
+	}
+	if geminiResponse.PriceFilter == "cheaper" {
+		output = "Here are cheaper alternatives:"
+	} else if geminiResponse.PriceFilter == "expensive" {
+		output = "Here are more premium options:"
 	}
 
 	return models.ChatResponse{
@@ -329,4 +315,44 @@ func (h *ChatHandler) handleSearchResponse(
 		MessageCount: session.MessageCount + 1,
 		SearchState:  h.container.SessionService.GetSearchStateInfo(req.SessionID),
 	}, nil
+}
+
+func (h *ChatHandler) filterByPrice(products []models.ProductCard, refPrice float64, filter string, currency string) []models.ProductCard {
+	filtered := []models.ProductCard{}
+
+	for _, product := range products {
+		price := h.extractPrice(product.Price)
+
+		if filter == "cheaper" && price < refPrice && price > refPrice*0.3 {
+			filtered = append(filtered, product)
+		} else if filter == "expensive" && price > refPrice && price < refPrice*3 {
+			filtered = append(filtered, product)
+		}
+	}
+
+	if len(filtered) == 0 {
+		return products
+	}
+
+	return filtered
+}
+
+func (h *ChatHandler) extractPrice(priceStr string) float64 {
+	cleaned := strings.TrimSpace(priceStr)
+	cleaned = strings.ReplaceAll(cleaned, "CHF", "")
+	cleaned = strings.ReplaceAll(cleaned, "EUR", "")
+	cleaned = strings.ReplaceAll(cleaned, "USD", "")
+	cleaned = strings.ReplaceAll(cleaned, "GBP", "")
+	cleaned = strings.ReplaceAll(cleaned, "$", "")
+	cleaned = strings.ReplaceAll(cleaned, "€", "")
+	cleaned = strings.ReplaceAll(cleaned, "£", "")
+	cleaned = strings.ReplaceAll(cleaned, ",", "")
+	cleaned = strings.TrimSpace(cleaned)
+
+	price, err := strconv.ParseFloat(cleaned, 64)
+	if err != nil {
+		return 0
+	}
+
+	return price
 }

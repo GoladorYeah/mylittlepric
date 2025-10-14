@@ -59,6 +59,7 @@ func (g *GeminiService) ProcessMessageWithContext(
 	country string,
 	language string,
 	currentCategory string,
+	lastProduct *models.ProductInfo,
 ) (*models.GeminiResponse, int, error) {
 
 	apiKey, keyIndex, err := g.keyRotator.GetNextKey()
@@ -76,16 +77,18 @@ func (g *GeminiService) ProcessMessageWithContext(
 
 	currency := getCurrencyForCountry(country)
 
-	fmt.Printf("   📝 History length: %d\n", len(conversationHistory))
-	if len(conversationHistory) > 0 {
-		lastMsg := conversationHistory[len(conversationHistory)-1]
-		fmt.Printf("   📝 Last message: role=%s, content=%s\n", lastMsg["role"], lastMsg["content"])
-	}
-
 	useGrounding := g.shouldUseGrounding(userMessage, conversationHistory, currentCategory)
 
 	promptKey := g.promptManager.GetPromptKey(currentCategory)
 	systemPrompt := g.promptManager.GetPrompt(promptKey, country, language, currency, currentCategory)
+
+	lastProductStr := ""
+	if lastProduct != nil {
+		lastProductStr = fmt.Sprintf("%s (%.2f %s)", lastProduct.Name, lastProduct.Price, currency)
+	}
+
+	systemPrompt = strings.ReplaceAll(systemPrompt, "{last_product}", lastProductStr)
+
 	fullPrompt := g.buildFullPrompt(systemPrompt, conversationHistory, userMessage, useGrounding)
 
 	if useGrounding {
@@ -130,36 +133,26 @@ func (g *GeminiService) buildFullPrompt(systemPrompt string, history []map[strin
 
 func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[string]string, currentCategory string) bool {
 	if !g.config.GeminiUseGrounding {
-		fmt.Printf("   ⚠️ Grounding disabled in config\n")
 		return false
 	}
 
 	messageLower := strings.ToLower(userMessage)
 	wordCount := len(strings.Fields(userMessage))
 
-	fmt.Printf("   🔍 Checking grounding: category=%s, words=%d, message=%s\n", currentCategory, wordCount, userMessage)
-
-	greetings := []string{"hello", "hi", "hey", "thanks", "bye", "yes", "no", "ok"}
+	greetings := []string{"hello", "hi", "hey", "thanks", "bye", "yes", "no", "ok", "cheaper", "expensive", "more expensive", "less expensive"}
 	for _, greeting := range greetings {
-		if messageLower == greeting {
-			fmt.Printf("   ⚠️ Greeting detected\n")
+		if messageLower == greeting || strings.Contains(messageLower, greeting) {
 			return false
 		}
 	}
 
 	if currentCategory == "electronics" && len(history) >= 1 {
 		lastQuestion := g.getLastAssistantMessage(history)
-		fmt.Printf("   🔍 Last AI message: '%s'\n", lastQuestion)
 		if lastQuestion != "" {
 			lastQLower := strings.ToLower(lastQuestion)
 			if strings.Contains(lastQLower, "brand") {
-				fmt.Printf("   ✅ Found 'brand' keyword, enabling grounding\n")
 				return true
-			} else {
-				fmt.Printf("   ⚠️ No 'brand' keyword found\n")
 			}
-		} else {
-			fmt.Printf("   ⚠️ No last assistant message\n")
 		}
 	}
 
@@ -174,19 +167,16 @@ func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[str
 	}
 
 	if wordCount < g.config.GeminiGroundingMinWords {
-		fmt.Printf("   ⚠️ Message too short (%d < %d)\n", wordCount, g.config.GeminiGroundingMinWords)
 		return false
 	}
 
 	recencyKeywords := []string{"latest", "newest", "new", "2024", "2025", "2026", "current"}
 	for _, kw := range recencyKeywords {
 		if strings.Contains(messageLower, kw) {
-			fmt.Printf("   ✅ Recency keyword '%s' found, enabling grounding\n", kw)
 			return true
 		}
 	}
 
-	fmt.Printf("   ⚠️ No grounding triggers found\n")
 	return false
 }
 
