@@ -16,8 +16,9 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
-  const [hasSentInitial, setHasSentInitial] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialQuerySentRef = useRef(false);
+  const lastMessageIdRef = useRef<string | null>(null);
 
   const {
     messages,
@@ -38,9 +39,6 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
       shouldReconnect: () => true,
       reconnectAttempts: 10,
       reconnectInterval: 3000,
-      onOpen: () => console.log("WebSocket Connected"),
-      onClose: () => console.log("WebSocket Disconnected"),
-      onError: (error) => console.error("WebSocket Error:", error),
     }
   );
 
@@ -64,35 +62,52 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
 
   useEffect(() => {
     if (!sessionId) {
-      setSessionId(generateId());
+      const savedSessionId = localStorage.getItem("chat_session_id");
+      if (savedSessionId) {
+        setSessionId(savedSessionId);
+      } else {
+        const newSessionId = generateId();
+        setSessionId(newSessionId);
+        localStorage.setItem("chat_session_id", newSessionId);
+      }
+    } else {
+      localStorage.setItem("chat_session_id", sessionId);
     }
   }, [sessionId, setSessionId]);
 
   useEffect(() => {
     if (lastJsonMessage !== null) {
       const data: any = lastJsonMessage;
-      setLoading(false);
-
+      
       if (data.type === "pong") {
         return;
       }
 
+      const messageId = generateId();
+      if (messageId === lastMessageIdRef.current) {
+        return;
+      }
+
+      setLoading(false);
+
       if (data.type === "error") {
         addMessage({
-          id: generateId(),
+          id: messageId,
           role: "assistant",
           content: data.error || "An error occurred",
           timestamp: Date.now(),
         });
+        lastMessageIdRef.current = messageId;
         return;
       }
 
       if (data.session_id && data.session_id !== sessionId) {
         setSessionId(data.session_id);
+        localStorage.setItem("chat_session_id", data.session_id);
       }
 
       const assistantMessage = {
-        id: generateId(),
+        id: messageId,
         role: "assistant" as const,
         content: data.output || "",
         timestamp: Date.now(),
@@ -102,19 +117,25 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
       };
 
       addMessage(assistantMessage);
+      lastMessageIdRef.current = messageId;
 
       if (data.search_state) {
         setSearchInProgress(data.search_state.status === "completed");
       }
     }
-  }, [lastJsonMessage, sessionId, setSessionId, addMessage, setLoading, setSearchInProgress]);
+  }, [lastJsonMessage]);
 
   useEffect(() => {
-    if (initialQuery && !hasSentInitial && sessionId && isConnected) {
+    if (
+      initialQuery &&
+      !initialQuerySentRef.current &&
+      sessionId &&
+      isConnected
+    ) {
+      initialQuerySentRef.current = true;
       handleSend(initialQuery);
-      setHasSentInitial(true);
     }
-  }, [initialQuery, hasSentInitial, sessionId, isConnected]);
+  }, [initialQuery, sessionId, isConnected]);
 
   const handleSend = async (message?: string) => {
     const textToSend = message || input.trim();
@@ -156,6 +177,8 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
     newSearch();
     const newSessionId = generateId();
     setSessionId(newSessionId);
+    localStorage.setItem("chat_session_id", newSessionId);
+    initialQuerySentRef.current = false;
   };
 
   const handleQuickReply = (reply: string) => {
