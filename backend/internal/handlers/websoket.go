@@ -586,30 +586,3 @@ func (h *WSHandler) removeClient(id string) {
 	defer h.mu.Unlock()
 	delete(h.clients, id)
 }
-
-func extractPageTokenFromLink(serpAPILink string) string {
-	if serpAPILink == "" {
-		return ""
-	}
-
-	tokenStart := strings.Index(serpAPILink, "page_token=")
-	if tokenStart == -1 {
-		return ""
-	}
-
-	tokenStart += len("page_token=")
-	tokenEnd := strings.Index(serpAPILink[tokenStart:], "&")
-
-	if tokenEnd == -1 {
-		return serpAPILink[tokenStart:]
-	}
-
-	return serpAPILink[tokenStart : tokenStart+tokenEnd]
-}
-
-func extractCurrency(price string) string {
-	if len(price) >= 3 {
-		return price[:3]
-	}
-	return "CHF"
-}
