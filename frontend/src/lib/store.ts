@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { ChatMessage } from "@/types";
+import { detectCountry, detectLanguage } from "./locale";
 
 interface ChatStore {
   messages: ChatMessage[];
@@ -19,16 +20,17 @@ interface ChatStore {
   setSearchInProgress: (inProgress: boolean) => void;
   clearMessages: () => void;
   newSearch: () => void;
+  initializeLocale: () => Promise<void>;
 }
 
 export const useChatStore = create<ChatStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       messages: [],
       sessionId: "",
       isLoading: false,
-      country: "CH",
-      language: "de",
+      country: "",
+      language: "",
       searchInProgress: false,
 
       addMessage: (message) =>
@@ -53,6 +55,17 @@ export const useChatStore = create<ChatStore>()(
           messages: [],
           searchInProgress: false,
         }),
+
+      initializeLocale: async () => {
+        const state = get();
+        if (!state.country || !state.language) {
+          const country = await detectCountry();
+          set({
+            country,
+            language: detectLanguage(),
+          });
+        }
+      },
     }),
     {
       name: "chat-storage",

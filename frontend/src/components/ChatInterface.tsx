@@ -31,6 +31,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
     setSessionId,
     setSearchInProgress,
     newSearch,
+    initializeLocale,
   } = useChatStore();
 
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
@@ -59,6 +60,10 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    initializeLocale();
+  }, [initializeLocale]);
 
   useEffect(() => {
     if (!sessionId) {
