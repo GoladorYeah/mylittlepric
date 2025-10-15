@@ -222,8 +222,17 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 }
 
 func (h *ChatHandler) performSearch(geminiResp *models.GeminiResponse, country, language string) ([]models.ProductCard, error) {
+	// ✅ ПЕРЕВОДИМ ЗАПРОС НА АНГЛИЙСКИЙ
+	translatedQuery, err := h.container.GeminiService.TranslateToEnglish(geminiResp.SearchPhrase)
+	if err != nil {
+		fmt.Printf("⚠️ Translation failed, using original query: %v\n", err)
+		translatedQuery = geminiResp.SearchPhrase
+	} else if translatedQuery != geminiResp.SearchPhrase {
+		fmt.Printf("🌐 Translated: '%s' → '%s'\n", geminiResp.SearchPhrase, translatedQuery)
+	}
+
 	products, _, err := h.container.SerpService.SearchWithCache(
-		geminiResp.SearchPhrase,
+		translatedQuery, // ← Используем переведенный запрос
 		geminiResp.SearchType,
 		country,
 		h.container.CacheService,

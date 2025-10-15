@@ -351,3 +351,77 @@ func (g *GeminiService) GetTokenStats() *TokenStats {
 func (g *GeminiService) GetGroundingStats() *GroundingStats {
 	return g.groundingStats
 }
+
+// TranslateToEnglish переводит поисковый запрос на английский язык
+func (g *GeminiService) TranslateToEnglish(query string) (string, error) {
+	// Если запрос уже на английском, возвращаем как есть
+	if isEnglish(query) {
+		return query, nil
+	}
+
+	prompt := fmt.Sprintf(`Translate this product search query to English. Keep it concise and optimized for Google Shopping.
+Only return the translated query, nothing else.
+
+Query: %s
+
+Translated query:`, query)
+
+	temp := float32(0.3) // Низкая температура для более предсказуемого перевода
+	generateConfig := &genai.GenerateContentConfig{
+		Temperature:     &temp,
+		MaxOutputTokens: 100,
+	}
+
+	g.mu.RLock()
+	client := g.client
+	g.mu.RUnlock()
+
+	resp, err := client.Models.GenerateContent(
+		g.ctx,
+		g.config.GeminiModel,
+		genai.Text(prompt),
+		generateConfig,
+	)
+
+	if err != nil {
+		return query, fmt.Errorf("translation failed: %w", err)
+	}
+
+	if resp == nil || len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil {
+		return query, fmt.Errorf("empty translation response")
+	}
+
+	translatedText := ""
+	for _, part := range resp.Candidates[0].Content.Parts {
+		if part.Text != "" {
+			translatedText += part.Text
+		}
+	}
+
+	translatedText = strings.TrimSpace(translatedText)
+	translatedText = strings.Trim(translatedText, `"'`)
+
+	if translatedText == "" {
+		return query, nil
+	}
+
+	return translatedText, nil
+}
+
+// isEnglish проверяет, является ли текст английским (простая эвристика)
+func isEnglish(text string) bool {
+	// Подсчитываем не-ASCII символы
+	nonAsciiCount := 0
+	for _, r := range text {
+		if r > 127 {
+			nonAsciiCount++
+		}
+	}
+
+	// Если больше 20% не-ASCII символов, скорее всего не английский
+	if len(text) > 0 && float64(nonAsciiCount)/float64(len(text)) > 0.2 {
+		return false
+	}
+
+	return true
+}

@@ -39,6 +39,14 @@ func (s *SerpService) SearchProducts(query, searchType, country string) ([]model
 		return nil, -1, fmt.Errorf("failed to get API key: %w", err)
 	}
 
+	// ✅ ЛОГИРУЕМ ОРИГИНАЛЬНЫЙ ЗАПРОС
+	fmt.Printf("\n🔍 SERP API Request:\n")
+	fmt.Printf("   Original Query: %s\n", query)
+	fmt.Printf("   Type: %s\n", searchType)
+	fmt.Printf("   Country: %s\n", country)
+	fmt.Printf("   Language: %s\n", getLanguageForCountry(country))
+	fmt.Printf("   Key Index: %d\n", keyIndex)
+
 	parameter := map[string]string{
 		"engine": "google_shopping",
 		"q":      query,
@@ -47,14 +55,23 @@ func (s *SerpService) SearchProducts(query, searchType, country string) ([]model
 	}
 
 	search := g.NewGoogleSearch(parameter, apiKey)
+
+	startTime := time.Now()
 	data, err := search.GetJSON()
+	elapsed := time.Since(startTime)
+
 	if err != nil {
+		fmt.Printf("   ❌ SERP API Error (%.2fs): %v\n", elapsed.Seconds(), err)
 		return nil, keyIndex, fmt.Errorf("SERP API error: %w", err)
 	}
+
+	fmt.Printf("   ⏱️ Response time: %.2fs\n", elapsed.Seconds())
 
 	shoppingItems := []types.ShoppingItem{}
 
 	if shoppingResults, ok := data["shopping_results"].([]interface{}); ok {
+		fmt.Printf("   📦 Raw results: %d products\n", len(shoppingResults))
+
 		for _, item := range shoppingResults {
 			if itemMap, ok := item.(map[string]interface{}); ok {
 				shoppingItem := types.ShoppingItem{
@@ -74,6 +91,8 @@ func (s *SerpService) SearchProducts(query, searchType, country string) ([]model
 				shoppingItems = append(shoppingItems, shoppingItem)
 			}
 		}
+	} else {
+		fmt.Printf("   ⚠️ No shopping_results in response\n")
 	}
 
 	result := s.validateRelevance(query, shoppingItems, searchType)
@@ -85,7 +104,7 @@ func (s *SerpService) SearchProducts(query, searchType, country string) ([]model
 
 	cards := s.convertToProductCards(result.Products, searchType)
 
-	fmt.Printf("   ✅ Found %d relevant products (score: %.2f)\n", len(cards), result.RelevanceScore)
+	fmt.Printf("   ✅ Found %d relevant products (score: %.2f)\n\n", len(cards), result.RelevanceScore)
 
 	return cards, keyIndex, nil
 }
@@ -118,6 +137,7 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		})
 	}
 
+	// Сортировка по убыванию score
 	for i := 0; i < len(scoredProducts); i++ {
 		for j := i + 1; j < len(scoredProducts); j++ {
 			if scoredProducts[j].score > scoredProducts[i].score {
@@ -126,36 +146,64 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		}
 	}
 
+	// ✅ ВСТАВЬТЕ ЛОГ ЗДЕСЬ - ПОКАЗЫВАЕМ TOP-5 С ИХ SCORES
+	fmt.Printf("   📊 Top 5 results:\n")
+	topCount := min(5, len(scoredProducts))
+	for i := 0; i < topCount; i++ {
+		title := scoredProducts[i].item.Title
+		if len(title) > 60 {
+			title = title[:60] + "..."
+		}
+		fmt.Printf("      %d. [%.2f] %s\n", i+1, scoredProducts[i].score, title)
+	}
+
+	// ✅ СМЯГЧАЕМ THRESHOLDS - делаем поиск более гибким
 	var threshold float32
 	switch searchType {
 	case "exact":
-		threshold = 0.7
+		threshold = 0.4 // было 0.7
 	case "parameters":
-		threshold = 0.5
+		threshold = 0.2 // было 0.5
 	case "category":
-		threshold = 0.3
+		threshold = 0.1 // было 0.3
 	default:
-		threshold = 0.5
+		threshold = 0.2
 	}
 
 	relevantProducts := []types.ShoppingItem{}
 	maxProducts := s.getMaxProducts(searchType)
 
-	for i := 0; i < len(scoredProducts) && i < maxProducts; i++ {
-		if scoredProducts[i].score >= threshold {
-			relevantProducts = append(relevantProducts, scoredProducts[i].item)
+	// ✅ ЕСЛИ НЕТ ПРОДУКТОВ С ДОСТАТОЧНЫМ SCORE, БЕРЕМ ЛУЧШИЕ
+	if len(scoredProducts) > 0 {
+		// Сначала берем все продукты выше threshold
+		for i := 0; i < len(scoredProducts) && i < maxProducts; i++ {
+			if scoredProducts[i].score >= threshold {
+				relevantProducts = append(relevantProducts, scoredProducts[i].item)
+			}
+		}
+
+		// Если ничего не нашли, берем хотя бы топ-3 результата
+		if len(relevantProducts) == 0 && len(scoredProducts) > 0 {
+			fmt.Printf("   💡 No products above threshold (%.2f), taking top results\n", threshold)
+			topCount := min(3, len(scoredProducts))
+			for i := 0; i < topCount; i++ {
+				relevantProducts = append(relevantProducts, scoredProducts[i].item)
+			}
 		}
 	}
 
 	var avgScore float32
 	if len(relevantProducts) > 0 {
-		for i := 0; i < len(relevantProducts) && i < 3; i++ {
+		topCount := min(3, len(scoredProducts))
+		for i := 0; i < topCount; i++ {
 			avgScore += scoredProducts[i].score
 		}
-		avgScore /= float32(min(3, len(relevantProducts)))
+		avgScore /= float32(topCount)
 	}
 
-	isRelevant := len(relevantProducts) > 0 && avgScore >= threshold
+	// ✅ СМЯГЧАЕМ УСЛОВИЕ РЕЛЕВАНТНОСТИ
+	// Теперь считаем релевантным если есть хоть какие-то продукты
+	isRelevant := len(relevantProducts) > 0
 
 	result := SearchResult{
 		Products:       relevantProducts,
@@ -169,60 +217,83 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 
 	return result
 }
-
 func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.ShoppingItem) float32 {
 	titleLower := strings.ToLower(item.Title)
 	var score float32 = 0.0
 
+	// ✅ 1. Полное совпадение всей фразы (бонус)
 	queryStr := strings.Join(queryWords, " ")
 	if strings.Contains(titleLower, queryStr) {
 		score += 1.0
 	}
 
+	// ✅ 2. Все слова присутствуют (хороший сигнал)
 	allWordsPresent := true
 	for _, word := range queryWords {
+		if len(word) <= 2 {
+			continue // Игнорируем короткие слова
+		}
 		if !strings.Contains(titleLower, word) {
 			allWordsPresent = false
 			break
 		}
 	}
 	if allWordsPresent {
-		score += 0.8
+		score += 0.6 // было 0.8
 	}
 
+	// ✅ 3. Частичное совпадение слов (даже если не все слова есть)
 	matchedWords := 0
+	importantMatchedWords := 0
 	for _, word := range queryWords {
 		if len(word) <= 2 || isCommonWord(word) {
 			continue
 		}
 		if strings.Contains(titleLower, word) {
 			matchedWords++
+			// Дополнительный бонус за важные слова (бренды, типы продуктов)
+			if !isCommonWord(word) {
+				importantMatchedWords++
+			}
 		}
 	}
-	if len(queryWords) > 0 {
-		score += float32(matchedWords) / float32(len(queryWords)) * 0.5
+
+	significantWords := 0
+	for _, word := range queryWords {
+		if len(word) > 2 && !isCommonWord(word) {
+			significantWords++
+		}
 	}
 
+	if significantWords > 0 {
+		matchRatio := float32(matchedWords) / float32(significantWords)
+		score += matchRatio * 0.5 // До 0.5 баллов за частичное совпадение
+	}
+
+	// ✅ 4. Порядок слов (менее важно)
 	if len(queryWords) >= 2 {
 		titleWords := strings.Fields(titleLower)
 		orderScore := s.calculateWordOrderScore(queryWords, titleWords)
-		score += orderScore * 0.3
+		score += orderScore * 0.2 // было 0.3
 	}
 
+	// ✅ 5. Бренды (важно для точности)
 	brands := []string{
 		"apple", "iphone", "ipad", "macbook", "samsung", "galaxy",
 		"google", "pixel", "xiaomi", "oneplus", "sony", "dell",
 		"hp", "lenovo", "asus", "acer", "msi", "lg", "huawei",
+		"nike", "adidas", "puma", "reebok", "under", "armour",
 	}
 	for _, brand := range brands {
 		for _, word := range queryWords {
 			if word == brand && strings.Contains(titleLower, brand) {
-				score += 0.4
+				score += 0.3
 				break
 			}
 		}
 	}
 
+	// ✅ 6. Номера моделей (если есть в запросе, должны совпадать)
 	modelNumbers := extractModelNumbers(queryWords)
 	if len(modelNumbers) > 0 {
 		hasModelMatch := false
@@ -233,30 +304,15 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 			}
 		}
 		if hasModelMatch {
-			score += 0.5
-		} else {
-			score -= 0.3
+			score += 0.3 // было 0.5
 		}
+		// Убираем штраф если модель не совпала - может быть похожий продукт
 	}
 
-	titleWords := strings.Fields(titleLower)
-	extraWordsPenalty := float32(0)
-	for _, titleWord := range titleWords {
-		if len(titleWord) > 3 && !isCommonWord(titleWord) {
-			found := false
-			for _, queryWord := range queryWords {
-				if titleWord == queryWord || strings.Contains(titleWord, queryWord) || strings.Contains(queryWord, titleWord) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				extraWordsPenalty += 0.05
-			}
-		}
-	}
-	score -= extraWordsPenalty
+	// ✅ 7. УБИРАЕМ ЖЕСТКИЙ ШТРАФ за лишние слова
+	// Это слишком строго для гибкого поиска
 
+	// Ограничиваем score в пределах [0, 1]
 	if score < 0 {
 		score = 0
 	}
