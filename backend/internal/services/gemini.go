@@ -1,3 +1,4 @@
+// backend/internal/services/gemini.go
 package services
 
 import (
@@ -108,19 +109,28 @@ func (g *GeminiService) ProcessMessageWithContext(
 
 	resp, err := client.Models.GenerateContent(g.ctx, g.config.GeminiModel, genai.Text(prompt), generateConfig)
 	if err != nil {
-		return nil, keyIndex, fmt.Errorf("failed to send message: %w", err)
+		return nil, keyIndex, fmt.Errorf("Gemini API error: %w", err)
+	}
+
+	if resp == nil {
+		return nil, keyIndex, fmt.Errorf("Gemini returned nil response")
 	}
 
 	if resp.UsageMetadata != nil {
 		g.updateTokenStats(resp.UsageMetadata, useGrounding)
 	}
 
-	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil || len(resp.Candidates[0].Content.Parts) == 0 {
-		return nil, keyIndex, fmt.Errorf("no response from Gemini")
+	if len(resp.Candidates) == 0 {
+		return nil, keyIndex, fmt.Errorf("no candidates in Gemini response")
+	}
+
+	candidate := resp.Candidates[0]
+	if candidate.Content == nil || len(candidate.Content.Parts) == 0 {
+		return nil, keyIndex, fmt.Errorf("no content in Gemini response")
 	}
 
 	responseText := ""
-	for _, part := range resp.Candidates[0].Content.Parts {
+	for _, part := range candidate.Content.Parts {
 		responseText += fmt.Sprintf("%v", part)
 	}
 
@@ -129,9 +139,17 @@ func (g *GeminiService) ProcessMessageWithContext(
 	responseText = strings.TrimPrefix(responseText, "json")
 	responseText = strings.TrimSpace(responseText)
 
+	if responseText == "" {
+		return nil, keyIndex, fmt.Errorf("empty response text from Gemini")
+	}
+
 	var geminiResp models.GeminiResponse
 	if err := json.Unmarshal([]byte(responseText), &geminiResp); err != nil {
-		return nil, keyIndex, fmt.Errorf("failed to parse response: %w", err)
+		return nil, keyIndex, fmt.Errorf("failed to parse Gemini JSON response: %w (response: %s)", err, responseText)
+	}
+
+	if geminiResp.ResponseType == "" {
+		return nil, keyIndex, fmt.Errorf("missing response_type in Gemini response")
 	}
 
 	return &geminiResp, keyIndex, nil

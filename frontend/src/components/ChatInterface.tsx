@@ -1,3 +1,4 @@
+// frontend/src/components/ChatInterface.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -96,10 +97,11 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
       setLoading(false);
 
       if (data.type === "error") {
+        const errorMessage = data.message || data.error || "An error occurred";
         addMessage({
           id: messageId,
           role: "assistant",
-          content: data.error || "An error occurred",
+          content: errorMessage,
           timestamp: Date.now(),
         });
         lastMessageIdRef.current = messageId;
@@ -128,7 +130,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
         setSearchInProgress(data.search_state.status === "completed");
       }
     }
-  }, [lastJsonMessage]);
+  }, [lastJsonMessage, addMessage, setLoading, setSearchInProgress, sessionId, setSessionId]);
 
   useEffect(() => {
     if (

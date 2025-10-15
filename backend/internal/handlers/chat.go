@@ -1,7 +1,9 @@
+// backend/internal/handlers/chat.go
 package handlers
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -129,9 +131,18 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 	)
 
 	if err != nil {
+		log.Printf("❌ Gemini processing error: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
 			Error:   "processing_error",
-			Message: "Failed to process message",
+			Message: fmt.Sprintf("AI processing failed: %v", err),
+		})
+	}
+
+	if geminiResponse == nil {
+		log.Printf("❌ Gemini returned nil response")
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error:   "processing_error",
+			Message: "AI returned empty response",
 		})
 	}
 
@@ -161,7 +172,11 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 
 	if geminiResponse.ResponseType == "search" {
 		products, searchErr := h.performSearch(geminiResponse, req.Country, req.Language)
-		if searchErr == nil && len(products) > 0 {
+		if searchErr != nil {
+			log.Printf("⚠️ Search failed: %v", searchErr)
+			response.Output = "Sorry, I couldn't find any products. Please try different keywords."
+			response.Type = "text"
+		} else if len(products) > 0 {
 			response.Products = products
 			response.SearchType = geminiResponse.SearchType
 

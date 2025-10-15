@@ -1,3 +1,4 @@
+// backend/internal/handlers/websoket.go
 package handlers
 
 import (
@@ -182,7 +183,14 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage) {
 	)
 
 	if err != nil {
-		h.sendError(c, "processing_error", "Failed to process message")
+		log.Printf("❌ Gemini processing error: %v", err)
+		h.sendError(c, "processing_error", fmt.Sprintf("AI processing failed: %v", err))
+		return
+	}
+
+	if geminiResponse == nil {
+		log.Printf("❌ Gemini returned nil response")
+		h.sendError(c, "processing_error", "AI returned empty response")
 		return
 	}
 
@@ -212,7 +220,11 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage) {
 
 	if geminiResponse.ResponseType == "search" {
 		products, searchErr := h.performSearch(geminiResponse, msg.Country, msg.Language)
-		if searchErr == nil && len(products) > 0 {
+		if searchErr != nil {
+			log.Printf("⚠️ Search failed: %v", searchErr)
+			response.Output = "Sorry, I couldn't find any products. Please try different keywords."
+			response.Type = "text"
+		} else if len(products) > 0 {
 			response.Products = products
 			response.SearchType = geminiResponse.SearchType
 
