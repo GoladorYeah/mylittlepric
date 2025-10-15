@@ -16,15 +16,16 @@ import (
 )
 
 type GeminiService struct {
-	client         *genai.Client
-	keyRotator     *utils.KeyRotator
-	config         *config.Config
-	promptManager  *PromptManager
-	groundingStats *GroundingStats
-	tokenStats     *TokenStats
-	embedding      *EmbeddingService
-	ctx            context.Context
-	mu             sync.RWMutex
+	client            *genai.Client
+	keyRotator        *utils.KeyRotator
+	config            *config.Config
+	promptManager     *PromptManager
+	groundingStats    *GroundingStats
+	groundingStrategy *GroundingStrategy // ← ДОБАВИТЬ ЭТО
+	tokenStats        *TokenStats
+	embedding         *EmbeddingService
+	ctx               context.Context
+	mu                sync.RWMutex
 }
 
 type TokenStats struct {
@@ -46,6 +47,7 @@ type GroundingStats struct {
 	AverageConfidence float32
 }
 
+// В конструкторе NewGeminiService добавьте инициализацию:
 func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embedding *EmbeddingService) *GeminiService {
 	ctx := context.Background()
 
@@ -63,14 +65,15 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 	}
 
 	return &GeminiService{
-		client:         client,
-		keyRotator:     keyRotator,
-		config:         cfg,
-		promptManager:  NewPromptManager(),
-		groundingStats: &GroundingStats{ReasonCounts: make(map[string]int)},
-		tokenStats:     &TokenStats{},
-		embedding:      embedding,
-		ctx:            ctx,
+		client:            client,
+		keyRotator:        keyRotator,
+		config:            cfg,
+		promptManager:     NewPromptManager(),
+		groundingStats:    &GroundingStats{ReasonCounts: make(map[string]int)},
+		groundingStrategy: NewGroundingStrategy(embedding), // ← ДОБАВИТЬ ЭТО
+		tokenStats:        &TokenStats{},
+		embedding:         embedding,
+		ctx:               ctx,
 	}
 }
 
@@ -252,8 +255,32 @@ func (g *GeminiService) buildConversationContext(history []map[string]string) st
 	return context.String()
 }
 
+// Замените функцию shouldUseGrounding:
 func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[string]string, category string) bool {
-	return g.config.GeminiUseGrounding
+	if !g.config.GeminiUseGrounding {
+		return false
+	}
+
+	// Используем умную стратегию
+	decision := g.groundingStrategy.ShouldUseGrounding(userMessage, history, category)
+
+	// Обновляем статистику
+	g.groundingStats.TotalDecisions++
+	if decision.UseGrounding {
+		g.groundingStats.GroundingEnabled++
+	} else {
+		g.groundingStats.GroundingDisabled++
+	}
+	g.groundingStats.ReasonCounts[decision.Reason]++
+
+	// Обновляем среднюю уверенность
+	if g.groundingStats.TotalDecisions > 0 {
+		currentAvg := g.groundingStats.AverageConfidence
+		n := float32(g.groundingStats.TotalDecisions)
+		g.groundingStats.AverageConfidence = (currentAvg*(n-1) + decision.Confidence) / n
+	}
+
+	return decision.UseGrounding
 }
 
 func (g *GeminiService) extractJSONFromText(text string) string {
