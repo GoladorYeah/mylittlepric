@@ -1,4 +1,3 @@
-// frontend/src/lib/store.ts
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { ChatMessage } from "@/types";
@@ -11,6 +10,7 @@ interface ChatStore {
   country: string;
   language: string;
   searchInProgress: boolean;
+  currentCategory: string;
   
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;
@@ -19,6 +19,7 @@ interface ChatStore {
   setCountry: (country: string) => void;
   setLanguage: (language: string) => void;
   setSearchInProgress: (inProgress: boolean) => void;
+  setCurrentCategory: (category: string) => void;
   clearMessages: () => void;
   newSearch: () => void;
   initializeLocale: () => Promise<void>;
@@ -33,6 +34,7 @@ export const useChatStore = create<ChatStore>()(
       country: "",
       language: "",
       searchInProgress: false,
+      currentCategory: "",
 
       addMessage: (message) =>
         set((state) => ({ messages: [...state.messages, message] })),
@@ -49,13 +51,16 @@ export const useChatStore = create<ChatStore>()(
 
       setSearchInProgress: (inProgress) => set({ searchInProgress: inProgress }),
 
-      clearMessages: () => set({ messages: [], isLoading: false }),
+      setCurrentCategory: (category) => set({ currentCategory: category }),
+
+      clearMessages: () => set({ messages: [], isLoading: false, currentCategory: "" }),
 
       newSearch: () =>
         set({
           messages: [],
           searchInProgress: false,
           isLoading: false,
+          currentCategory: "",
         }),
 
       initializeLocale: async () => {

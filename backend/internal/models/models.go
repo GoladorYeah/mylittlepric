@@ -67,12 +67,13 @@ type ProductCard struct {
 }
 
 type ChatRequest struct {
-	SessionID string `json:"session_id"`
-	Message   string `json:"message"`
-	Country   string `json:"country"`
-	Language  string `json:"language"`
-	Currency  string `json:"currency"`
-	NewSearch bool   `json:"new_search"`
+	SessionID       string `json:"session_id"`
+	Message         string `json:"message"`
+	Country         string `json:"country"`
+	Language        string `json:"language"`
+	Currency        string `json:"currency"`
+	NewSearch       bool   `json:"new_search"`
+	CurrentCategory string `json:"current_category"`
 }
 
 type ChatResponse struct {

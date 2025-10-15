@@ -1,4 +1,3 @@
-// backend/internal/handlers/chat.go
 package handlers
 
 import (
@@ -79,6 +78,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		if err := h.container.SessionService.StartNewSearch(req.SessionID); err != nil {
 			fmt.Printf("⚠️ Failed to start new search: %v\n", err)
 		}
+		session, _ = h.container.SessionService.GetSession(req.SessionID)
 	}
 
 	if session.SearchState.SearchCount >= h.container.SessionService.GetMaxSearches() {
@@ -89,6 +89,7 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 			MessageCount: session.MessageCount,
 			SearchState: &models.SearchStateResponse{
 				Status:      string(session.SearchState.Status),
+				Category:    session.SearchState.Category,
 				CanContinue: false,
 				SearchCount: session.SearchState.SearchCount,
 				MaxSearches: h.container.SessionService.GetMaxSearches(),
@@ -146,7 +147,9 @@ func (h *ChatHandler) HandleChat(c *fiber.Ctx) error {
 		})
 	}
 
-	session.SearchState.Category = geminiResponse.Category
+	if geminiResponse.Category != "" {
+		session.SearchState.Category = geminiResponse.Category
+	}
 
 	assistantMessage := &models.Message{
 		ID:           uuid.New(),

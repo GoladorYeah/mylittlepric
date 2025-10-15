@@ -1,4 +1,3 @@
-// frontend/src/components/ChatInterface.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -27,10 +26,12 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
     isLoading,
     country,
     language,
+    currentCategory,
     addMessage,
     setLoading,
     setSessionId,
     setSearchInProgress,
+    setCurrentCategory,
     newSearch,
     initializeLocale,
   } = useChatStore();
@@ -127,11 +128,15 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
 
       addMessage(assistantMessage);
 
+      if (data.search_state && data.search_state.category) {
+        setCurrentCategory(data.search_state.category);
+      }
+
       if (data.search_state) {
         setSearchInProgress(data.search_state.status === "completed");
       }
     }
-  }, [lastJsonMessage, addMessage, setLoading, setSearchInProgress, sessionId, setSessionId]);
+  }, [lastJsonMessage, addMessage, setLoading, setSearchInProgress, setCurrentCategory, sessionId, setSessionId]);
 
   useEffect(() => {
     if (
@@ -168,6 +173,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
         country,
         language,
         new_search: false,
+        current_category: currentCategory,
       });
     } catch (error) {
       console.error("Error sending message:", error);

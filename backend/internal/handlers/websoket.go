@@ -1,4 +1,3 @@
-// backend/internal/handlers/websoket.go
 package handlers
 
 import (
@@ -30,14 +29,15 @@ func NewWSHandler(c *container.Container) *WSHandler {
 }
 
 type WSMessage struct {
-	Type      string `json:"type"`
-	SessionID string `json:"session_id"`
-	Message   string `json:"message"`
-	Country   string `json:"country"`
-	Language  string `json:"language"`
-	Currency  string `json:"currency"`
-	NewSearch bool   `json:"new_search"`
-	PageToken string `json:"page_token"`
+	Type            string `json:"type"`
+	SessionID       string `json:"session_id"`
+	Message         string `json:"message"`
+	Country         string `json:"country"`
+	Language        string `json:"language"`
+	Currency        string `json:"currency"`
+	NewSearch       bool   `json:"new_search"`
+	PageToken       string `json:"page_token"`
+	CurrentCategory string `json:"current_category"`
 }
 
 type WSResponse struct {
@@ -134,6 +134,11 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage) {
 		session, _ = h.container.SessionService.GetSession(msg.SessionID)
 	}
 
+	if msg.CurrentCategory != "" && msg.CurrentCategory != session.SearchState.Category {
+		session.SearchState.Category = msg.CurrentCategory
+		h.container.SessionService.UpdateSession(session)
+	}
+
 	if session.SearchState.SearchCount >= h.container.SessionService.GetMaxSearches() {
 		h.sendResponse(c, &WSResponse{
 			Type:         "text",
@@ -142,6 +147,7 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage) {
 			MessageCount: session.MessageCount,
 			SearchState: &models.SearchStateResponse{
 				Status:      string(session.SearchState.Status),
+				Category:    session.SearchState.Category,
 				CanContinue: false,
 				SearchCount: session.SearchState.SearchCount,
 				MaxSearches: h.container.SessionService.GetMaxSearches(),
@@ -194,7 +200,9 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage) {
 		return
 	}
 
-	session.SearchState.Category = geminiResponse.Category
+	if geminiResponse.Category != "" {
+		session.SearchState.Category = geminiResponse.Category
+	}
 
 	assistantMessage := &models.Message{
 		ID:           uuid.New(),

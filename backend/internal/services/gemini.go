@@ -85,11 +85,9 @@ func (g *GeminiService) ProcessMessageWithContext(
 
 	systemPrompt = strings.ReplaceAll(systemPrompt, "{last_product}", lastProductStr)
 
-	prompt := systemPrompt + "\n\n"
-	for _, msg := range conversationHistory {
-		prompt += fmt.Sprintf("%s: %s\n", msg["role"], msg["content"])
-	}
-	prompt += "user: " + userMessage
+	conversationContext := g.buildConversationContext(conversationHistory)
+
+	prompt := systemPrompt + "\n\n# CONVERSATION HISTORY:\n" + conversationContext + "\n\nCurrent user message: " + userMessage + "\n\nAnalyze the conversation history above. If the last assistant question was similar to what the current situation requires, provide a DIFFERENT question to move the conversation forward."
 
 	temp := g.config.GeminiTemperature
 	generateConfig := &genai.GenerateContentConfig{
@@ -158,6 +156,18 @@ func (g *GeminiService) ProcessMessageWithContext(
 	}
 
 	return &geminiResp, keyIndex, nil
+}
+
+func (g *GeminiService) buildConversationContext(history []map[string]string) string {
+	if len(history) == 0 {
+		return "No previous messages"
+	}
+
+	var context strings.Builder
+	for i, msg := range history {
+		context.WriteString(fmt.Sprintf("%d. %s: %s\n", i+1, msg["role"], msg["content"]))
+	}
+	return context.String()
 }
 
 func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[string]string, category string) bool {
