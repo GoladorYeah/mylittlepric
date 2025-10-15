@@ -16,15 +16,16 @@ import (
 )
 
 type GeminiService struct {
-	client         *genai.Client
-	keyRotator     *utils.KeyRotator
-	config         *config.Config
-	promptManager  *PromptManager
-	groundingStats *GroundingStats
-	tokenStats     *TokenStats
-	embedding      *EmbeddingService
-	ctx            context.Context
-	mu             sync.RWMutex
+	client            *genai.Client
+	keyRotator        *utils.KeyRotator
+	config            *config.Config
+	promptManager     *PromptManager
+	groundingStats    *GroundingStats
+	tokenStats        *TokenStats
+	embedding         *EmbeddingService
+	groundingStrategy *GroundingStrategy // ДОБАВИТЬ
+	ctx               context.Context
+	mu                sync.RWMutex
 }
 
 type TokenStats struct {
@@ -63,14 +64,15 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 	}
 
 	return &GeminiService{
-		client:         client,
-		keyRotator:     keyRotator,
-		config:         cfg,
-		promptManager:  NewPromptManager(),
-		groundingStats: &GroundingStats{ReasonCounts: make(map[string]int)},
-		tokenStats:     &TokenStats{},
-		embedding:      embedding,
-		ctx:            ctx,
+		client:            client,
+		keyRotator:        keyRotator,
+		config:            cfg,
+		promptManager:     NewPromptManager(),
+		groundingStats:    &GroundingStats{ReasonCounts: make(map[string]int)},
+		tokenStats:        &TokenStats{},
+		embedding:         embedding,
+		groundingStrategy: NewGroundingStrategy(embedding), // ДОБАВИТЬ
+		ctx:               ctx,
 	}
 }
 
@@ -216,7 +218,35 @@ func (g *GeminiService) buildConversationContext(history []map[string]string) st
 }
 
 func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[string]string, category string) bool {
-	return false
+	if !g.config.GeminiUseGrounding {
+		return false
+	}
+
+	decision := g.groundingStrategy.ShouldUseGrounding(userMessage, history, category)
+	g.updateGroundingStats(decision.UseGrounding, decision.Reason, decision.Confidence)
+
+	return decision.UseGrounding
+}
+
+func (g *GeminiService) updateGroundingStats(enabled bool, reason string, confidence float32) {
+	g.groundingStats.TotalDecisions++
+
+	if enabled {
+		g.groundingStats.GroundingEnabled++
+	} else {
+		g.groundingStats.GroundingDisabled++
+	}
+
+	if g.groundingStats.ReasonCounts == nil {
+		g.groundingStats.ReasonCounts = make(map[string]int)
+	}
+	g.groundingStats.ReasonCounts[reason]++
+
+	if g.groundingStats.TotalDecisions > 0 {
+		oldAvg := g.groundingStats.AverageConfidence
+		n := float32(g.groundingStats.TotalDecisions)
+		g.groundingStats.AverageConfidence = (oldAvg*(n-1) + confidence) / n
+	}
 }
 
 func (g *GeminiService) updateTokenStats(metadata *genai.GenerateContentResponseUsageMetadata, withGrounding bool) {
