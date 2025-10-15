@@ -16,16 +16,15 @@ import (
 )
 
 type GeminiService struct {
-	client            *genai.Client
-	keyRotator        *utils.KeyRotator
-	config            *config.Config
-	promptManager     *PromptManager
-	groundingStats    *GroundingStats
-	tokenStats        *TokenStats
-	embedding         *EmbeddingService
-	groundingStrategy *GroundingStrategy // ДОБАВИТЬ
-	ctx               context.Context
-	mu                sync.RWMutex
+	client         *genai.Client
+	keyRotator     *utils.KeyRotator
+	config         *config.Config
+	promptManager  *PromptManager
+	groundingStats *GroundingStats
+	tokenStats     *TokenStats
+	embedding      *EmbeddingService
+	ctx            context.Context
+	mu             sync.RWMutex
 }
 
 type TokenStats struct {
@@ -64,15 +63,14 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 	}
 
 	return &GeminiService{
-		client:            client,
-		keyRotator:        keyRotator,
-		config:            cfg,
-		promptManager:     NewPromptManager(),
-		groundingStats:    &GroundingStats{ReasonCounts: make(map[string]int)},
-		tokenStats:        &TokenStats{},
-		embedding:         embedding,
-		groundingStrategy: NewGroundingStrategy(embedding), // ДОБАВИТЬ
-		ctx:               ctx,
+		client:         client,
+		keyRotator:     keyRotator,
+		config:         cfg,
+		promptManager:  NewPromptManager(),
+		groundingStats: &GroundingStats{ReasonCounts: make(map[string]int)},
+		tokenStats:     &TokenStats{},
+		embedding:      embedding,
+		ctx:            ctx,
 	}
 }
 
@@ -106,9 +104,10 @@ func (g *GeminiService) ProcessMessageWithContext(
 	lastProduct *models.ProductInfo,
 ) (*models.GeminiResponse, int, error) {
 
-	if err := g.rotateClient(); err != nil {
-		return nil, -1, err
-	}
+	// УБРАЛИ rotateClient() отсюда!
+	// if err := g.rotateClient(); err != nil {
+	// 	return nil, -1, err
+	// }
 
 	if currentCategory == "" {
 		detectedCategory := g.embedding.DetectCategory(userMessage)
@@ -130,20 +129,21 @@ func (g *GeminiService) ProcessMessageWithContext(
 
 	prompt := systemPrompt + "\n\n# CONVERSATION HISTORY:\n" + conversationContext +
 		"\n\nCurrent user message: " + userMessage +
-		"\n\nAnalyze the conversation history above. If the last assistant question was similar to what the current situation requires, provide a DIFFERENT question to move the conversation forward."
+		"\n\nCRITICAL INSTRUCTIONS:\n- You MUST respond with valid JSON only\n- If using grounding/search results, incorporate the information naturally\n- ALWAYS end your response with valid JSON in this exact format:\n{\"response_type\":\"dialogue\",\"output\":\"...\",\"quick_replies\":[...],\"category\":\"...\"}\nOR\n{\"response_type\":\"search\",\"search_phrase\":\"...\",\"search_type\":\"...\",\"category\":\"...\"}\n\nAnalyze the conversation history above. If the last assistant question was similar to what the current situation requires, provide a DIFFERENT question to move the conversation forward."
 
 	temp := g.config.GeminiTemperature
 	generateConfig := &genai.GenerateContentConfig{
-		Temperature:      &temp,
-		MaxOutputTokens:  int32(g.config.GeminiMaxOutputTokens),
-		ResponseMIMEType: "application/json",
+		Temperature:     &temp,
+		MaxOutputTokens: int32(g.config.GeminiMaxOutputTokens),
 	}
 
 	useGrounding := g.shouldUseGrounding(userMessage, conversationHistory, currentCategory)
 	if useGrounding {
 		generateConfig.Tools = []*genai.Tool{
-			{GoogleSearchRetrieval: &genai.GoogleSearchRetrieval{}},
+			{GoogleSearch: &genai.GoogleSearch{}},
 		}
+	} else {
+		generateConfig.ResponseMIMEType = "application/json"
 	}
 
 	g.mu.RLock()
@@ -156,8 +156,37 @@ func (g *GeminiService) ProcessMessageWithContext(
 		genai.Text(prompt),
 		generateConfig,
 	)
+
+	// Если ошибка - пробуем ротировать ключ и повторить
 	if err != nil {
-		return nil, 0, fmt.Errorf("Gemini API error: %w", err)
+		// Проверяем если это quota/rate limit ошибка
+		if strings.Contains(err.Error(), "quota") ||
+			strings.Contains(err.Error(), "429") ||
+			strings.Contains(err.Error(), "RESOURCE_EXHAUSTED") {
+
+			// Ротируем клиент
+			if rotateErr := g.rotateClient(); rotateErr != nil {
+				return nil, 0, fmt.Errorf("Gemini API error: %w, rotation failed: %v", err, rotateErr)
+			}
+
+			// Повторяем запрос с новым клиентом
+			g.mu.RLock()
+			client = g.client
+			g.mu.RUnlock()
+
+			resp, err = client.Models.GenerateContent(
+				g.ctx,
+				g.config.GeminiModel,
+				genai.Text(prompt),
+				generateConfig,
+			)
+
+			if err != nil {
+				return nil, 0, fmt.Errorf("Gemini API error after rotation: %w", err)
+			}
+		} else {
+			return nil, 0, fmt.Errorf("Gemini API error: %w", err)
+		}
 	}
 
 	if resp == nil {
@@ -185,6 +214,12 @@ func (g *GeminiService) ProcessMessageWithContext(
 	}
 
 	responseText = strings.TrimSpace(responseText)
+
+	// Если использовали grounding, извлекаем JSON из текста
+	if useGrounding {
+		responseText = g.extractJSONFromText(responseText)
+	}
+
 	responseText = strings.Trim(responseText, "`")
 	responseText = strings.TrimPrefix(responseText, "json")
 	responseText = strings.TrimSpace(responseText)
@@ -218,35 +253,42 @@ func (g *GeminiService) buildConversationContext(history []map[string]string) st
 }
 
 func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[string]string, category string) bool {
-	if !g.config.GeminiUseGrounding {
-		return false
-	}
-
-	decision := g.groundingStrategy.ShouldUseGrounding(userMessage, history, category)
-	g.updateGroundingStats(decision.UseGrounding, decision.Reason, decision.Confidence)
-
-	return decision.UseGrounding
+	return g.config.GeminiUseGrounding
 }
 
-func (g *GeminiService) updateGroundingStats(enabled bool, reason string, confidence float32) {
-	g.groundingStats.TotalDecisions++
+func (g *GeminiService) extractJSONFromText(text string) string {
+	// Ищем JSON в тексте
+	// Вариант 1: JSON в конце
+	startIdx := strings.LastIndex(text, "{")
+	endIdx := strings.LastIndex(text, "}")
 
-	if enabled {
-		g.groundingStats.GroundingEnabled++
-	} else {
-		g.groundingStats.GroundingDisabled++
+	if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
+		return text[startIdx : endIdx+1]
 	}
 
-	if g.groundingStats.ReasonCounts == nil {
-		g.groundingStats.ReasonCounts = make(map[string]int)
+	// Вариант 2: JSON в code block
+	if strings.Contains(text, "```json") {
+		start := strings.Index(text, "```json")
+		end := strings.Index(text[start+7:], "```")
+		if end != -1 {
+			return strings.TrimSpace(text[start+7 : start+7+end])
+		}
 	}
-	g.groundingStats.ReasonCounts[reason]++
 
-	if g.groundingStats.TotalDecisions > 0 {
-		oldAvg := g.groundingStats.AverageConfidence
-		n := float32(g.groundingStats.TotalDecisions)
-		g.groundingStats.AverageConfidence = (oldAvg*(n-1) + confidence) / n
+	// Вариант 3: JSON в code block без языка
+	if strings.Contains(text, "```") {
+		start := strings.Index(text, "```")
+		end := strings.Index(text[start+3:], "```")
+		if end != -1 {
+			jsonCandidate := strings.TrimSpace(text[start+3 : start+3+end])
+			if strings.HasPrefix(jsonCandidate, "{") {
+				return jsonCandidate
+			}
+		}
 	}
+
+	// Если не нашли, возвращаем как есть
+	return text
 }
 
 func (g *GeminiService) updateTokenStats(metadata *genai.GenerateContentResponseUsageMetadata, withGrounding bool) {

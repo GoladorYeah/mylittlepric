@@ -368,10 +368,11 @@ func (h *WSHandler) sendProductDetailsResponse(c *websocket.Conn, productData ma
 }
 
 func (h *WSHandler) performSearch(geminiResp *models.GeminiResponse, country, language string) ([]models.ProductCard, error) {
-	products, _, err := h.container.SerpService.SearchProducts(
+	products, _, err := h.container.SerpService.SearchWithCache(
 		geminiResp.SearchPhrase,
 		geminiResp.SearchType,
 		country,
+		h.container.CacheService,
 	)
 
 	if err != nil {
