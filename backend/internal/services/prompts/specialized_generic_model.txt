@@ -11,14 +11,14 @@ Filters: Oil, Air, Water
 Auto: Spark plugs, Oil, Brake pads
 
 # FLOW
-Type → Model/Code → Brand (optional) → Search
+Type в†’ Model/Code в†’ Brand (optional) в†’ Search
 
 # RULES
-✓ Ask type with prices
-✓ Then code/size
-✓ Brand optional
-✓ Max 2 questions
-✓ Output < 400 chars
+вњ“ Ask type with prices
+вњ“ Then code/size
+вњ“ Brand optional
+вњ“ Max 2 questions
+вњ“ Output < 400 chars
 
 # JSON
 
@@ -29,21 +29,21 @@ Type → Model/Code → Brand (optional) → Search
 # EXAMPLES
 
 User: "battery"
-→ {"response_type":"dialogue","output":"What type?","quick_replies":["AA ($2-8)","AAA ($2-6)","18650 ($4-15)","CR2032"],"category":"generic_model"}
+в†’ {"response_type":"dialogue","output":"What type?","quick_replies":["AA ($2-8)","AAA ($2-6)","18650 ($4-15)","CR2032"],"category":"generic_model"}
 
 User: "AA Duracell"
-→ {"response_type":"search","search_phrase":"AA battery Duracell","search_type":"exact","category":"generic_model"}
+в†’ {"response_type":"search","search_phrase":"AA battery Duracell","search_type":"exact","category":"generic_model"}
 
 User: "tire"
-→ {"response_type":"dialogue","output":"What size?","quick_replies":["195/65R15 ($40-100)","205/55R16 ($50-120)","225/45R17","235/40R18"],"category":"generic_model"}
+в†’ {"response_type":"dialogue","output":"What size?","quick_replies":["195/65R15 ($40-100)","205/55R16 ($50-120)","225/45R17","235/40R18"],"category":"generic_model"}
 
 User: "195/65R15 summer"
-→ {"response_type":"search","search_phrase":"tire 195/65R15 summer","search_type":"parameters","category":"generic_model"}
+в†’ {"response_type":"search","search_phrase":"tire 195/65R15 summer","search_type":"parameters","category":"generic_model"}
 
 User: "bulb"
-→ {"response_type":"dialogue","output":"What type?","quick_replies":["E27 ($3-20)","E14 ($3-15)","GU10","G4"],"category":"generic_model"}
+в†’ {"response_type":"dialogue","output":"What type?","quick_replies":["E27 ($3-20)","E14 ($3-15)","GU10","G4"],"category":"generic_model"}
 
 User: "E27 LED"
-→ {"response_type":"search","search_phrase":"bulb E27 LED","search_type":"parameters","category":"generic_model"}
+в†’ {"response_type":"search","search_phrase":"bulb E27 LED","search_type":"parameters","category":"generic_model"}
 
 Respond with JSON only.

@@ -1,3 +1,4 @@
+// backend/internal/services/serp.go
 package services
 
 import (
@@ -13,13 +14,11 @@ import (
 	"mylittleprice/pkg/types"
 )
 
-// SerpService handles all SERP API interactions with relevance validation
 type SerpService struct {
 	keyRotator *utils.KeyRotator
 	config     *config.Config
 }
 
-// SearchResult contains search results with relevance score
 type SearchResult struct {
 	Products        []types.ShoppingItem
 	RelevanceScore  float32
@@ -34,15 +33,12 @@ func NewSerpService(keyRotator *utils.KeyRotator, cfg *config.Config) *SerpServi
 	}
 }
 
-// SearchProducts searches for products with relevance validation
 func (s *SerpService) SearchProducts(query, searchType, country string) ([]models.ProductCard, int, error) {
-	// Get API key
 	apiKey, keyIndex, err := s.keyRotator.GetNextKey()
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to get API key: %w", err)
 	}
 
-	// Build search parameters
 	parameter := map[string]string{
 		"engine": "google_shopping",
 		"q":      query,
@@ -50,14 +46,12 @@ func (s *SerpService) SearchProducts(query, searchType, country string) ([]model
 		"hl":     getLanguageForCountry(country),
 	}
 
-	// Execute search
 	search := g.NewGoogleSearch(parameter, apiKey)
 	data, err := search.GetJSON()
 	if err != nil {
 		return nil, keyIndex, fmt.Errorf("SERP API error: %w", err)
 	}
 
-	// Extract shopping results
 	shoppingItems := []types.ShoppingItem{}
 
 	if shoppingResults, ok := data["shopping_results"].([]interface{}); ok {
@@ -75,13 +69,13 @@ func (s *SerpService) SearchProducts(query, searchType, country string) ([]model
 					Rating:      getFloat32FromInterface(itemMap["rating"]),
 					Reviews:     getIntFromInterface(itemMap["reviews"]),
 					SerpAPILink: getStringFromInterface(itemMap["serpapi_product_api"]),
+					PageToken:   getStringFromInterface(itemMap["immersive_product_page_token"]),
 				}
 				shoppingItems = append(shoppingItems, shoppingItem)
 			}
 		}
 	}
 
-	// 🎯 НОВАЯ ЛОГИКА: Валидация релевантности
 	result := s.validateRelevance(query, shoppingItems, searchType)
 
 	if !result.IsRelevant {
@@ -89,7 +83,6 @@ func (s *SerpService) SearchProducts(query, searchType, country string) ([]model
 		return nil, keyIndex, fmt.Errorf("no relevant products found")
 	}
 
-	// Convert to ProductCards (теперь из types.ShoppingItem)
 	cards := s.convertToProductCards(result.Products, searchType)
 
 	fmt.Printf("   ✅ Found %d relevant products (score: %.2f)\n", len(cards), result.RelevanceScore)
@@ -97,7 +90,6 @@ func (s *SerpService) SearchProducts(query, searchType, country string) ([]model
 	return cards, keyIndex, nil
 }
 
-// validateRelevance checks if search results are relevant to the query
 func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem, searchType string) SearchResult {
 	if len(items) == 0 {
 		return SearchResult{
@@ -108,11 +100,9 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		}
 	}
 
-	// Normalize query for comparison
 	queryLower := strings.ToLower(query)
 	queryWords := strings.Fields(queryLower)
 
-	// Score each product
 	type scoredProduct struct {
 		item  types.ShoppingItem
 		score float32
@@ -128,7 +118,6 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		})
 	}
 
-	// Sort by score (highest first)
 	for i := 0; i < len(scoredProducts); i++ {
 		for j := i + 1; j < len(scoredProducts); j++ {
 			if scoredProducts[j].score > scoredProducts[i].score {
@@ -137,20 +126,18 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		}
 	}
 
-	// Determine relevance threshold based on search type
 	var threshold float32
 	switch searchType {
 	case "exact":
-		threshold = 0.7 // Высокий порог для точного поиска
+		threshold = 0.7
 	case "parameters":
-		threshold = 0.5 // Средний порог для параметрического поиска
+		threshold = 0.5
 	case "category":
-		threshold = 0.3 // Низкий порог для категорийного поиска
+		threshold = 0.3
 	default:
 		threshold = 0.5
 	}
 
-	// Get best products above threshold
 	relevantProducts := []types.ShoppingItem{}
 	maxProducts := s.getMaxProducts(searchType)
 
@@ -160,10 +147,9 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		}
 	}
 
-	// Calculate overall relevance
 	var avgScore float32
 	if len(relevantProducts) > 0 {
-		for i := 0; i < len(relevantProducts) && i < 3; i++ { // Top 3 average
+		for i := 0; i < len(relevantProducts) && i < 3; i++ {
 			avgScore += scoredProducts[i].score
 		}
 		avgScore /= float32(min(3, len(relevantProducts)))
@@ -177,7 +163,6 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		IsRelevant:     isRelevant,
 	}
 
-	// Add alternative hint if not relevant
 	if !isRelevant && len(items) > 0 {
 		result.AlternativeHint = fmt.Sprintf("Found similar products but exact match not available. Best alternative: %s", items[0].Title)
 	}
@@ -185,18 +170,15 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 	return result
 }
 
-// calculateRelevanceScore calculates relevance score for a product
 func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.ShoppingItem) float32 {
 	titleLower := strings.ToLower(item.Title)
 	var score float32 = 0.0
 
-	// 1. Exact title match (weight: 1.0)
 	queryStr := strings.Join(queryWords, " ")
 	if strings.Contains(titleLower, queryStr) {
 		score += 1.0
 	}
 
-	// 2. All words present (weight: 0.8)
 	allWordsPresent := true
 	for _, word := range queryWords {
 		if !strings.Contains(titleLower, word) {
@@ -208,10 +190,8 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 		score += 0.8
 	}
 
-	// 3. Individual word matches (weight: 0.1 each)
 	matchedWords := 0
 	for _, word := range queryWords {
-		// Skip common words
 		if len(word) <= 2 || isCommonWord(word) {
 			continue
 		}
@@ -223,14 +203,12 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 		score += float32(matchedWords) / float32(len(queryWords)) * 0.5
 	}
 
-	// 4. Word order matters (weight: 0.3)
 	if len(queryWords) >= 2 {
 		titleWords := strings.Fields(titleLower)
 		orderScore := s.calculateWordOrderScore(queryWords, titleWords)
 		score += orderScore * 0.3
 	}
 
-	// 5. Brand name priority (weight: 0.4)
 	brands := []string{
 		"apple", "iphone", "ipad", "macbook", "samsung", "galaxy",
 		"google", "pixel", "xiaomi", "oneplus", "sony", "dell",
@@ -245,8 +223,6 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 		}
 	}
 
-	// 6. Model number precision (weight: 0.5)
-	// Check if specific model numbers match (e.g., "15", "S24", "M3")
 	modelNumbers := extractModelNumbers(queryWords)
 	if len(modelNumbers) > 0 {
 		hasModelMatch := false
@@ -259,12 +235,10 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 		if hasModelMatch {
 			score += 0.5
 		} else {
-			// Penalty for missing model number
 			score -= 0.3
 		}
 	}
 
-	// 7. Penalty for extra words not in query
 	titleWords := strings.Fields(titleLower)
 	extraWordsPenalty := float32(0)
 	for _, titleWord := range titleWords {
@@ -283,7 +257,6 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 	}
 	score -= extraWordsPenalty
 
-	// Normalize score to 0-1 range
 	if score < 0 {
 		score = 0
 	}
@@ -294,7 +267,6 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 	return score
 }
 
-// calculateWordOrderScore checks if words appear in similar order
 func (s *SerpService) calculateWordOrderScore(queryWords, titleWords []string) float32 {
 	if len(queryWords) < 2 || len(titleWords) < 2 {
 		return 0
@@ -305,7 +277,6 @@ func (s *SerpService) calculateWordOrderScore(queryWords, titleWords []string) f
 		word1 := queryWords[i]
 		word2 := queryWords[i+1]
 
-		// Find positions in title
 		pos1 := -1
 		pos2 := -1
 
@@ -318,7 +289,6 @@ func (s *SerpService) calculateWordOrderScore(queryWords, titleWords []string) f
 			}
 		}
 
-		// Check if order is preserved
 		if pos1 != -1 && pos2 != -1 && pos1 < pos2 {
 			matches++
 		}
@@ -327,12 +297,10 @@ func (s *SerpService) calculateWordOrderScore(queryWords, titleWords []string) f
 	return float32(matches) / float32(len(queryWords)-1)
 }
 
-// extractModelNumbers extracts model numbers from query words
 func extractModelNumbers(words []string) []string {
 	modelNumbers := []string{}
 
 	for _, word := range words {
-		// Check if word contains digits
 		hasDigit := false
 		for _, char := range word {
 			if char >= '0' && char <= '9' {
@@ -349,7 +317,6 @@ func extractModelNumbers(words []string) []string {
 	return modelNumbers
 }
 
-// isCommonWord checks if word is common and should be ignored
 func isCommonWord(word string) bool {
 	commonWords := []string{
 		"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
@@ -368,7 +335,6 @@ func isCommonWord(word string) bool {
 	return false
 }
 
-// GetProductDetailsByToken fetches detailed product info using page_token
 func (s *SerpService) GetProductDetailsByToken(pageToken string) (map[string]interface{}, int, error) {
 	apiKey, keyIndex, err := s.keyRotator.GetNextKey()
 	if err != nil {
@@ -390,7 +356,6 @@ func (s *SerpService) GetProductDetailsByToken(pageToken string) (map[string]int
 	return data, keyIndex, nil
 }
 
-// convertToProductCards converts ShoppingItems to ProductCards
 func (s *SerpService) convertToProductCards(items []types.ShoppingItem, searchType string) []models.ProductCard {
 	maxProducts := s.getMaxProducts(searchType)
 	cards := make([]models.ProductCard, 0, maxProducts)
@@ -400,7 +365,10 @@ func (s *SerpService) convertToProductCards(items []types.ShoppingItem, searchTy
 			break
 		}
 
-		pageToken := s.extractPageToken(item)
+		pageToken := item.PageToken
+		if pageToken == "" {
+			pageToken = s.extractPageToken(item)
+		}
 
 		badge := ""
 		if item.Rating > 0 {
@@ -424,7 +392,6 @@ func (s *SerpService) convertToProductCards(items []types.ShoppingItem, searchTy
 	return cards
 }
 
-// extractPageToken extracts page_token from shopping item
 func (s *SerpService) extractPageToken(item types.ShoppingItem) string {
 	if item.PageToken != "" {
 		return item.PageToken
@@ -441,11 +408,10 @@ func (s *SerpService) extractPageToken(item types.ShoppingItem) string {
 	return ""
 }
 
-// getMaxProducts returns max number of products based on search type
 func (s *SerpService) getMaxProducts(searchType string) int {
 	switch searchType {
 	case "exact":
-		return 3 // Показываем топ-3 для точного поиска
+		return 3
 	case "parameters":
 		return 6
 	case "category":
@@ -455,7 +421,6 @@ func (s *SerpService) getMaxProducts(searchType string) int {
 	}
 }
 
-// extractTokenFromSerpAPILink extracts page_token from serpapi URL
 func extractTokenFromSerpAPILink(link string) string {
 	tokenStart := findSubstring(link, "page_token=")
 	if tokenStart == -1 {
@@ -471,7 +436,6 @@ func extractTokenFromSerpAPILink(link string) string {
 	return link[tokenStart : tokenStart+tokenEnd]
 }
 
-// findSubstring finds substring position
 func findSubstring(s, substr string) int {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {
@@ -481,7 +445,6 @@ func findSubstring(s, substr string) int {
 	return -1
 }
 
-// getLanguageForCountry maps country code to language
 func getLanguageForCountry(country string) string {
 	languageMap := map[string]string{
 		"CH": "de", "DE": "de", "AT": "de",
@@ -498,14 +461,11 @@ func getLanguageForCountry(country string) string {
 	return "en"
 }
 
-// GetProductByPageToken is an alias
 func (s *SerpService) GetProductByPageToken(pageToken string) (map[string]interface{}, int, error) {
 	return s.GetProductDetailsByToken(pageToken)
 }
 
-// SearchWithCache searches products with optional caching
 func (s *SerpService) SearchWithCache(query, searchType, country string, cacheService *CacheService) ([]models.ProductCard, int, error) {
-	// Try cache
 	if cacheService != nil {
 		cacheKey := fmt.Sprintf("search:%s:%s:%s", country, searchType, query)
 		if cached, err := cacheService.GetSearchResults(cacheKey); err == nil && cached != nil {
@@ -513,13 +473,11 @@ func (s *SerpService) SearchWithCache(query, searchType, country string, cacheSe
 		}
 	}
 
-	// Cache miss - fetch from API
 	cards, keyIndex, err := s.SearchProducts(query, searchType, country)
 	if err != nil {
 		return nil, keyIndex, err
 	}
 
-	// Store in cache
 	if cacheService != nil {
 		cacheKey := fmt.Sprintf("search:%s:%s:%s", country, searchType, query)
 		ttl := time.Duration(s.config.CacheSerpTTL) * time.Second
@@ -529,7 +487,6 @@ func (s *SerpService) SearchWithCache(query, searchType, country string, cacheSe
 	return cards, keyIndex, nil
 }
 
-// Helper functions
 func getStringFromInterface(val interface{}) string {
 	if str, ok := val.(string); ok {
 		return str
