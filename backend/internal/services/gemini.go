@@ -1,3 +1,4 @@
+// backend/internal/services/gemini.go
 package services
 
 import (
@@ -15,12 +16,15 @@ import (
 )
 
 type GeminiService struct {
+	client         *genai.Client
 	keyRotator     *utils.KeyRotator
 	config         *config.Config
 	promptManager  *PromptManager
 	groundingStats *GroundingStats
 	tokenStats     *TokenStats
+	embedding      *EmbeddingService
 	ctx            context.Context
+	mu             sync.RWMutex
 }
 
 type TokenStats struct {
@@ -42,15 +46,53 @@ type GroundingStats struct {
 	AverageConfidence float32
 }
 
-func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config) *GeminiService {
+func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embedding *EmbeddingService) *GeminiService {
+	ctx := context.Background()
+
+	apiKey, _, err := keyRotator.GetNextKey()
+	if err != nil {
+		panic(fmt.Errorf("failed to get initial API key: %w", err))
+	}
+
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  apiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
+	if err != nil {
+		panic(fmt.Errorf("failed to create Gemini client: %w", err))
+	}
+
 	return &GeminiService{
+		client:         client,
 		keyRotator:     keyRotator,
 		config:         cfg,
 		promptManager:  NewPromptManager(),
 		groundingStats: &GroundingStats{ReasonCounts: make(map[string]int)},
 		tokenStats:     &TokenStats{},
-		ctx:            context.Background(),
+		embedding:      embedding,
+		ctx:            ctx,
 	}
+}
+
+func (g *GeminiService) rotateClient() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	apiKey, _, err := g.keyRotator.GetNextKey()
+	if err != nil {
+		return fmt.Errorf("failed to get API key: %w", err)
+	}
+
+	client, err := genai.NewClient(g.ctx, &genai.ClientConfig{
+		APIKey:  apiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create Gemini client: %w", err)
+	}
+
+	g.client = client
+	return nil
 }
 
 func (g *GeminiService) ProcessMessageWithContext(
@@ -62,17 +104,15 @@ func (g *GeminiService) ProcessMessageWithContext(
 	lastProduct *models.ProductInfo,
 ) (*models.GeminiResponse, int, error) {
 
-	apiKey, keyIndex, err := g.keyRotator.GetNextKey()
-	if err != nil {
-		return nil, -1, fmt.Errorf("failed to get API key: %w", err)
+	if err := g.rotateClient(); err != nil {
+		return nil, -1, err
 	}
 
-	client, err := genai.NewClient(g.ctx, &genai.ClientConfig{
-		APIKey:  apiKey,
-		Backend: genai.BackendGeminiAPI,
-	})
-	if err != nil {
-		return nil, keyIndex, fmt.Errorf("failed to create Gemini client: %w", err)
+	if currentCategory == "" {
+		detectedCategory := g.embedding.DetectCategory(userMessage)
+		if detectedCategory != "" {
+			currentCategory = detectedCategory
+		}
 	}
 
 	promptKey := g.promptManager.GetPromptKey(currentCategory)
@@ -84,10 +124,11 @@ func (g *GeminiService) ProcessMessageWithContext(
 	}
 
 	systemPrompt = strings.ReplaceAll(systemPrompt, "{last_product}", lastProductStr)
-
 	conversationContext := g.buildConversationContext(conversationHistory)
 
-	prompt := systemPrompt + "\n\n# CONVERSATION HISTORY:\n" + conversationContext + "\n\nCurrent user message: " + userMessage + "\n\nAnalyze the conversation history above. If the last assistant question was similar to what the current situation requires, provide a DIFFERENT question to move the conversation forward."
+	prompt := systemPrompt + "\n\n# CONVERSATION HISTORY:\n" + conversationContext +
+		"\n\nCurrent user message: " + userMessage +
+		"\n\nAnalyze the conversation history above. If the last assistant question was similar to what the current situation requires, provide a DIFFERENT question to move the conversation forward."
 
 	temp := g.config.GeminiTemperature
 	generateConfig := &genai.GenerateContentConfig{
@@ -103,6 +144,10 @@ func (g *GeminiService) ProcessMessageWithContext(
 		}
 	}
 
+	g.mu.RLock()
+	client := g.client
+	g.mu.RUnlock()
+
 	resp, err := client.Models.GenerateContent(
 		g.ctx,
 		g.config.GeminiModel,
@@ -110,11 +155,11 @@ func (g *GeminiService) ProcessMessageWithContext(
 		generateConfig,
 	)
 	if err != nil {
-		return nil, keyIndex, fmt.Errorf("Gemini API error: %w", err)
+		return nil, 0, fmt.Errorf("Gemini API error: %w", err)
 	}
 
 	if resp == nil {
-		return nil, keyIndex, fmt.Errorf("Gemini returned nil response")
+		return nil, 0, fmt.Errorf("Gemini returned nil response")
 	}
 
 	if resp.UsageMetadata != nil {
@@ -122,12 +167,12 @@ func (g *GeminiService) ProcessMessageWithContext(
 	}
 
 	if len(resp.Candidates) == 0 {
-		return nil, keyIndex, fmt.Errorf("no candidates in Gemini response")
+		return nil, 0, fmt.Errorf("no candidates in Gemini response")
 	}
 
 	candidate := resp.Candidates[0]
 	if candidate.Content == nil || len(candidate.Content.Parts) == 0 {
-		return nil, keyIndex, fmt.Errorf("no content in Gemini response")
+		return nil, 0, fmt.Errorf("no content in Gemini response")
 	}
 
 	responseText := ""
@@ -143,19 +188,19 @@ func (g *GeminiService) ProcessMessageWithContext(
 	responseText = strings.TrimSpace(responseText)
 
 	if responseText == "" {
-		return nil, keyIndex, fmt.Errorf("empty response text from Gemini")
+		return nil, 0, fmt.Errorf("empty response text from Gemini")
 	}
 
 	var geminiResp models.GeminiResponse
 	if err := json.Unmarshal([]byte(responseText), &geminiResp); err != nil {
-		return nil, keyIndex, fmt.Errorf("failed to parse Gemini JSON response: %w (response: %s)", err, responseText)
+		return nil, 0, fmt.Errorf("failed to parse Gemini JSON response: %w (response: %s)", err, responseText)
 	}
 
 	if geminiResp.ResponseType == "" {
-		return nil, keyIndex, fmt.Errorf("missing response_type in Gemini response")
+		return nil, 0, fmt.Errorf("missing response_type in Gemini response")
 	}
 
-	return &geminiResp, keyIndex, nil
+	return &geminiResp, 0, nil
 }
 
 func (g *GeminiService) buildConversationContext(history []map[string]string) string {

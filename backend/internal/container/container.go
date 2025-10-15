@@ -1,3 +1,4 @@
+// backend/internal/container/container.go
 package container
 
 import (
@@ -6,41 +7,35 @@ import (
 	"log"
 
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/genai"
 
 	"mylittleprice/internal/config"
 	"mylittleprice/internal/services"
 	"mylittleprice/internal/utils"
 )
 
-// Container holds all application dependencies
 type Container struct {
-	// Configuration
 	Config *config.Config
+	Redis  *redis.Client
+	ctx    context.Context
 
-	// Infrastructure
-	Redis *redis.Client
-	ctx   context.Context
-
-	// Key Rotators
 	GeminiRotator *utils.KeyRotator
 	SerpRotator   *utils.KeyRotator
 
-	// Services (Singletons)
-	GeminiService  *services.GeminiService
-	SerpService    *services.SerpService
-	CacheService   *services.CacheService
-	SessionService *services.SessionService
-	Optimizer      *services.QueryOptimizer
+	EmbeddingService *services.EmbeddingService
+	GeminiService    *services.GeminiService
+	SerpService      *services.SerpService
+	CacheService     *services.CacheService
+	SessionService   *services.SessionService
+	Optimizer        *services.QueryOptimizer
 }
 
-// NewContainer creates and initializes the dependency injection container
 func NewContainer(cfg *config.Config) (*Container, error) {
 	c := &Container{
 		Config: cfg,
 		ctx:    context.Background(),
 	}
 
-	// Initialize in correct order
 	if err := c.initRedis(); err != nil {
 		return nil, fmt.Errorf("failed to initialize Redis: %w", err)
 	}
@@ -57,7 +52,6 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	return c, nil
 }
 
-// initRedis initializes Redis connection
 func (c *Container) initRedis() error {
 	c.Redis = redis.NewClient(&redis.Options{
 		Addr:     c.Config.RedisURL,
@@ -73,7 +67,6 @@ func (c *Container) initRedis() error {
 	return nil
 }
 
-// initKeyRotators initializes API key rotators
 func (c *Container) initKeyRotators() error {
 	c.GeminiRotator = utils.NewKeyRotator(
 		c.ctx,
@@ -95,20 +88,25 @@ func (c *Container) initKeyRotators() error {
 	return nil
 }
 
-// initServices initializes all application services
 func (c *Container) initServices() error {
-	// Session Service
 	c.SessionService = services.NewSessionService(
 		c.Redis,
 		c.Config.SessionTTL,
 		c.Config.MaxMessagesPerSession,
 	)
 
-	// Cache Service
-	c.CacheService = services.NewCacheServiceWithClient(c.Redis, c.Config)
+	apiKey, _, _ := c.GeminiRotator.GetNextKey()
+	geminiClient, _ := genai.NewClient(c.ctx, &genai.ClientConfig{
+		APIKey:  apiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
 
-	// Gemini Service (with smart grounding)
-	c.GeminiService = services.NewGeminiService(c.GeminiRotator, c.Config)
+	c.EmbeddingService = services.NewEmbeddingService(geminiClient, c.Redis, c.Config)
+	log.Println("🧠 Embedding Service initialized")
+
+	c.CacheService = services.NewCacheServiceWithClient(c.Redis, c.Config, c.EmbeddingService)
+
+	c.GeminiService = services.NewGeminiService(c.GeminiRotator, c.Config, c.EmbeddingService)
 	log.Printf("🎯 Smart Grounding: '%s' mode", c.Config.GeminiGroundingMode)
 	if c.Config.GeminiUseGrounding {
 		log.Println("🔍 Grounding: ENABLED (selective usage)")
@@ -116,17 +114,13 @@ func (c *Container) initServices() error {
 		log.Println("💬 Grounding: DISABLED globally")
 	}
 
-	// SERP Service
 	c.SerpService = services.NewSerpService(c.SerpRotator, c.Config)
-
-	// Query Optimizer
 	c.Optimizer = services.NewQueryOptimizer()
 
 	log.Println("✅ All services initialized")
 	return nil
 }
 
-// Close gracefully shuts down all resources
 func (c *Container) Close() error {
 	log.Println("🛑 Shutting down container...")
 
@@ -138,7 +132,6 @@ func (c *Container) Close() error {
 	return nil
 }
 
-// HealthCheck verifies all dependencies are working
 func (c *Container) HealthCheck() map[string]interface{} {
 	health := map[string]interface{}{
 		"redis": c.checkRedis(),
@@ -154,12 +147,14 @@ func (c *Container) HealthCheck() map[string]interface{} {
 			"mode":    c.Config.GeminiGroundingMode,
 			"enabled": c.Config.GeminiUseGrounding,
 		},
+		"embedding": map[string]interface{}{
+			"status": "ok",
+		},
 	}
 
 	return health
 }
 
-// checkRedis checks Redis connection health
 func (c *Container) checkRedis() map[string]interface{} {
 	if err := c.Redis.Ping(c.ctx).Err(); err != nil {
 		return map[string]interface{}{
