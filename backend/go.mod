@@ -9,7 +9,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.14.0
 	github.com/serpapi/google-search-results-golang v0.0.0-20240325113416-ec93f510648e
-	google.golang.org/genai v1.28.0
+	google.golang.org/genai v1.30.0
 )
 
 require (

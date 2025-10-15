@@ -1,4 +1,3 @@
-// backend/internal/services/gemini.go
 package services
 
 import (
@@ -76,8 +75,6 @@ func (g *GeminiService) ProcessMessageWithContext(
 		return nil, keyIndex, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	useGrounding := g.shouldUseGrounding(userMessage, conversationHistory, currentCategory)
-
 	promptKey := g.promptManager.GetPromptKey(currentCategory)
 	systemPrompt := g.promptManager.GetPrompt(promptKey, country, language, currentCategory)
 
@@ -88,6 +85,12 @@ func (g *GeminiService) ProcessMessageWithContext(
 
 	systemPrompt = strings.ReplaceAll(systemPrompt, "{last_product}", lastProductStr)
 
+	prompt := systemPrompt + "\n\n"
+	for _, msg := range conversationHistory {
+		prompt += fmt.Sprintf("%s: %s\n", msg["role"], msg["content"])
+	}
+	prompt += "user: " + userMessage
+
 	temp := g.config.GeminiTemperature
 	generateConfig := &genai.GenerateContentConfig{
 		Temperature:      &temp,
@@ -95,19 +98,19 @@ func (g *GeminiService) ProcessMessageWithContext(
 		ResponseMIMEType: "application/json",
 	}
 
+	useGrounding := g.shouldUseGrounding(userMessage, conversationHistory, currentCategory)
 	if useGrounding {
 		generateConfig.Tools = []*genai.Tool{
-			{GoogleSearch: &genai.GoogleSearch{}},
+			{GoogleSearchRetrieval: &genai.GoogleSearchRetrieval{}},
 		}
 	}
 
-	prompt := systemPrompt + "\n\n"
-	for _, msg := range conversationHistory {
-		prompt += fmt.Sprintf("%s: %s\n", msg["role"], msg["content"])
-	}
-	prompt += "user: " + userMessage
-
-	resp, err := client.Models.GenerateContent(g.ctx, g.config.GeminiModel, genai.Text(prompt), generateConfig)
+	resp, err := client.Models.GenerateContent(
+		g.ctx,
+		g.config.GeminiModel,
+		genai.Text(prompt),
+		generateConfig,
+	)
 	if err != nil {
 		return nil, keyIndex, fmt.Errorf("Gemini API error: %w", err)
 	}
@@ -131,7 +134,9 @@ func (g *GeminiService) ProcessMessageWithContext(
 
 	responseText := ""
 	for _, part := range candidate.Content.Parts {
-		responseText += fmt.Sprintf("%v", part)
+		if part.Text != "" {
+			responseText += part.Text
+		}
 	}
 
 	responseText = strings.TrimSpace(responseText)
