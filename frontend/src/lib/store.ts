@@ -1,3 +1,4 @@
+// frontend/src/lib/store.ts
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { ChatMessage } from "@/types";
@@ -48,12 +49,13 @@ export const useChatStore = create<ChatStore>()(
 
       setSearchInProgress: (inProgress) => set({ searchInProgress: inProgress }),
 
-      clearMessages: () => set({ messages: [] }),
+      clearMessages: () => set({ messages: [], isLoading: false }),
 
       newSearch: () =>
         set({
           messages: [],
           searchInProgress: false,
+          isLoading: false,
         }),
 
       initializeLocale: async () => {
@@ -71,8 +73,6 @@ export const useChatStore = create<ChatStore>()(
       name: "chat-storage",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        messages: state.messages,
-        sessionId: state.sessionId,
         country: state.country,
         language: state.language,
       }),

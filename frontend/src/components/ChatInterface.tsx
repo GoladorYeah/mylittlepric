@@ -19,7 +19,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialQuerySentRef = useRef(false);
-  const lastMessageIdRef = useRef<string | null>(null);
+  const processedMessageIds = useRef<Set<string>>(new Set());
 
   const {
     messages,
@@ -89,22 +89,24 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
         return;
       }
 
-      const messageId = generateId();
-      if (messageId === lastMessageIdRef.current) {
+      const messageHash = JSON.stringify(data);
+      
+      if (processedMessageIds.current.has(messageHash)) {
         return;
       }
+
+      processedMessageIds.current.add(messageHash);
 
       setLoading(false);
 
       if (data.type === "error") {
         const errorMessage = data.message || data.error || "An error occurred";
         addMessage({
-          id: messageId,
+          id: generateId(),
           role: "assistant",
           content: errorMessage,
           timestamp: Date.now(),
         });
-        lastMessageIdRef.current = messageId;
         return;
       }
 
@@ -114,7 +116,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
       }
 
       const assistantMessage = {
-        id: messageId,
+        id: generateId(),
         role: "assistant" as const,
         content: data.output || "",
         timestamp: Date.now(),
@@ -124,7 +126,6 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
       };
 
       addMessage(assistantMessage);
-      lastMessageIdRef.current = messageId;
 
       if (data.search_state) {
         setSearchInProgress(data.search_state.status === "completed");
@@ -181,11 +182,12 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
   };
 
   const handleNewSearch = () => {
+    processedMessageIds.current.clear();
+    initialQuerySentRef.current = false;
     newSearch();
     const newSessionId = generateId();
     setSessionId(newSessionId);
     localStorage.setItem("chat_session_id", newSessionId);
-    initialQuerySentRef.current = false;
   };
 
   const handleQuickReply = (reply: string) => {
