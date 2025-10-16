@@ -146,9 +146,9 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		}
 	}
 
-	// ✅ ВСТАВЬТЕ ЛОГ ЗДЕСЬ - ПОКАЗЫВАЕМ TOP-5 С ИХ SCORES
-	fmt.Printf("   📊 Top 5 results:\n")
-	topCount := min(5, len(scoredProducts))
+	// ✅ ВСТАВЬТЕ ЛОГ ЗДЕСЬ - ПОКАЗЫВАЕМ TOP-N С ИХ SCORES
+	fmt.Printf("   📊 Top %d results:\n", s.config.SerpLogTopResultsCount)
+	topCount := min(s.config.SerpLogTopResultsCount, len(scoredProducts))
 	for i := 0; i < topCount; i++ {
 		title := scoredProducts[i].item.Title
 		if len(title) > 60 {
@@ -157,17 +157,17 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		fmt.Printf("      %d. [%.2f] %s\n", i+1, scoredProducts[i].score, title)
 	}
 
-	// ✅ СМЯГЧАЕМ THRESHOLDS - делаем поиск более гибким
+	// ✅ THRESHOLDS из конфигурации
 	var threshold float32
 	switch searchType {
 	case "exact":
-		threshold = 0.4 // было 0.7
+		threshold = float32(s.config.SerpThresholdExact)
 	case "parameters":
-		threshold = 0.2 // было 0.5
+		threshold = float32(s.config.SerpThresholdParameters)
 	case "category":
-		threshold = 0.1 // было 0.3
+		threshold = float32(s.config.SerpThresholdCategory)
 	default:
-		threshold = 0.2
+		threshold = float32(s.config.SerpThresholdParameters)
 	}
 
 	relevantProducts := []types.ShoppingItem{}
@@ -182,10 +182,10 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 			}
 		}
 
-		// Если ничего не нашли, берем хотя бы топ-3 результата
+		// Если ничего не нашли, берем хотя бы топ-N результата
 		if len(relevantProducts) == 0 && len(scoredProducts) > 0 {
 			fmt.Printf("   💡 No products above threshold (%.2f), taking top results\n", threshold)
-			topCount := min(3, len(scoredProducts))
+			topCount := min(s.config.SerpFallbackMinResults, len(scoredProducts))
 			for i := 0; i < topCount; i++ {
 				relevantProducts = append(relevantProducts, scoredProducts[i].item)
 			}
@@ -224,13 +224,13 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 	// ✅ 1. Полное совпадение всей фразы (бонус)
 	queryStr := strings.Join(queryWords, " ")
 	if strings.Contains(titleLower, queryStr) {
-		score += 1.0
+		score += float32(s.config.SerpScorePhraseMatch)
 	}
 
 	// ✅ 2. Все слова присутствуют (хороший сигнал)
 	allWordsPresent := true
 	for _, word := range queryWords {
-		if len(word) <= 2 {
+		if len(word) <= s.config.SerpMinWordLength {
 			continue // Игнорируем короткие слова
 		}
 		if !strings.Contains(titleLower, word) {
@@ -239,7 +239,7 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 		}
 	}
 	if allWordsPresent {
-		score += 0.6 // было 0.8
+		score += float32(s.config.SerpScoreAllWords)
 	}
 
 	// ✅ 3. Частичное совпадение слов (даже если не все слова есть)
@@ -260,21 +260,21 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 
 	significantWords := 0
 	for _, word := range queryWords {
-		if len(word) > 2 && !isCommonWord(word) {
+		if len(word) > s.config.SerpMinWordLength && !isCommonWord(word) {
 			significantWords++
 		}
 	}
 
 	if significantWords > 0 {
 		matchRatio := float32(matchedWords) / float32(significantWords)
-		score += matchRatio * 0.5 // До 0.5 баллов за частичное совпадение
+		score += matchRatio * float32(s.config.SerpScorePartialWords)
 	}
 
 	// ✅ 4. Порядок слов (менее важно)
 	if len(queryWords) >= 2 {
 		titleWords := strings.Fields(titleLower)
 		orderScore := s.calculateWordOrderScore(queryWords, titleWords)
-		score += orderScore * 0.2 // было 0.3
+		score += orderScore * float32(s.config.SerpScoreWordOrderWeight)
 	}
 
 	// ✅ 5. Бренды (важно для точности)
@@ -287,14 +287,14 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 	for _, brand := range brands {
 		for _, word := range queryWords {
 			if word == brand && strings.Contains(titleLower, brand) {
-				score += 0.3
+				score += float32(s.config.SerpScoreBrandMatch)
 				break
 			}
 		}
 	}
 
 	// ✅ 6. Номера моделей (если есть в запросе, должны совпадать)
-	modelNumbers := extractModelNumbers(queryWords)
+	modelNumbers := s.extractModelNumbers(queryWords)
 	if len(modelNumbers) > 0 {
 		hasModelMatch := false
 		for _, modelNum := range modelNumbers {
@@ -304,7 +304,7 @@ func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.Sh
 			}
 		}
 		if hasModelMatch {
-			score += 0.3 // было 0.5
+			score += float32(s.config.SerpScoreModelMatch)
 		}
 		// Убираем штраф если модель не совпала - может быть похожий продукт
 	}
@@ -353,7 +353,7 @@ func (s *SerpService) calculateWordOrderScore(queryWords, titleWords []string) f
 	return float32(matches) / float32(len(queryWords)-1)
 }
 
-func extractModelNumbers(words []string) []string {
+func (s *SerpService) extractModelNumbers(words []string) []string {
 	modelNumbers := []string{}
 
 	for _, word := range words {
@@ -365,7 +365,7 @@ func extractModelNumbers(words []string) []string {
 			}
 		}
 
-		if hasDigit && len(word) >= 2 {
+		if hasDigit && len(word) >= s.config.SerpModelNumberMinLength {
 			modelNumbers = append(modelNumbers, word)
 		}
 	}
@@ -467,13 +467,13 @@ func (s *SerpService) extractPageToken(item types.ShoppingItem) string {
 func (s *SerpService) getMaxProducts(searchType string) int {
 	switch searchType {
 	case "exact":
-		return 3
+		return s.config.SerpMaxProductsExact
 	case "parameters":
-		return 6
+		return s.config.SerpMaxProductsParameters
 	case "category":
-		return 8
+		return s.config.SerpMaxProductsCategory
 	default:
-		return 6
+		return s.config.SerpMaxProductsDefault
 	}
 }
 

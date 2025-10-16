@@ -3,6 +3,15 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { ChatMessage } from "@/types";
 import { detectCountry, detectLanguage } from "./locale";
 
+export interface SearchHistoryItem {
+  id: string;
+  query: string;
+  timestamp: number;
+  category?: string;
+  productsCount?: number;
+  sessionId: string;
+}
+
 interface ChatStore {
   messages: ChatMessage[];
   sessionId: string;
@@ -11,7 +20,9 @@ interface ChatStore {
   language: string;
   searchInProgress: boolean;
   currentCategory: string;
-  
+  searchHistory: SearchHistoryItem[];
+  isSidebarOpen: boolean;
+
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;
   setSessionId: (id: string) => void;
@@ -23,6 +34,11 @@ interface ChatStore {
   clearMessages: () => void;
   newSearch: () => void;
   initializeLocale: () => Promise<void>;
+  addSearchToHistory: (query: string, category?: string, productsCount?: number) => void;
+  loadSearchFromHistory: (historyItem: SearchHistoryItem) => void;
+  clearSearchHistory: () => void;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -35,6 +51,8 @@ export const useChatStore = create<ChatStore>()(
       language: "",
       searchInProgress: false,
       currentCategory: "",
+      searchHistory: [],
+      isSidebarOpen: false,
 
       addMessage: (message) =>
         set((state) => ({ messages: [...state.messages, message] })),
@@ -73,6 +91,38 @@ export const useChatStore = create<ChatStore>()(
           });
         }
       },
+
+      addSearchToHistory: (query, category, productsCount) => {
+        const state = get();
+        const newHistoryItem: SearchHistoryItem = {
+          id: `${Date.now()}-${Math.random()}`,
+          query,
+          timestamp: Date.now(),
+          category,
+          productsCount,
+          sessionId: state.sessionId,
+        };
+
+        set((state) => ({
+          searchHistory: [newHistoryItem, ...state.searchHistory].slice(0, 50), // Keep last 50 searches
+        }));
+      },
+
+      loadSearchFromHistory: (historyItem) => {
+        set({
+          messages: [],
+          searchInProgress: false,
+          isLoading: false,
+          currentCategory: historyItem.category || "",
+          sessionId: historyItem.sessionId,
+        });
+      },
+
+      clearSearchHistory: () => set({ searchHistory: [] }),
+
+      toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+      setSidebarOpen: (open) => set({ isSidebarOpen: open }),
     }),
     {
       name: "chat-storage",
@@ -80,6 +130,8 @@ export const useChatStore = create<ChatStore>()(
       partialize: (state) => ({
         country: state.country,
         language: state.language,
+        searchHistory: state.searchHistory,
+        isSidebarOpen: state.isSidebarOpen,
       }),
     }
   )

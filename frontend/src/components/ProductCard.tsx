@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ExternalLink, Star } from "lucide-react";
 import { ProductCard as ProductCardType } from "@/types";
-import { ProductModal } from "./ProductModal";
+import { ProductDrawer } from "./ProductDrawer";
 
 interface ProductCardProps {
   product: ProductCardType;
@@ -66,7 +66,7 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {showModal && (
-        <ProductModal
+        <ProductDrawer
           pageToken={product.page_token}
           onClose={() => setShowModal(false)}
         />

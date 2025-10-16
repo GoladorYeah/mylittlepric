@@ -70,7 +70,7 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 		config:            cfg,
 		promptManager:     NewPromptManager(),
 		groundingStats:    &GroundingStats{ReasonCounts: make(map[string]int)},
-		groundingStrategy: NewGroundingStrategy(embedding), // ← ДОБАВИТЬ ЭТО
+		groundingStrategy: NewGroundingStrategy(embedding, cfg),
 		tokenStats:        &TokenStats{},
 		embedding:         embedding,
 		ctx:               ctx,
@@ -366,10 +366,10 @@ Query: %s
 
 Translated query:`, query)
 
-	temp := float32(0.3) // Низкая температура для более предсказуемого перевода
+	temp := g.config.GeminiTranslationTemperature
 	generateConfig := &genai.GenerateContentConfig{
 		Temperature:     &temp,
-		MaxOutputTokens: 100,
+		MaxOutputTokens: int32(g.config.GeminiTranslationMaxTokens),
 	}
 
 	g.mu.RLock()

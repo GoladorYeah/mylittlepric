@@ -38,6 +38,59 @@ type Config struct {
 	GeminiGroundingMode     string // "conservative", "balanced", "aggressive"
 	GeminiGroundingMinWords int
 
+	// Grounding Strategy Thresholds
+	GeminiBrandQueryConfidence      float64
+	GeminiGroundingWeightFreshInfo  float64
+	GeminiGroundingWeightSpecific   float64
+	GeminiGroundingWeightDrift      float64
+	GeminiGroundingWeightElectron   float64
+	GeminiGroundingDecisionThresh   float64
+	GeminiBrandQueryMaxWords        int
+	GeminiBrandSimilarityThresh     float64
+	GeminiDialogueHistoryWindow     int
+	GeminiDialogueDriftThresh       float64
+	GeminiDriftScoreBonus           float64
+	GeminiElectronicsThreshHigh     float64
+	GeminiElectronicsScoreHigh      float64
+	GeminiCategorySimilarityThresh  float64
+	GeminiCategoryScore             float64
+
+	// Gemini Translation Settings
+	GeminiTranslationTemperature float32
+	GeminiTranslationMaxTokens   int
+
+	// Embedding Settings
+	GeminiEmbeddingModel            string
+	EmbeddingCategoryDetectionThresh float64
+	CacheQueryEmbeddingTTL          int
+
+	// SERP Relevance Thresholds
+	SerpThresholdExact      float64
+	SerpThresholdParameters float64
+	SerpThresholdCategory   float64
+	SerpLogTopResultsCount  int
+	SerpFallbackMinResults  int
+
+	// SERP Scoring Weights
+	SerpScorePhraseMatch      float64
+	SerpScoreAllWords         float64
+	SerpScorePartialWords     float64
+	SerpScoreWordOrderWeight  float64
+	SerpScoreBrandMatch       float64
+	SerpScoreModelMatch       float64
+	SerpMinWordLength         int
+	SerpModelNumberMinLength  int
+
+	// SERP Max Products
+	SerpMaxProductsExact      int
+	SerpMaxProductsParameters int
+	SerpMaxProductsCategory   int
+	SerpMaxProductsDefault    int
+
+	// Default Values
+	DefaultCountry  string
+	DefaultLanguage string
+
 	// Cache TTL (seconds)
 	CacheGeminiTTL    int
 	CacheSerpTTL      int
@@ -77,6 +130,59 @@ func Load() (*Config, error) {
 		// Grounding Strategy
 		GeminiGroundingMode:     getEnv("GEMINI_GROUNDING_MODE", "balanced"),
 		GeminiGroundingMinWords: getEnvAsInt("GEMINI_GROUNDING_MIN_WORDS", 2),
+
+		// Grounding Strategy Thresholds
+		GeminiBrandQueryConfidence:      getEnvAsFloat("GEMINI_BRAND_QUERY_CONFIDENCE", 0.95),
+		GeminiGroundingWeightFreshInfo:  getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_FRESH_INFO", 0.3),
+		GeminiGroundingWeightSpecific:   getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_SPECIFIC_PRODUCT", 0.35),
+		GeminiGroundingWeightDrift:      getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_DIALOGUE_DRIFT", 0.2),
+		GeminiGroundingWeightElectron:   getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_ELECTRONICS", 0.15),
+		GeminiGroundingDecisionThresh:   getEnvAsFloat("GEMINI_GROUNDING_DECISION_THRESHOLD", 0.5),
+		GeminiBrandQueryMaxWords:        getEnvAsInt("GEMINI_BRAND_QUERY_MAX_WORDS", 3),
+		GeminiBrandSimilarityThresh:     getEnvAsFloat("GEMINI_BRAND_SIMILARITY_THRESHOLD", 0.65),
+		GeminiDialogueHistoryWindow:     getEnvAsInt("GEMINI_DIALOGUE_HISTORY_WINDOW", 4),
+		GeminiDialogueDriftThresh:       getEnvAsFloat("GEMINI_DIALOGUE_DRIFT_THRESHOLD", 0.4),
+		GeminiDriftScoreBonus:           getEnvAsFloat("GEMINI_DRIFT_SCORE_BONUS", 0.8),
+		GeminiElectronicsThreshHigh:     getEnvAsFloat("GEMINI_ELECTRONICS_THRESHOLD_HIGH", 0.7),
+		GeminiElectronicsScoreHigh:      getEnvAsFloat("GEMINI_ELECTRONICS_SCORE_HIGH", 0.9),
+		GeminiCategorySimilarityThresh:  getEnvAsFloat("GEMINI_CATEGORY_SIMILARITY_THRESHOLD", 0.6),
+		GeminiCategoryScore:             getEnvAsFloat("GEMINI_CATEGORY_SCORE", 0.5),
+
+		// Gemini Translation Settings
+		GeminiTranslationTemperature: float32(getEnvAsFloat("GEMINI_TRANSLATION_TEMPERATURE", 0.3)),
+		GeminiTranslationMaxTokens:   getEnvAsInt("GEMINI_TRANSLATION_MAX_TOKENS", 100),
+
+		// Embedding Settings
+		GeminiEmbeddingModel:            getEnv("GEMINI_EMBEDDING_MODEL", "text-embedding-004"),
+		EmbeddingCategoryDetectionThresh: getEnvAsFloat("EMBEDDING_CATEGORY_DETECTION_THRESHOLD", 0.6),
+		CacheQueryEmbeddingTTL:          getEnvAsInt("CACHE_QUERY_EMBEDDING_TTL", 86400),
+
+		// SERP Relevance Thresholds
+		SerpThresholdExact:      getEnvAsFloat("SERP_THRESHOLD_EXACT", 0.4),
+		SerpThresholdParameters: getEnvAsFloat("SERP_THRESHOLD_PARAMETERS", 0.2),
+		SerpThresholdCategory:   getEnvAsFloat("SERP_THRESHOLD_CATEGORY", 0.1),
+		SerpLogTopResultsCount:  getEnvAsInt("SERP_LOG_TOP_RESULTS_COUNT", 5),
+		SerpFallbackMinResults:  getEnvAsInt("SERP_FALLBACK_MIN_RESULTS", 3),
+
+		// SERP Scoring Weights
+		SerpScorePhraseMatch:     getEnvAsFloat("SERP_SCORE_PHRASE_MATCH", 1.0),
+		SerpScoreAllWords:        getEnvAsFloat("SERP_SCORE_ALL_WORDS", 0.6),
+		SerpScorePartialWords:    getEnvAsFloat("SERP_SCORE_PARTIAL_WORDS", 0.5),
+		SerpScoreWordOrderWeight: getEnvAsFloat("SERP_SCORE_WORD_ORDER_WEIGHT", 0.2),
+		SerpScoreBrandMatch:      getEnvAsFloat("SERP_SCORE_BRAND_MATCH", 0.3),
+		SerpScoreModelMatch:      getEnvAsFloat("SERP_SCORE_MODEL_MATCH", 0.3),
+		SerpMinWordLength:        getEnvAsInt("SERP_MIN_WORD_LENGTH", 2),
+		SerpModelNumberMinLength: getEnvAsInt("SERP_MODEL_NUMBER_MIN_LENGTH", 2),
+
+		// SERP Max Products
+		SerpMaxProductsExact:      getEnvAsInt("SERP_MAX_PRODUCTS_EXACT", 3),
+		SerpMaxProductsParameters: getEnvAsInt("SERP_MAX_PRODUCTS_PARAMETERS", 6),
+		SerpMaxProductsCategory:   getEnvAsInt("SERP_MAX_PRODUCTS_CATEGORY", 8),
+		SerpMaxProductsDefault:    getEnvAsInt("SERP_MAX_PRODUCTS_DEFAULT", 6),
+
+		// Default Values
+		DefaultCountry:  getEnv("DEFAULT_COUNTRY", "CH"),
+		DefaultLanguage: getEnv("DEFAULT_LANGUAGE", "en"),
 
 		CacheGeminiTTL:    getEnvAsInt("CACHE_GEMINI_TTL", 3600),
 		CacheSerpTTL:      getEnvAsInt("CACHE_SERP_TTL", 86400),

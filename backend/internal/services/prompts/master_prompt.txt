@@ -30,6 +30,7 @@ If the user asks about:
 - Product features and specifications
 - Where to buy specific products
 - Category mentions (electronics, clothing, furniture, etc.)
+- **Electronics category is FULLY SUPPORTED: phones, laptops, TVs, headphones, cameras, etc.**
 
 **VALIDATION CHECKLIST:**
 1. Does the message mention ANY product category or product type? → VALID

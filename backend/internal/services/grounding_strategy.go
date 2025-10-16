@@ -3,6 +3,8 @@ package services
 
 import (
 	"strings"
+
+	"mylittleprice/internal/config"
 )
 
 type GroundingDecision struct {
@@ -13,11 +15,13 @@ type GroundingDecision struct {
 
 type GroundingStrategy struct {
 	embedding *EmbeddingService
+	config    *config.Config
 }
 
-func NewGroundingStrategy(embedding *EmbeddingService) *GroundingStrategy {
+func NewGroundingStrategy(embedding *EmbeddingService, cfg *config.Config) *GroundingStrategy {
 	return &GroundingStrategy{
 		embedding: embedding,
+		config:    cfg,
 	}
 }
 
@@ -39,7 +43,7 @@ func (gs *GroundingStrategy) ShouldUseGrounding(
 	if gs.isBrandOnlyQuery(userMessage) {
 		return GroundingDecision{
 			UseGrounding: true,
-			Confidence:   0.95,
+			Confidence:   float32(gs.config.GeminiBrandQueryConfidence),
 			Reason:       "brand_only_query_vector",
 		}
 	}
@@ -49,12 +53,12 @@ func (gs *GroundingStrategy) ShouldUseGrounding(
 	dialogueDriftScore := gs.calculateDialogueDrift(queryEmbedding, history)
 	electronicsScore := gs.calculateCategorySimilarity(queryEmbedding, "electronics")
 
-	totalScore := (freshInfoScore * 0.3) +
-		(specificProductScore * 0.35) +
-		(dialogueDriftScore * 0.2) +
-		(electronicsScore * 0.15)
+	totalScore := (freshInfoScore * float32(gs.config.GeminiGroundingWeightFreshInfo)) +
+		(specificProductScore * float32(gs.config.GeminiGroundingWeightSpecific)) +
+		(dialogueDriftScore * float32(gs.config.GeminiGroundingWeightDrift)) +
+		(electronicsScore * float32(gs.config.GeminiGroundingWeightElectron))
 
-	useGrounding := totalScore > 0.5
+	useGrounding := totalScore > float32(gs.config.GeminiGroundingDecisionThresh)
 	reason := gs.determineReason(freshInfoScore, specificProductScore, dialogueDriftScore, electronicsScore)
 
 	return GroundingDecision{
@@ -68,7 +72,7 @@ func (gs *GroundingStrategy) isBrandOnlyQuery(userMessage string) bool {
 	msgLower := strings.ToLower(strings.TrimSpace(userMessage))
 	words := strings.Fields(msgLower)
 
-	if len(words) > 3 {
+	if len(words) > gs.config.GeminiBrandQueryMaxWords {
 		return false
 	}
 
@@ -89,7 +93,7 @@ func (gs *GroundingStrategy) isBrandOnlyQuery(userMessage string) bool {
 	brandSimilarity := cosineSimilarity(queryEmbedding, brandConcept)
 	productSimilarity := cosineSimilarity(queryEmbedding, productConcept)
 
-	return brandSimilarity > 0.65 && brandSimilarity > productSimilarity
+	return brandSimilarity > float32(gs.config.GeminiBrandSimilarityThresh) && brandSimilarity > productSimilarity
 }
 
 func (gs *GroundingStrategy) calculateFreshInfoSimilarity(queryEmbedding []float32) float32 {
@@ -135,12 +139,13 @@ func (gs *GroundingStrategy) calculateSpecificProductSimilarity(queryEmbedding [
 }
 
 func (gs *GroundingStrategy) calculateDialogueDrift(queryEmbedding []float32, history []map[string]string) float32 {
-	if len(history) < 4 {
+	if len(history) < gs.config.GeminiDialogueHistoryWindow {
 		return 0.0
 	}
 
 	recentMessages := []string{}
-	for i := len(history) - 4; i < len(history); i++ {
+	windowSize := gs.config.GeminiDialogueHistoryWindow
+	for i := len(history) - windowSize; i < len(history); i++ {
 		if history[i]["role"] == "user" {
 			recentMessages = append(recentMessages, history[i]["content"])
 		}
@@ -160,8 +165,8 @@ func (gs *GroundingStrategy) calculateDialogueDrift(queryEmbedding []float32, hi
 	similarity := cosineSimilarity(queryEmbedding, historyEmbedding)
 	drift := 1.0 - similarity
 
-	if drift > 0.4 {
-		return 0.8
+	if drift > float32(gs.config.GeminiDialogueDriftThresh) {
+		return float32(gs.config.GeminiDriftScoreBonus)
 	}
 
 	return 0.0
@@ -175,12 +180,12 @@ func (gs *GroundingStrategy) calculateCategorySimilarity(queryEmbedding []float3
 
 	similarity := cosineSimilarity(queryEmbedding, categoryEmbedding)
 
-	if category == "electronics" && similarity > 0.7 {
-		return 0.9
+	if category == "electronics" && similarity > float32(gs.config.GeminiElectronicsThreshHigh) {
+		return float32(gs.config.GeminiElectronicsScoreHigh)
 	}
 
-	if similarity > 0.6 {
-		return 0.5
+	if similarity > float32(gs.config.GeminiCategorySimilarityThresh) {
+		return float32(gs.config.GeminiCategoryScore)
 	}
 
 	return 0.0

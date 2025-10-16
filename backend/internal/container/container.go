@@ -27,7 +27,6 @@ type Container struct {
 	SerpService      *services.SerpService
 	CacheService     *services.CacheService
 	SessionService   *services.SessionService
-	Optimizer        *services.QueryOptimizer
 }
 
 func NewContainer(cfg *config.Config) (*Container, error) {
@@ -115,7 +114,6 @@ func (c *Container) initServices() error {
 	}
 
 	c.SerpService = services.NewSerpService(c.SerpRotator, c.Config)
-	c.Optimizer = services.NewQueryOptimizer()
 
 	log.Println("✅ All services initialized")
 	return nil

@@ -7,6 +7,7 @@ import { useChatStore } from "@/lib/store";
 import { generateId } from "@/lib/utils";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
 import { ThemeToggle } from "./ThemeToggle";
+import { SearchHistory } from "./SearchHistory";
 
 const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080").replace("http", "ws") + "/ws";
 
@@ -34,6 +35,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
     setCurrentCategory,
     newSearch,
     initializeLocale,
+    addSearchToHistory,
   } = useChatStore();
 
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
@@ -85,13 +87,13 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
   useEffect(() => {
     if (lastJsonMessage !== null) {
       const data: any = lastJsonMessage;
-      
+
       if (data.type === "pong") {
         return;
       }
 
       const messageHash = JSON.stringify(data);
-      
+
       if (processedMessageIds.current.has(messageHash)) {
         return;
       }
@@ -135,8 +137,23 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
       if (data.search_state) {
         setSearchInProgress(data.search_state.status === "completed");
       }
+
+      // Save to history if products were found
+      if (data.products && data.products.length > 0) {
+        // Find the last user message to use as the search query
+        const userMessages = messages.filter(m => m.role === "user");
+        const lastUserMessage = userMessages[userMessages.length - 1];
+
+        if (lastUserMessage) {
+          addSearchToHistory(
+            lastUserMessage.content,
+            data.search_state?.category,
+            data.products.length
+          );
+        }
+      }
     }
-  }, [lastJsonMessage, addMessage, setLoading, setSearchInProgress, setCurrentCategory, sessionId, setSessionId]);
+  }, [lastJsonMessage, addMessage, setLoading, setSearchInProgress, setCurrentCategory, sessionId, setSessionId, messages, addSearchToHistory]);
 
   useEffect(() => {
     if (
@@ -209,7 +226,10 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      <SearchHistory />
+
       <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Sparkles className="w-6 h-6 text-primary" />

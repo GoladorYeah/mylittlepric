@@ -20,14 +20,11 @@ type ChatSession struct {
 }
 
 type SearchState struct {
-	Status          SearchStatus `json:"status"`
-	Category        string       `json:"category"`
-	ProductType     string       `json:"product_type,omitempty"`
-	Brand           string       `json:"brand,omitempty"`
-	CollectedParams []string     `json:"collected_params,omitempty"`
-	LastSearchTime  time.Time    `json:"last_search_time,omitempty"`
-	SearchCount     int          `json:"search_count"`
-	LastProduct     *ProductInfo `json:"last_product,omitempty"`
+	Status         SearchStatus `json:"status"`
+	Category       string       `json:"category"`
+	LastSearchTime time.Time    `json:"last_search_time,omitempty"`
+	SearchCount    int          `json:"search_count"`
+	LastProduct    *ProductInfo `json:"last_product,omitempty"`
 }
 
 type ProductInfo struct {

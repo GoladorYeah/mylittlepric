@@ -1,22 +1,3 @@
-export async function detectCountryByBackend(): Promise<string | null> {
-  try {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-    const response = await fetch(`${API_URL}/api/geo`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-    
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    console.log('☁️ Cloudflare country:', data.country);
-    return data.country && data.country !== 'XX' ? data.country : null;
-  } catch (error) {
-    console.error('Failed to detect country from backend:', error);
-    return null;
-  }
-}
-
 export async function detectCountryByIPFallback(): Promise<string | null> {
   try {
     const response = await fetch('http://ip-api.com/json/', {
@@ -52,91 +33,113 @@ export async function detectCountryByIP(): Promise<string | null> {
   }
 }
 
+// Compact timezone-to-country mapping for special cases
+const TIMEZONE_OVERRIDES: Record<string, string> = {
+  "Europe/Zurich": "CH", "Europe/Vaduz": "LI", "Europe/Luxembourg": "LU",
+  "Europe/Monaco": "MC", "Europe/San_Marino": "SM", "Europe/Vatican": "VA",
+  "Europe/Andorra": "AD", "Europe/Kiev": "UA", "Europe/Kyiv": "UA",
+  "Asia/Hong_Kong": "HK", "Asia/Kolkata": "IN", "Asia/Mumbai": "IN", "Asia/Delhi": "IN",
+  "Pacific/Honolulu": "US", "Pacific/Guam": "GU",
+};
+
+// Extract country code from timezone (e.g., "Europe/Berlin" -> "DE")
+function extractCountryFromTimezone(timezone: string): string | null {
+  // Check overrides first
+  if (TIMEZONE_OVERRIDES[timezone]) return TIMEZONE_OVERRIDES[timezone];
+
+  // Extract city name and try to match ISO country codes
+  const parts = timezone.split("/");
+  if (parts.length < 2) return null;
+
+  const cityMap: Record<string, string> = {
+    Berlin: "DE", Vienna: "AT", Paris: "FR", Rome: "IT", Madrid: "ES",
+    Lisbon: "PT", Amsterdam: "NL", Brussels: "BE", Warsaw: "PL", Prague: "CZ",
+    Stockholm: "SE", Oslo: "NO", Copenhagen: "DK", Helsinki: "FI", London: "GB",
+    Dublin: "IE", Athens: "GR", Budapest: "HU", Bucharest: "RO", Sofia: "BG",
+    Vilnius: "LT", Riga: "LV", Tallinn: "EE", Ljubljana: "SI", Bratislava: "SK",
+    Zagreb: "HR", Belgrade: "RS", Moscow: "RU", Istanbul: "TR", Ankara: "TR",
+    Minsk: "BY", Chisinau: "MD", Sarajevo: "BA", Podgorica: "ME", Skopje: "MK",
+    Tirane: "AL", Toronto: "CA", Vancouver: "CA", Montreal: "CA", Halifax: "CA",
+    Winnipeg: "CA", Tokyo: "JP", Seoul: "KR", Shanghai: "CN", Beijing: "CN",
+    Taipei: "TW", Singapore: "SG", Bangkok: "TH", Ho_Chi_Minh: "VN", Jakarta: "ID",
+    Manila: "PH", Kuala_Lumpur: "MY", Dhaka: "BD", Karachi: "PK", Dubai: "AE",
+    Riyadh: "SA", Tel_Aviv: "IL", Tehran: "IR", Baghdad: "IQ", Kuwait: "KW",
+    Sydney: "AU", Melbourne: "AU", Brisbane: "AU", Perth: "AU", Adelaide: "AU",
+    Darwin: "AU", Hobart: "AU", Auckland: "NZ", Wellington: "NZ", Fiji: "FJ",
+    Cairo: "EG", Johannesburg: "ZA", Lagos: "NG", Nairobi: "KE", Casablanca: "MA",
+    Algiers: "DZ", Tunis: "TN", Tripoli: "LY", Accra: "GH", Addis_Ababa: "ET",
+    Dar_es_Salaam: "TZ", Kampala: "UG",
+  };
+
+  const city = parts[parts.length - 1];
+  if (cityMap[city]) return cityMap[city];
+
+  // Generic region mapping (America/* -> US, etc.)
+  const regionDefaults: Record<string, string> = {
+    America: "US", Europe: "GB", Asia: "SG", Australia: "AU",
+    Pacific: "NZ", Africa: "ZA", Atlantic: "PT", Indian: "MU",
+  };
+
+  return regionDefaults[parts[0]] || null;
+}
+
+// Extract country code from locale (e.g., "en-US" -> "US", "de-CH" -> "CH")
+function extractCountryFromLocale(locale: string): string | null {
+  const parts = locale.split("-");
+  if (parts.length === 2 && parts[1].length === 2) {
+    return parts[1].toUpperCase();
+  }
+
+  // Language-to-country fallback for ambiguous cases
+  const langDefaults: Record<string, string> = {
+    de: "DE", fr: "FR", it: "IT", es: "ES", pt: "PT", nl: "NL",
+    pl: "PL", cs: "CZ", sv: "SE", no: "NO", da: "DK", fi: "FI",
+    ja: "JP", ko: "KR", zh: "CN", th: "TH", vi: "VN", id: "ID",
+    ar: "SA", he: "IL", tr: "TR", el: "GR", hu: "HU", ro: "RO",
+    bg: "BG", hr: "HR", sk: "SK", sl: "SI", et: "EE", lv: "LV",
+    lt: "LT", uk: "UA", ru: "RU", sr: "RS", sw: "KE", en: "US",
+  };
+
+  return langDefaults[parts[0]] || null;
+}
+
 export async function detectCountry(): Promise<string> {
   if (typeof window === "undefined") return "CH";
 
-  let detectedCountry: string | null = null;
-
-  detectedCountry = await detectCountryByIP();
-  if (detectedCountry) {
-    console.log('✅ Country detected from ipapi.co:', detectedCountry);
-    return detectedCountry;
+  // Try IP-based detection first
+  let country = await detectCountryByIP();
+  if (country) {
+    console.log('✅ Country from ipapi.co:', country);
+    return country;
   }
 
-  detectedCountry = await detectCountryByIPFallback();
-  if (detectedCountry) {
-    console.log('✅ Country detected from ip-api.com:', detectedCountry);
-    return detectedCountry;
+  country = await detectCountryByIPFallback();
+  if (country) {
+    console.log('✅ Country from ip-api.com:', country);
+    return country;
   }
 
+  // Extract from timezone
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  console.log('🌍 Detecting country from timezone:', timezone);
+  console.log('🌍 Detecting from timezone:', timezone);
 
-  const timezoneMap: Record<string, string> = {
-    "Europe/Zurich": "CH", "Europe/Berlin": "DE", "Europe/Vienna": "AT", "Europe/Paris": "FR",
-    "Europe/Rome": "IT", "Europe/Madrid": "ES", "Europe/Lisbon": "PT", "Europe/Amsterdam": "NL",
-    "Europe/Brussels": "BE", "Europe/Warsaw": "PL", "Europe/Prague": "CZ", "Europe/Stockholm": "SE",
-    "Europe/Oslo": "NO", "Europe/Copenhagen": "DK", "Europe/Helsinki": "FI", "Europe/London": "GB",
-    "Europe/Dublin": "IE", "Europe/Athens": "GR", "Europe/Budapest": "HU", "Europe/Bucharest": "RO",
-    "Europe/Sofia": "BG", "Europe/Vilnius": "LT", "Europe/Riga": "LV", "Europe/Tallinn": "EE",
-    "Europe/Ljubljana": "SI", "Europe/Bratislava": "SK", "Europe/Zagreb": "HR", "Europe/Belgrade": "RS",
-    "Europe/Kiev": "UA", "Europe/Kyiv": "UA", "Europe/Moscow": "RU", "Europe/Istanbul": "TR",
-    "Europe/Minsk": "BY", "Europe/Chisinau": "MD", "Europe/Sarajevo": "BA", "Europe/Podgorica": "ME",
-    "Europe/Skopje": "MK", "Europe/Tirane": "AL", "Europe/Vaduz": "LI", "Europe/Luxembourg": "LU",
-    "Europe/Monaco": "MC", "Europe/San_Marino": "SM", "Europe/Vatican": "VA", "Europe/Andorra": "AD",
-    "America/New_York": "US", "America/Los_Angeles": "US", "America/Chicago": "US", "America/Denver": "US",
-    "America/Phoenix": "US", "America/Anchorage": "US", "America/Honolulu": "US", "America/Toronto": "CA",
-    "America/Vancouver": "CA", "America/Montreal": "CA", "America/Halifax": "CA", "America/Winnipeg": "CA",
-    "America/Mexico_City": "MX", "America/Cancun": "MX", "America/Tijuana": "MX", "America/Monterrey": "MX",
-    "America/Sao_Paulo": "BR", "America/Rio_de_Janeiro": "BR", "America/Brasilia": "BR", "America/Fortaleza": "BR",
-    "America/Buenos_Aires": "AR", "America/Santiago": "CL", "America/Lima": "PE", "America/Bogota": "CO",
-    "America/Caracas": "VE", "America/Panama": "PA", "America/Havana": "CU", "America/Santo_Domingo": "DO",
-    "America/Guatemala": "GT", "America/Managua": "NI", "America/San_Jose": "CR", "America/Tegucigalpa": "HN",
-    "Asia/Tokyo": "JP", "Asia/Seoul": "KR", "Asia/Shanghai": "CN", "Asia/Beijing": "CN", "Asia/Hong_Kong": "HK",
-    "Asia/Taipei": "TW", "Asia/Singapore": "SG", "Asia/Bangkok": "TH", "Asia/Ho_Chi_Minh": "VN",
-    "Asia/Jakarta": "ID", "Asia/Manila": "PH", "Asia/Kuala_Lumpur": "MY", "Asia/Kolkata": "IN",
-    "Asia/Mumbai": "IN", "Asia/Delhi": "IN", "Asia/Dhaka": "BD", "Asia/Karachi": "PK",
-    "Asia/Dubai": "AE", "Asia/Riyadh": "SA", "Asia/Tel_Aviv": "IL", "Asia/Istanbul": "TR",
-    "Asia/Ankara": "TR", "Asia/Tehran": "IR", "Asia/Baghdad": "IQ", "Asia/Kuwait": "KW",
-    "Australia/Sydney": "AU", "Australia/Melbourne": "AU", "Australia/Brisbane": "AU", "Australia/Perth": "AU",
-    "Australia/Adelaide": "AU", "Australia/Darwin": "AU", "Australia/Hobart": "AU", "Pacific/Auckland": "NZ",
-    "Pacific/Wellington": "NZ", "Pacific/Fiji": "FJ", "Pacific/Guam": "GU", "Pacific/Honolulu": "US",
-    "Africa/Cairo": "EG", "Africa/Johannesburg": "ZA", "Africa/Lagos": "NG", "Africa/Nairobi": "KE",
-    "Africa/Casablanca": "MA", "Africa/Algiers": "DZ", "Africa/Tunis": "TN", "Africa/Tripoli": "LY",
-    "Africa/Accra": "GH", "Africa/Addis_Ababa": "ET", "Africa/Dar_es_Salaam": "TZ", "Africa/Kampala": "UG",
-  };
-
-  if (timezoneMap[timezone]) {
-    console.log('✅ Country detected from timezone:', timezoneMap[timezone]);
-    return timezoneMap[timezone];
+  country = extractCountryFromTimezone(timezone);
+  if (country) {
+    console.log('✅ Country from timezone:', country);
+    return country;
   }
 
-  console.log('⚠️ Timezone not found in map, trying locale...');
+  // Extract from locale as last resort
   const locale = navigator.language || "en-US";
-  console.log('🗣️ Browser locale:', locale);
-  const localeMap: Record<string, string> = {
-    "de-CH": "CH", "fr-CH": "CH", "it-CH": "CH", "rm-CH": "CH", "de-DE": "DE", "de-AT": "AT",
-    "fr-FR": "FR", "it-IT": "IT", "es-ES": "ES", "pt-PT": "PT", "nl-NL": "NL",
-    "nl-BE": "BE", "fr-BE": "BE", "pl-PL": "PL", "cs-CZ": "CZ", "sv-SE": "SE",
-    "no-NO": "NO", "da-DK": "DK", "fi-FI": "FI", "en-GB": "GB", "en-US": "US",
-    "en-CA": "CA", "fr-CA": "CA", "es-MX": "MX", "pt-BR": "BR", "es-AR": "AR",
-    "es-CL": "CL", "es-CO": "CO", "es-PE": "PE", "ja-JP": "JP", "ko-KR": "KR",
-    "zh-CN": "CN", "zh-HK": "HK", "zh-TW": "TW", "th-TH": "TH", "vi-VN": "VN",
-    "id-ID": "ID", "ms-MY": "MY", "en-SG": "SG", "en-PH": "PH", "hi-IN": "IN",
-    "en-IN": "IN", "ar-AE": "AE", "ar-SA": "SA", "he-IL": "IL", "tr-TR": "TR",
-    "en-AU": "AU", "en-NZ": "NZ", "ar-EG": "EG", "en-ZA": "ZA", "en-NG": "NG",
-    "el-GR": "GR", "hu-HU": "HU", "ro-RO": "RO", "bg-BG": "BG", "hr-HR": "HR",
-    "sk-SK": "SK", "sl-SI": "SI", "et-EE": "EE", "lv-LV": "LV", "lt-LT": "LT",
-    "uk-UA": "UA", "ru-RU": "RU", "sr-RS": "RS", "en-IE": "IE", "sw-KE": "KE",
-    "ar-MA": "MA", "ar-DZ": "DZ", "ar-TN": "TN",
-  };
+  console.log('🗣️ Trying browser locale:', locale);
 
-  if (localeMap[locale]) {
-    console.log('✅ Country detected from locale:', localeMap[locale]);
-    return localeMap[locale];
+  country = extractCountryFromLocale(locale);
+  if (country) {
+    console.log('✅ Country from locale:', country);
+    return country;
   }
 
-  console.log('❌ Country not found, defaulting to US');
+  console.log('⚠️ Defaulting to US');
   return "US";
 }
 
@@ -166,17 +169,23 @@ export function detectLanguage(): string {
 }
 
 export function getCurrencyForCountry(country: string): string {
+  // Eurozone countries
+  const eurozoneCountries = new Set([
+    "DE", "AT", "FR", "IT", "ES", "PT", "NL", "BE", "FI", "IE", "GR",
+    "HR", "SK", "SI", "EE", "LV", "LT", "CY", "MT", "LU",
+  ]);
+
+  if (eurozoneCountries.has(country)) return "EUR";
+
+  // Non-EUR currencies
   const currencyMap: Record<string, string> = {
-    CH: "CHF", DE: "EUR", AT: "EUR", FR: "EUR", IT: "EUR", ES: "EUR", PT: "EUR",
-    NL: "EUR", BE: "EUR", PL: "PLN", CZ: "CZK", SE: "SEK", NO: "NOK", DK: "DKK",
-    FI: "EUR", GB: "GBP", US: "USD", CA: "CAD", MX: "MXN", BR: "BRL", AR: "ARS",
-    CL: "CLP", CO: "COP", PE: "PEN", VE: "VES", PA: "PAB", CU: "CUP", JP: "JPY",
-    KR: "KRW", CN: "CNY", HK: "HKD", TW: "TWD", SG: "SGD", TH: "THB", VN: "VND",
-    ID: "IDR", PH: "PHP", MY: "MYR", IN: "INR", AE: "AED", SA: "SAR", IL: "ILS",
-    TR: "TRY", AU: "AUD", NZ: "NZD", EG: "EGP", ZA: "ZAR", NG: "NGN", KE: "KES",
-    MA: "MAD", DZ: "DZD", TN: "TND", IE: "EUR", GR: "EUR", HU: "HUF", RO: "RON",
-    BG: "BGN", HR: "EUR", SK: "EUR", SI: "EUR", EE: "EUR", LV: "EUR", LT: "EUR",
-    UA: "UAH", RU: "RUB", RS: "RSD",
+    CH: "CHF", PL: "PLN", CZ: "CZK", SE: "SEK", NO: "NOK", DK: "DKK", GB: "GBP",
+    US: "USD", CA: "CAD", MX: "MXN", BR: "BRL", AR: "ARS", CL: "CLP", CO: "COP",
+    PE: "PEN", VE: "VES", PA: "PAB", CU: "CUP", JP: "JPY", KR: "KRW", CN: "CNY",
+    HK: "HKD", TW: "TWD", SG: "SGD", TH: "THB", VN: "VND", ID: "IDR", PH: "PHP",
+    MY: "MYR", IN: "INR", AE: "AED", SA: "SAR", IL: "ILS", TR: "TRY", AU: "AUD",
+    NZ: "NZD", EG: "EGP", ZA: "ZAR", NG: "NGN", KE: "KES", MA: "MAD", DZ: "DZD",
+    TN: "TND", HU: "HUF", RO: "RON", BG: "BGN", UA: "UAH", RU: "RUB", RS: "RSD",
   };
 
   return currencyMap[country] || "USD";

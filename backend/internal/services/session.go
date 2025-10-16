@@ -40,13 +40,10 @@ func (s *SessionService) CreateSession(sessionID, country, language string) (*mo
 		Currency:     "",
 		MessageCount: 0,
 		SearchState: models.SearchState{
-			Status:          models.SearchStatusIdle,
-			Category:        "",
-			ProductType:     "",
-			Brand:           "",
-			CollectedParams: []string{},
-			SearchCount:     0,
-			LastProduct:     nil,
+			Status:      models.SearchStatusIdle,
+			Category:    "",
+			SearchCount: 0,
+			LastProduct: nil,
 		},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -108,13 +105,10 @@ func (s *SessionService) StartNewSearch(sessionID string) error {
 	}
 
 	session.SearchState = models.SearchState{
-		Status:          models.SearchStatusIdle,
-		Category:        "",
-		ProductType:     "",
-		Brand:           "",
-		CollectedParams: []string{},
-		SearchCount:     0,
-		LastProduct:     nil,
+		Status:      models.SearchStatusIdle,
+		Category:    "",
+		SearchCount: 0,
+		LastProduct: nil,
 	}
 
 	return s.UpdateSession(session)
@@ -136,16 +130,6 @@ func (s *SessionService) IsSearchCompleted(sessionID string) bool {
 		return false
 	}
 	return session.SearchState.Status == models.SearchStatusCompleted
-}
-
-func (s *SessionService) ResetSearchStatus(sessionID string) error {
-	session, err := s.GetSession(sessionID)
-	if err != nil {
-		return err
-	}
-
-	session.SearchState.Status = models.SearchStatusIdle
-	return s.UpdateSession(session)
 }
 
 func (s *SessionService) GetSessionInfo(sessionID string) map[string]interface{} {
@@ -180,10 +164,6 @@ func (s *SessionService) IncrementMessageCount(sessionID string) error {
 
 	session.MessageCount++
 	return s.UpdateSession(session)
-}
-
-func (s *SessionService) CanSendMessage(sessionID string) (bool, error) {
-	return true, nil
 }
 
 func (s *SessionService) AddMessage(sessionID string, message *models.Message) error {

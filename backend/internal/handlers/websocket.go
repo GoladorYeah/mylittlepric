@@ -3,8 +3,6 @@ package handlers
 import (
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +15,7 @@ import (
 
 type WSHandler struct {
 	container *container.Container
+	processor *ChatProcessor
 	clients   map[string]*websocket.Conn
 	mu        sync.RWMutex
 }
@@ -24,6 +23,7 @@ type WSHandler struct {
 func NewWSHandler(c *container.Container) *WSHandler {
 	return &WSHandler{
 		container: c,
+		processor: NewChatProcessor(c),
 		clients:   make(map[string]*websocket.Conn),
 	}
 }
@@ -91,184 +91,34 @@ func (h *WSHandler) handleMessage(c *websocket.Conn, msg *WSMessage) {
 }
 
 func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage) {
-	if msg.Message == "" {
-		h.sendError(c, "validation_error", "Message is required")
+	// Process chat using shared processor
+	processorReq := &ChatRequest{
+		SessionID:       msg.SessionID,
+		Message:         msg.Message,
+		Country:         msg.Country,
+		Language:        msg.Language,
+		NewSearch:       msg.NewSearch,
+		CurrentCategory: msg.CurrentCategory,
+	}
+
+	result := h.processor.ProcessChat(processorReq)
+
+	// Handle errors
+	if result.Error != nil {
+		h.sendError(c, result.Error.Code, result.Error.Message)
 		return
 	}
 
-	if msg.Country == "" {
-		msg.Country = "CH"
-	}
-
-	if msg.Language == "" {
-		msg.Language = "en"
-	}
-
-	var session *models.ChatSession
-	var err error
-
-	if msg.SessionID != "" {
-		session, err = h.container.SessionService.GetSession(msg.SessionID)
-		if err != nil {
-			msg.SessionID = uuid.New().String()
-			session, err = h.container.SessionService.CreateSession(msg.SessionID, msg.Country, msg.Language)
-			if err != nil {
-				h.sendError(c, "session_error", "Failed to create session")
-				return
-			}
-		}
-	} else {
-		msg.SessionID = uuid.New().String()
-		session, err = h.container.SessionService.CreateSession(msg.SessionID, msg.Country, msg.Language)
-		if err != nil {
-			h.sendError(c, "session_error", "Failed to create session")
-			return
-		}
-	}
-
-	if msg.NewSearch {
-		fmt.Printf("🔄 New search for session %s\n", msg.SessionID)
-		if err := h.container.SessionService.StartNewSearch(msg.SessionID); err != nil {
-			fmt.Printf("⚠️ Failed to start new search: %v\n", err)
-		}
-		session, _ = h.container.SessionService.GetSession(msg.SessionID)
-	}
-
-	if msg.CurrentCategory != "" && msg.CurrentCategory != session.SearchState.Category {
-		session.SearchState.Category = msg.CurrentCategory
-		h.container.SessionService.UpdateSession(session)
-	}
-
-	if session.SearchState.SearchCount >= h.container.SessionService.GetMaxSearches() {
-		h.sendResponse(c, &WSResponse{
-			Type:         "text",
-			Output:       "You have reached the maximum number of searches. Please start a new search.",
-			SessionID:    msg.SessionID,
-			MessageCount: session.MessageCount,
-			SearchState: &models.SearchStateResponse{
-				Status:      string(session.SearchState.Status),
-				Category:    session.SearchState.Category,
-				CanContinue: false,
-				SearchCount: session.SearchState.SearchCount,
-				MaxSearches: h.container.SessionService.GetMaxSearches(),
-				Message:     "Search limit reached",
-			},
-		})
-		return
-	}
-
-	userMessage := &models.Message{
-		ID:        uuid.New(),
-		SessionID: session.ID,
-		Role:      "user",
-		Content:   msg.Message,
-		CreatedAt: time.Now(),
-	}
-
-	if err := h.container.SessionService.AddMessage(msg.SessionID, userMessage); err != nil {
-		h.sendError(c, "storage_error", "Failed to store message")
-		return
-	}
-
-	if err := h.container.SessionService.IncrementMessageCount(msg.SessionID); err != nil {
-		fmt.Printf("⚠️ Failed to increment message count: %v\n", err)
-	}
-
-	conversationHistory, err := h.container.SessionService.GetConversationHistory(msg.SessionID)
-	if err != nil {
-		conversationHistory = []map[string]string{}
-	}
-
-	geminiResponse, _, err := h.container.GeminiService.ProcessMessageWithContext(
-		msg.Message,
-		conversationHistory,
-		msg.Country,
-		msg.Language,
-		session.SearchState.Category,
-		session.SearchState.LastProduct,
-	)
-
-	if err != nil {
-		log.Printf("❌ Gemini processing error: %v", err)
-		h.sendError(c, "processing_error", fmt.Sprintf("AI processing failed: %v", err))
-		return
-	}
-
-	if geminiResponse == nil {
-		log.Printf("❌ Gemini returned nil response")
-		h.sendError(c, "processing_error", "AI returned empty response")
-		return
-	}
-
-	if geminiResponse.Category != "" {
-		session.SearchState.Category = geminiResponse.Category
-	}
-
-	assistantMessage := &models.Message{
-		ID:           uuid.New(),
-		SessionID:    session.ID,
-		Role:         "assistant",
-		Content:      geminiResponse.Output,
-		ResponseType: geminiResponse.ResponseType,
-		QuickReplies: geminiResponse.QuickReplies,
-		CreatedAt:    time.Now(),
-	}
-
-	if err := h.container.SessionService.AddMessage(msg.SessionID, assistantMessage); err != nil {
-		fmt.Printf("⚠️ Failed to store assistant message: %v\n", err)
-	}
-
+	// Build response
 	response := &WSResponse{
-		Type:         geminiResponse.ResponseType,
-		Output:       geminiResponse.Output,
-		QuickReplies: geminiResponse.QuickReplies,
-		SessionID:    msg.SessionID,
-		MessageCount: session.MessageCount + 1,
-	}
-
-	if geminiResponse.ResponseType == "search" {
-		products, searchErr := h.performSearch(geminiResponse, msg.Country, msg.Language)
-		if searchErr != nil {
-			log.Printf("⚠️ Search failed: %v", searchErr)
-			response.Output = "Sorry, I couldn't find any products. Please try different keywords."
-			response.Type = "text"
-		} else if len(products) > 0 {
-			response.Products = products
-			response.SearchType = geminiResponse.SearchType
-
-			if len(products) > 0 {
-				priceStr := products[0].Price
-				priceStr = strings.ReplaceAll(priceStr, "$", "")
-				priceStr = strings.ReplaceAll(priceStr, "€", "")
-				priceStr = strings.ReplaceAll(priceStr, "£", "")
-				priceStr = strings.ReplaceAll(priceStr, "CHF", "")
-				priceStr = strings.TrimSpace(priceStr)
-				priceStr = strings.ReplaceAll(priceStr, ",", "")
-
-				price, _ := strconv.ParseFloat(priceStr, 64)
-
-				session.SearchState.LastProduct = &models.ProductInfo{
-					Name:  products[0].Name,
-					Price: price,
-				}
-			}
-
-			session.SearchState.SearchCount++
-			assistantMessage.Products = products
-		}
-	}
-
-	session.SearchState.Status = models.SearchStatusIdle
-	if err := h.container.SessionService.UpdateSession(session); err != nil {
-		fmt.Printf("⚠️ Failed to update session: %v\n", err)
-	}
-
-	response.SearchState = &models.SearchStateResponse{
-		Status:      string(session.SearchState.Status),
-		Category:    session.SearchState.Category,
-		CanContinue: session.SearchState.SearchCount < h.container.SessionService.GetMaxSearches(),
-		SearchCount: session.SearchState.SearchCount,
-		MaxSearches: h.container.SessionService.GetMaxSearches(),
+		Type:         result.Type,
+		Output:       result.Output,
+		QuickReplies: result.QuickReplies,
+		Products:     result.Products,
+		SearchType:   result.SearchType,
+		SessionID:    result.SessionID,
+		MessageCount: result.MessageCount,
+		SearchState:  result.SearchState,
 	}
 
 	h.sendResponse(c, response)
@@ -281,7 +131,7 @@ func (h *WSHandler) handleProductDetails(c *websocket.Conn, msg *WSMessage) {
 	}
 
 	if msg.Country == "" {
-		msg.Country = "CH"
+		msg.Country = h.container.Config.DefaultCountry
 	}
 
 	cachedProduct, err := h.container.CacheService.GetProductByToken(msg.PageToken)
@@ -309,55 +159,10 @@ func (h *WSHandler) handleProductDetails(c *websocket.Conn, msg *WSMessage) {
 }
 
 func (h *WSHandler) sendProductDetailsResponse(c *websocket.Conn, productData map[string]interface{}, sessionID string) {
-	productResults, ok := productData["product_results"].(map[string]interface{})
-	if !ok {
-		h.sendError(c, "parse_error", "Invalid product data structure")
+	details, err := FormatProductDetails(productData)
+	if err != nil {
+		h.sendError(c, "parse_error", err.Error())
 		return
-	}
-
-	details := &models.ProductDetailsResponse{
-		Type:    "product_details",
-		Title:   getStringValue(productResults, "title"),
-		Price:   getStringValue(productResults, "price"),
-		Rating:  float32(getFloatValue(productResults, "rating")),
-		Reviews: getIntValue(productResults, "reviews"),
-	}
-
-	if aboutProduct, ok := productResults["about_the_product"].(map[string]interface{}); ok {
-		details.Description = getStringValue(aboutProduct, "description")
-	}
-
-	if thumbnails, ok := productResults["thumbnails"].([]interface{}); ok {
-		for _, thumb := range thumbnails {
-			if thumbStr, ok := thumb.(string); ok {
-				details.Images = append(details.Images, thumbStr)
-			}
-		}
-	}
-
-	if specs, ok := productResults["specifications"].([]interface{}); ok {
-		for _, spec := range specs {
-			if specMap, ok := spec.(map[string]interface{}); ok {
-				details.Specifications = append(details.Specifications, models.Specification{
-					Title: getStringValue(specMap, "title"),
-					Value: getStringValue(specMap, "value"),
-				})
-			}
-		}
-	}
-
-	if sellers, ok := productResults["sellers"].([]interface{}); ok {
-		for _, seller := range sellers {
-			if sellerMap, ok := seller.(map[string]interface{}); ok {
-				offer := models.Offer{
-					Merchant: getStringValue(sellerMap, "name"),
-					Price:    getStringValue(sellerMap, "price"),
-					Link:     getStringValue(sellerMap, "link"),
-					Rating:   float32(getFloatValue(sellerMap, "rating")),
-				}
-				details.Offers = append(details.Offers, offer)
-			}
-		}
 	}
 
 	h.sendResponse(c, &WSResponse{
@@ -365,30 +170,6 @@ func (h *WSHandler) sendProductDetailsResponse(c *websocket.Conn, productData ma
 		ProductDetails: details,
 		SessionID:      sessionID,
 	})
-}
-
-func (h *WSHandler) performSearch(geminiResp *models.GeminiResponse, country, language string) ([]models.ProductCard, error) {
-	// ✅ ПЕРЕВОДИМ ЗАПРОС НА АНГЛИЙСКИЙ
-	translatedQuery, err := h.container.GeminiService.TranslateToEnglish(geminiResp.SearchPhrase)
-	if err != nil {
-		fmt.Printf("⚠️ Translation failed, using original query: %v\n", err)
-		translatedQuery = geminiResp.SearchPhrase
-	} else if translatedQuery != geminiResp.SearchPhrase {
-		fmt.Printf("🌐 Translated: '%s' → '%s'\n", geminiResp.SearchPhrase, translatedQuery)
-	}
-
-	products, _, err := h.container.SerpService.SearchWithCache(
-		translatedQuery,
-		geminiResp.SearchType,
-		country,
-		h.container.CacheService,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return products, nil
 }
 
 func (h *WSHandler) addClient(id string, conn *websocket.Conn) {

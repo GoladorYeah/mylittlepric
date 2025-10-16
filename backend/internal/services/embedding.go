@@ -72,7 +72,7 @@ func (e *EmbeddingService) generateCategoryEmbeddings() {
 func (e *EmbeddingService) getEmbedding(text string) []float32 {
 	resp, err := e.client.Models.EmbedContent(
 		e.ctx,
-		"text-embedding-004",
+		e.config.GeminiEmbeddingModel,
 		genai.Text(text),
 		nil,
 	)
@@ -95,7 +95,8 @@ func (e *EmbeddingService) GetQueryEmbedding(query string) []float32 {
 	embedding := e.getEmbedding(query)
 	if embedding != nil {
 		jsonData, _ := json.Marshal(embedding)
-		e.redis.Set(e.ctx, cacheKey, jsonData, 24*time.Hour)
+		ttl := time.Duration(e.config.CacheQueryEmbeddingTTL) * time.Second
+		e.redis.Set(e.ctx, cacheKey, jsonData, ttl)
 	}
 	return embedding
 }
@@ -120,7 +121,7 @@ func (e *EmbeddingService) DetectCategory(userMessage string) string {
 		}
 	}
 
-	if maxSimilarity > 0.6 {
+	if maxSimilarity > float32(e.config.EmbeddingCategoryDetectionThresh) {
 		return bestCategory
 	}
 	return ""
