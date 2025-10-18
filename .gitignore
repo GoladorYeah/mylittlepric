@@ -7,6 +7,36 @@
 backend/.env
 backend/main
 backend/tmp/
+backend/vendor/
+backend/bin/
+backend/*.exe
+backend/*.dll
+backend/*.so
+backend/*.dylib
+backend/*.test
+backend/.cache
+backend/*.log
+backend/.env.local
+backend/.env.development
+backend/.DS_Store
+backend/Thumbs.db
+backend/.vscode/
+backend/.idea/
+backend/*.swp
+backend/*.swo
+backend/.git
+backend/.gitignore
+backend/.gitattributes
+backend/*.db
+backend/*.sqlite
+backend/tmp/
+backend/.dockerignore
+backend/coverage/
+backend/*.out
+backend/dist/
+backend/build/
+backend/go.sum
+backend/go.mod
 
 # Frontend
 frontend/.next/
@@ -37,7 +67,9 @@ Thumbs.db
 *.sqlite
 
 # Docker
-*.dockerignore
+# Don't ignore .dockerignore files
+# *.dockerignore
+.env.production
 
 # Test coverage
 coverage/

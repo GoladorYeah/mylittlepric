@@ -164,3 +164,98 @@ type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
 }
+
+// ==================== Authentication Models ====================
+
+type User struct {
+	ID          uuid.UUID `json:"id" db:"id"`
+	Email       string    `json:"email" db:"email"`
+	PasswordHash string   `json:"-" db:"password_hash"` // Never expose password
+	FullName    string    `json:"full_name,omitempty" db:"full_name"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
+}
+
+type RefreshToken struct {
+	ID        uuid.UUID  `json:"id" db:"id"`
+	UserID    uuid.UUID  `json:"user_id" db:"user_id"`
+	TokenHash string     `json:"-" db:"token_hash"`
+	ExpiresAt time.Time  `json:"expires_at" db:"expires_at"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	RevokedAt *time.Time `json:"revoked_at,omitempty" db:"revoked_at"`
+}
+
+// Auth Request/Response Models
+
+type SignupRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	FullName string `json:"full_name,omitempty"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+type AuthResponse struct {
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	User         *UserInfo `json:"user"`
+	ExpiresIn    int64     `json:"expires_in"` // seconds
+}
+
+type UserInfo struct {
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	FullName  string    `json:"full_name,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+type ClaimSessionsRequest struct {
+	SessionIDs []string `json:"session_ids" validate:"required"`
+}
+
+// ==================== Search History Models ====================
+
+type SearchHistory struct {
+	ID               uuid.UUID       `json:"id" db:"id"`
+	UserID           *uuid.UUID      `json:"user_id,omitempty" db:"user_id"`
+	SessionID        *string         `json:"session_id,omitempty" db:"session_id"`
+	SearchQuery      string          `json:"search_query" db:"search_query"`
+	OptimizedQuery   *string         `json:"optimized_query,omitempty" db:"optimized_query"`
+	SearchType       string          `json:"search_type" db:"search_type"`
+	Category         *string         `json:"category,omitempty" db:"category"`
+	CountryCode      string          `json:"country_code" db:"country_code"`
+	LanguageCode     string          `json:"language_code" db:"language_code"`
+	Currency         string          `json:"currency" db:"currency"`
+	ResultCount      int             `json:"result_count" db:"result_count"`
+	ProductsFound    []ProductCard   `json:"products_found,omitempty" db:"products_found"`
+	ClickedProductID *string         `json:"clicked_product_id,omitempty" db:"clicked_product_id"`
+	CreatedAt        time.Time       `json:"created_at" db:"created_at"`
+	ExpiresAt        *time.Time      `json:"expires_at,omitempty" db:"expires_at"`
+}
+
+type SearchHistoryListRequest struct {
+	UserID *uuid.UUID `json:"user_id,omitempty"`
+	Limit  int        `json:"limit,omitempty"`
+	Offset int        `json:"offset,omitempty"`
+}
+
+type SearchHistoryListResponse struct {
+	Items      []SearchHistory `json:"items"`
+	Total      int             `json:"total"`
+	Limit      int             `json:"limit"`
+	Offset     int             `json:"offset"`
+	HasMore    bool            `json:"has_more"`
+}
+
+type SearchHistoryDeleteRequest struct {
+	ID     uuid.UUID  `json:"id" validate:"required"`
+	UserID *uuid.UUID `json:"user_id,omitempty"`
+}

@@ -1,77 +1,125 @@
 services:
+  # PostgreSQL Database
   postgres:
-    image: postgres:18-alpine
-    container_name: mylittleprice_postgres
+    image: postgres:17-alpine
+    container_name: mylittleprice-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: mylittleprice
-      POSTGRES_PASSWORD: mylittleprice_dev_pass
       POSTGRES_DB: mylittleprice
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mylittleprice"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - mylittleprice
 
+  # Redis Cache
   redis:
     image: redis:8-alpine
-    container_name: mylittleprice_redis
+    container_name: mylittleprice-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - mylittleprice
 
+  # Go Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: mylittleprice_backend
+    container_name: mylittleprice-backend
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     environment:
-      - DATABASE_URL=postgres://mylittleprice:mylittleprice_dev_pass@postgres:5432/mylittleprice?sslmode=disable
+      # Connection
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mylittleprice}?sslmode=disable
       - REDIS_URL=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - PORT=8080
-      - ENV=development
-    env_file:
-      - ./backend/.env
+      - ENV=${ENV:-development}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://mylittleprice.com,https://www.mylittleprice.com,http://localhost:3000}
+
+      # Auth
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_ACCESS_TTL=${JWT_ACCESS_TTL:-900}
+      - JWT_REFRESH_TTL=${JWT_REFRESH_TTL:-604800}
+
+      # API Keys
+      - GEMINI_API_KEYS=${GEMINI_API_KEYS}
+      - SERP_API_KEYS=${SERP_API_KEYS}
+
+      # Session
+      - SESSION_TTL=${SESSION_TTL:-86400}
+      - MAX_MESSAGES_PER_SESSION=${MAX_MESSAGES_PER_SESSION:-8}
+      - MAX_SEARCHES_PER_SESSION=${MAX_SEARCHES_PER_SESSION:-3}
+
+      # Gemini
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-preview-09-2025}
+      - GEMINI_TEMPERATURE=${GEMINI_TEMPERATURE:-0.7}
+      - GEMINI_MAX_OUTPUT_TOKENS=${GEMINI_MAX_OUTPUT_TOKENS:-1100}
+      - GEMINI_USE_GROUNDING=${GEMINI_USE_GROUNDING:-true}
+      - GEMINI_GROUNDING_MODE=${GEMINI_GROUNDING_MODE:-balanced}
+
+      # Cache
+      - CACHE_GEMINI_TTL=${CACHE_GEMINI_TTL:-3600}
+      - CACHE_SERP_TTL=${CACHE_SERP_TTL:-86400}
+      - CACHE_IMMERSIVE_TTL=${CACHE_IMMERSIVE_TTL:-43200}
+
+      # Defaults
+      - DEFAULT_COUNTRY=${DEFAULT_COUNTRY:-CH}
+      - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-en}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
-      - ./backend:/app
-    restart: unless-stopped
+      - ./backend/internal/services/prompts:/root/internal/services/prompts:ro
+    networks:
+      - mylittleprice
 
+  # Next.js Frontend
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
-    container_name: mylittleprice_frontend
+      dockerfile: Dockerfile
+    container_name: mylittleprice-frontend
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
-      - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+      - NEXT_PUBLIC_API_URL=${BACKEND_URL:-https://api.mylittleprice.com}
+      - NODE_ENV=production
     depends_on:
       - backend
-    restart: unless-stopped
+    networks:
+      - mylittleprice
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+
+networks:
+  mylittleprice:
+    driver: bridge

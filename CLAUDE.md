@@ -24,6 +24,7 @@ MyLittlePrice is an AI-powered product search assistant that helps users find pr
   - `GroundingStrategy`: Smart decision-making for when to use Google Search grounding
 
 ### Frontend (Next.js)
+- **Runtime**: Bun (JavaScript runtime & package manager)
 - **Framework**: Next.js 15 (App Router with Turbopack)
 - **State Management**: Zustand with localStorage persistence
 - **Styling**: Tailwind CSS v4 with dark mode support (next-themes)
@@ -74,41 +75,66 @@ go run cmd/api/main.go
 go build -o bin/api cmd/api/main.go
 ```
 
-### Frontend (Next.js)
+### Frontend (Next.js with Bun)
 ```bash
 # Navigate to frontend
 cd frontend
 
 # Install dependencies
-npm install
+bun install
 
 # Run development server (with Turbopack)
-npm run dev
+bun run dev
 
 # Build for production
-npm run build
+bun run build
 
 # Start production server
-npm start
+bun run start
 ```
 
-### Docker Compose
+### Docker (Recommended)
+The easiest way to run the entire stack is using Docker. See [DOCKER.md](DOCKER.md) for detailed documentation.
+
+**Quick Start:**
 ```bash
-# Start all services (PostgreSQL, Redis, Backend, Frontend)
+# Using convenience script (Windows)
+.\docker.ps1 up
+
+# Using convenience script (Linux/Mac)
+./docker.sh up
+
+# Or directly with docker-compose
 docker-compose up
+```
 
-# Start specific service
-docker-compose up backend
-
-# Rebuild and start
-docker-compose up --build
-
-# Stop all services
-docker-compose down
+**Management Commands:**
+```bash
+# Start services
+.\docker.ps1 up          # Windows
+./docker.sh up           # Linux/Mac
 
 # View logs
-docker-compose logs -f backend
+.\docker.ps1 logs backend
+
+# Stop services
+.\docker.ps1 down
+
+# Rebuild
+.\docker.ps1 build
+
+# Production mode
+.\docker.ps1 prod-up
 ```
+
+**What's Included:**
+- PostgreSQL 18 (port 5432)
+- Redis 8 (port 6379)
+- Backend Go API (port 8080)
+- Frontend Next.js (port 3000)
+- Automatic health checks
+- Volume persistence
+- Hot reload in development mode
 
 ## Configuration
 

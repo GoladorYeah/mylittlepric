@@ -17,6 +17,7 @@ import (
 	"mylittleprice/internal/config"
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/handlers"
+	"mylittleprice/internal/middleware"
 )
 
 func main() {
@@ -87,6 +88,10 @@ func main() {
 func setupRoutes(app *fiber.App, c *container.Container) {
 	api := app.Group("/api")
 
+	// Authentication routes (public)
+	setupAuthRoutes(api, c)
+
+	// WebSocket chat (supports both anonymous and authenticated)
 	wsHandler := handlers.NewWSHandler(c)
 
 	app.Use("/ws", func(ctx *fiber.Ctx) error {
@@ -101,13 +106,49 @@ func setupRoutes(app *fiber.App, c *container.Container) {
 		wsHandler.HandleWebSocket(conn)
 	}))
 
+	// Chat endpoints (support both anonymous and authenticated)
+	optionalAuth := middleware.OptionalAuthMiddleware(c.JWTService)
 	chatHandler := handlers.NewChatHandler(c)
-	api.Post("/chat", chatHandler.HandleChat)
+	api.Post("/chat", optionalAuth, chatHandler.HandleChat)
+	api.Get("/chat/messages", chatHandler.GetSessionMessages)
 
 	productHandler := handlers.NewProductHandler(c)
 	api.Post("/product-details", productHandler.HandleProductDetails)
 
+	// Search history routes (support both anonymous and authenticated)
+	setupSearchHistoryRoutes(api, c)
+
 	setupStatsRoutes(api, c)
+}
+
+func setupAuthRoutes(api fiber.Router, c *container.Container) {
+	auth := api.Group("/auth")
+	authHandler := handlers.NewAuthHandler(c)
+
+	// Public routes
+	auth.Post("/signup", authHandler.Signup)
+	auth.Post("/login", authHandler.Login)
+	auth.Post("/refresh", authHandler.RefreshToken)
+	auth.Post("/logout", authHandler.Logout)
+
+	// Protected routes (require authentication)
+	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+	auth.Get("/me", authMiddleware, authHandler.GetMe)
+	auth.Post("/claim-sessions", authMiddleware, authHandler.ClaimSessions)
+}
+
+func setupSearchHistoryRoutes(api fiber.Router, c *container.Container) {
+	historyHandler := handlers.NewSearchHistoryHandler(c)
+	optionalAuth := middleware.OptionalAuthMiddleware(c.JWTService)
+
+	// Search history routes (work for both authenticated and anonymous users)
+	api.Get("/search-history", optionalAuth, historyHandler.GetSearchHistory)
+	api.Delete("/search-history/:id", optionalAuth, historyHandler.DeleteSearchHistory)
+	api.Post("/search-history/:id/click", optionalAuth, historyHandler.TrackProductClick)
+
+	// Delete all history (authenticated users only)
+	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+	api.Delete("/search-history", authMiddleware, historyHandler.DeleteAllSearchHistory)
 }
 
 func setupStatsRoutes(api fiber.Router, c *container.Container) {

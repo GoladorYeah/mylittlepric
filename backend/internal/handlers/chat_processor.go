@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strconv"
@@ -28,9 +29,11 @@ func NewChatProcessor(c *container.Container) *ChatProcessor {
 // ChatRequest represents a standardized chat request
 type ChatRequest struct {
 	SessionID       string
+	UserID          *uuid.UUID // Optional user ID for authenticated users
 	Message         string
 	Country         string
 	Language        string
+	Currency        string
 	NewSearch       bool
 	CurrentCategory string
 }
@@ -181,7 +184,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		session.SearchState.Category = geminiResponse.Category
 	}
 
-	// Store assistant message
+	// Create assistant message (but don't save yet - we may need to add products first)
 	assistantMessage := &models.Message{
 		ID:           uuid.New(),
 		SessionID:    session.ID,
@@ -190,10 +193,6 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		ResponseType: geminiResponse.ResponseType,
 		QuickReplies: geminiResponse.QuickReplies,
 		CreatedAt:    time.Now(),
-	}
-
-	if err := p.container.SessionService.AddMessage(req.SessionID, assistantMessage); err != nil {
-		fmt.Printf("⚠️ Failed to store assistant message: %v\n", err)
 	}
 
 	// Build response
@@ -207,7 +206,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	// Handle search
 	if geminiResponse.ResponseType == "search" {
-		products, searchErr := p.performSearch(geminiResponse, req.Country, req.Language)
+		products, translatedQuery, searchErr := p.performSearch(geminiResponse, req.Country, req.Language)
 		if searchErr != nil {
 			log.Printf("⚠️ Search failed: %v", searchErr)
 			response.Output = "Sorry, I couldn't find any products. Please try different keywords."
@@ -226,8 +225,17 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 			}
 
 			session.SearchState.SearchCount++
+			// Add products to assistant message BEFORE saving
 			assistantMessage.Products = products
+
+			// Save search history
+			p.saveSearchHistory(req, session, geminiResponse, translatedQuery, products)
 		}
+	}
+
+	// Save assistant message (now with products if it was a search)
+	if err := p.container.SessionService.AddMessage(req.SessionID, assistantMessage); err != nil {
+		fmt.Printf("⚠️ Failed to store assistant message: %v\n", err)
 	}
 
 	// Update session state
@@ -254,15 +262,18 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 	var err error
 
 	if req.SessionID != "" {
+		// Try to get existing session
 		session, err = p.container.SessionService.GetSession(req.SessionID)
 		if err != nil {
-			req.SessionID = uuid.New().String()
+			// Session not found - create new one with the SAME ID
+			fmt.Printf("⚠️ Session %s not found in Redis, creating new session with same ID\n", req.SessionID)
 			session, err = p.container.SessionService.CreateSession(req.SessionID, req.Country, req.Language)
 			if err != nil {
 				return nil, err
 			}
 		}
 	} else {
+		// No session ID provided - generate new one
 		req.SessionID = uuid.New().String()
 		session, err = p.container.SessionService.CreateSession(req.SessionID, req.Country, req.Language)
 		if err != nil {
@@ -274,7 +285,7 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 }
 
 // performSearch executes product search with translation
-func (p *ChatProcessor) performSearch(geminiResp *models.GeminiResponse, country, language string) ([]models.ProductCard, error) {
+func (p *ChatProcessor) performSearch(geminiResp *models.GeminiResponse, country, language string) ([]models.ProductCard, string, error) {
 	// Translate query to English
 	translatedQuery, err := p.container.GeminiService.TranslateToEnglish(geminiResp.SearchPhrase)
 	if err != nil {
@@ -292,10 +303,49 @@ func (p *ChatProcessor) performSearch(geminiResp *models.GeminiResponse, country
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, translatedQuery, err
 	}
 
-	return products, nil
+	return products, translatedQuery, nil
+}
+
+// saveSearchHistory saves the search to history
+func (p *ChatProcessor) saveSearchHistory(req *ChatRequest, session *models.ChatSession, geminiResp *models.GeminiResponse, translatedQuery string, products []models.ProductCard) {
+	// Set currency from request or use default
+	currency := req.Currency
+	if currency == "" {
+		currency = session.Currency
+	}
+
+	// Use session ID as string (no parsing needed)
+	var sessionIDStr *string
+	if req.SessionID != "" {
+		sessionIDStr = &req.SessionID
+	}
+
+	history := &models.SearchHistory{
+		UserID:         req.UserID,
+		SessionID:      sessionIDStr,
+		SearchQuery:    geminiResp.SearchPhrase,
+		OptimizedQuery: &translatedQuery,
+		SearchType:     geminiResp.SearchType,
+		Category:       &geminiResp.Category,
+		CountryCode:    req.Country,
+		LanguageCode:   req.Language,
+		Currency:       currency,
+		ResultCount:    len(products),
+		ProductsFound:  products,
+	}
+
+	// Save asynchronously to avoid blocking
+	go func() {
+		ctx := context.Background()
+		if err := p.container.SearchHistoryService.SaveSearchHistory(ctx, history); err != nil {
+			log.Printf("⚠️ Failed to save search history: %v", err)
+		} else {
+			log.Printf("📜 Search history saved: '%s' (%d results)", geminiResp.SearchPhrase, len(products))
+		}
+	}()
 }
 
 // parsePrice extracts numeric price from price string

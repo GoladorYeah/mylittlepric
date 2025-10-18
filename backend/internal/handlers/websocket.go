@@ -38,6 +38,7 @@ type WSMessage struct {
 	NewSearch       bool   `json:"new_search"`
 	PageToken       string `json:"page_token"`
 	CurrentCategory string `json:"current_category"`
+	AccessToken     string `json:"access_token,omitempty"` // Optional JWT token for authentication
 }
 
 type WSResponse struct {
@@ -91,9 +92,19 @@ func (h *WSHandler) handleMessage(c *websocket.Conn, msg *WSMessage) {
 }
 
 func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage) {
+	// Extract user ID from access token if provided
+	var userID *uuid.UUID
+	if msg.AccessToken != "" {
+		claims, err := h.container.JWTService.ValidateAccessToken(msg.AccessToken)
+		if err == nil {
+			userID = &claims.UserID
+		}
+	}
+
 	// Process chat using shared processor
 	processorReq := &ChatRequest{
 		SessionID:       msg.SessionID,
+		UserID:          userID,
 		Message:         msg.Message,
 		Country:         msg.Country,
 		Language:        msg.Language,

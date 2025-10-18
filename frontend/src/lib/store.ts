@@ -22,6 +22,7 @@ interface ChatStore {
   currentCategory: string;
   searchHistory: SearchHistoryItem[];
   isSidebarOpen: boolean;
+  _hasInitialized: boolean; // Internal flag to track initialization
 
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;
@@ -34,8 +35,9 @@ interface ChatStore {
   clearMessages: () => void;
   newSearch: () => void;
   initializeLocale: () => Promise<void>;
+  loadSessionMessages: (sessionId: string) => Promise<void>;
   addSearchToHistory: (query: string, category?: string, productsCount?: number) => void;
-  loadSearchFromHistory: (historyItem: SearchHistoryItem) => void;
+  loadSearchFromHistory: (historyItem: SearchHistoryItem) => Promise<void>;
   clearSearchHistory: () => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -53,6 +55,7 @@ export const useChatStore = create<ChatStore>()(
       currentCategory: "",
       searchHistory: [],
       isSidebarOpen: false,
+      _hasInitialized: false,
 
       addMessage: (message) =>
         set((state) => ({ messages: [...state.messages, message] })),
@@ -83,12 +86,48 @@ export const useChatStore = create<ChatStore>()(
 
       initializeLocale: async () => {
         const state = get();
-        if (!state.country || !state.language) {
+        // Only initialize if country is not already set (either from localStorage or detection)
+        if (!state.country) {
           const country = await detectCountry();
-          set({
-            country,
-            language: detectLanguage(),
-          });
+          set({ country });
+        }
+        if (!state.language) {
+          set({ language: detectLanguage() });
+        }
+      },
+
+      loadSessionMessages: async (sessionId: string) => {
+        if (!sessionId) {
+          console.warn("loadSessionMessages called with empty sessionId");
+          return;
+        }
+
+        try {
+          const { getSessionMessages } = await import("./api");
+          const response = await getSessionMessages(sessionId);
+
+          if (response.messages && response.messages.length > 0) {
+            const chatMessages: ChatMessage[] = response.messages.map((msg, index) => ({
+              id: `${sessionId}-${index}`,
+              role: msg.role as "user" | "assistant",
+              content: msg.content,
+              timestamp: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now(),
+              quick_replies: msg.quick_replies,
+              products: msg.products,
+              search_type: msg.search_type,
+            }));
+
+            set({ messages: chatMessages });
+
+            if (response.search_state) {
+              set({
+                currentCategory: response.search_state.category || "",
+                searchInProgress: response.search_state.status === "completed",
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Failed to load session messages:", error);
         }
       },
 
@@ -108,7 +147,8 @@ export const useChatStore = create<ChatStore>()(
         }));
       },
 
-      loadSearchFromHistory: (historyItem) => {
+      loadSearchFromHistory: async (historyItem) => {
+        // Clear current messages first
         set({
           messages: [],
           searchInProgress: false,
@@ -116,6 +156,13 @@ export const useChatStore = create<ChatStore>()(
           currentCategory: historyItem.category || "",
           sessionId: historyItem.sessionId,
         });
+
+        // Save to localStorage
+        localStorage.setItem("chat_session_id", historyItem.sessionId);
+
+        // Load messages for this session
+        const { loadSessionMessages } = get();
+        await loadSessionMessages(historyItem.sessionId);
       },
 
       clearSearchHistory: () => set({ searchHistory: [] }),

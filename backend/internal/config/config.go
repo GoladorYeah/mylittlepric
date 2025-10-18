@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -14,10 +15,19 @@ type Config struct {
 	Port string
 	Env  string
 
-	// Redis (PostgreSQL removed - not used)
+	// Database
+	DatabaseURL   string
+
+	// Redis
 	RedisURL      string
 	RedisPassword string
 	RedisDB       int
+
+	// JWT Authentication
+	JWTAccessSecret  string
+	JWTRefreshSecret string
+	JWTAccessTTL     time.Duration
+	JWTRefreshTTL    time.Duration
 
 	// Session
 	SessionTTL            int
@@ -114,9 +124,14 @@ func Load() (*Config, error) {
 	config := &Config{
 		Port:                  getEnv("PORT", "8080"),
 		Env:                   getEnv("ENV", "development"),
+		DatabaseURL:           getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/mylittleprice?sslmode=disable"),
 		RedisURL:              getEnv("REDIS_URL", "localhost:6379"),
 		RedisPassword:         getEnv("REDIS_PASSWORD", ""),
 		RedisDB:               getEnvAsInt("REDIS_DB", 0),
+		JWTAccessSecret:       getEnv("JWT_ACCESS_SECRET", "change-me-in-production-access-secret-key"),
+		JWTRefreshSecret:      getEnv("JWT_REFRESH_SECRET", "change-me-in-production-refresh-secret-key"),
+		JWTAccessTTL:          time.Duration(getEnvAsInt("JWT_ACCESS_TTL", 900)) * time.Second,  // 15 minutes default
+		JWTRefreshTTL:         time.Duration(getEnvAsInt("JWT_REFRESH_TTL", 604800)) * time.Second, // 7 days default
 		SessionTTL:            getEnvAsInt("SESSION_TTL", 86400),
 		MaxMessagesPerSession: getEnvAsInt("MAX_MESSAGES_PER_SESSION", 8),
 		MaxSearchesPerSession: getEnvAsInt("MAX_SEARCHES_PER_SESSION", 3),

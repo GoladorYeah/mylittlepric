@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/genai"
 
@@ -16,23 +18,31 @@ import (
 
 type Container struct {
 	Config *config.Config
+	DB     *sqlx.DB
 	Redis  *redis.Client
 	ctx    context.Context
 
 	GeminiRotator *utils.KeyRotator
 	SerpRotator   *utils.KeyRotator
+	JWTService    *utils.JWTService
 
-	EmbeddingService *services.EmbeddingService
-	GeminiService    *services.GeminiService
-	SerpService      *services.SerpService
-	CacheService     *services.CacheService
-	SessionService   *services.SessionService
+	EmbeddingService     *services.EmbeddingService
+	GeminiService        *services.GeminiService
+	SerpService          *services.SerpService
+	CacheService         *services.CacheService
+	SessionService       *services.SessionService
+	AuthService          *services.AuthService
+	SearchHistoryService *services.SearchHistoryService
 }
 
 func NewContainer(cfg *config.Config) (*Container, error) {
 	c := &Container{
 		Config: cfg,
 		ctx:    context.Background(),
+	}
+
+	if err := c.initDatabase(); err != nil {
+		return nil, fmt.Errorf("failed to initialize Database: %w", err)
 	}
 
 	if err := c.initRedis(); err != nil {
@@ -49,6 +59,21 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 
 	log.Println("✅ Dependency container initialized successfully")
 	return c, nil
+}
+
+func (c *Container) initDatabase() error {
+	db, err := sqlx.Connect("postgres", c.Config.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+
+	c.DB = db
+	log.Println("✅ Connected to PostgreSQL")
+	return nil
 }
 
 func (c *Container) initRedis() error {
@@ -88,6 +113,19 @@ func (c *Container) initKeyRotators() error {
 }
 
 func (c *Container) initServices() error {
+	// Initialize JWT Service
+	c.JWTService = utils.NewJWTService(
+		c.Config.JWTAccessSecret,
+		c.Config.JWTRefreshSecret,
+		c.Config.JWTAccessTTL,
+		c.Config.JWTRefreshTTL,
+	)
+	log.Println("🔐 JWT Service initialized")
+
+	// Initialize Auth Service
+	c.AuthService = services.NewAuthService(c.Redis, c.JWTService)
+	log.Println("🔑 Auth Service initialized")
+
 	c.SessionService = services.NewSessionService(
 		c.Redis,
 		c.Config.SessionTTL,
@@ -115,12 +153,21 @@ func (c *Container) initServices() error {
 
 	c.SerpService = services.NewSerpService(c.SerpRotator, c.Config)
 
+	c.SearchHistoryService = services.NewSearchHistoryService(c.DB)
+	log.Println("📜 Search History Service initialized")
+
 	log.Println("✅ All services initialized")
 	return nil
 }
 
 func (c *Container) Close() error {
 	log.Println("🛑 Shutting down container...")
+
+	if c.DB != nil {
+		if err := c.DB.Close(); err != nil {
+			log.Printf("⚠️ Failed to close database: %v", err)
+		}
+	}
 
 	if err := c.Redis.Close(); err != nil {
 		return fmt.Errorf("failed to close Redis: %w", err)

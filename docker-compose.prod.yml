@@ -1,0 +1,64 @@
+# Production deployment
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  postgres:
+    container_name: mylittleprice-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Error - Set POSTGRES_PASSWORD in .env}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  redis:
+    container_name: mylittleprice-redis-prod
+    restart: always
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:?Error - Set REDIS_PASSWORD in .env}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  backend:
+    container_name: mylittleprice-backend-prod
+    restart: always
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-mylittleprice}?sslmode=disable
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:?Error - Set JWT_ACCESS_SECRET in .env}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Error - Set JWT_REFRESH_SECRET in .env}
+      - GEMINI_API_KEYS=${GEMINI_API_KEYS:?Error - Set GEMINI_API_KEYS in .env}
+      - SERP_API_KEYS=${SERP_API_KEYS:?Error - Set SERP_API_KEYS in .env}
+      - CORS_ORIGINS=${CORS_ORIGINS:?Error - Set CORS_ORIGINS in .env}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  frontend:
+    container_name: mylittleprice-frontend-prod
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3

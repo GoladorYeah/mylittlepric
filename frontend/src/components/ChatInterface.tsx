@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Send, Sparkles, RotateCcw, Wifi, WifiOff } from "lucide-react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useChatStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth-store";
 import { generateId } from "@/lib/utils";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
 import { ThemeToggle } from "./ThemeToggle";
 import { SearchHistory } from "./SearchHistory";
-
-const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080").replace("http", "ws") + "/ws";
+import UserMenu from "./UserMenu";
+import { CountrySelector } from "./CountrySelector";
 
 interface ChatInterfaceProps {
   initialQuery?: string;
@@ -21,6 +22,25 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
   const initialQuerySentRef = useRef(false);
   const processedMessageIds = useRef<Set<string>>(new Set());
 
+  // Build WebSocket URL dynamically based on current page protocol
+  const getWebSocketUrl = () => {
+    if (typeof window === "undefined") return "";
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    if (apiUrl) {
+      // Extract hostname from API URL (e.g., "https://api.mylittleprice.com" -> "api.mylittleprice.com")
+      const url = new URL(apiUrl);
+      const wsUrl = `${protocol}//${url.host}/ws`;
+      console.log("🔌 WebSocket URL:", wsUrl, "(Page protocol:", window.location.protocol + ")");
+      return wsUrl;
+    }
+
+    // Fallback for local development
+    return `${protocol}//localhost:8080/ws`;
+  };
+
   const {
     messages,
     sessionId,
@@ -28,6 +48,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
     country,
     language,
     currentCategory,
+    _hasInitialized,
     addMessage,
     setLoading,
     setSessionId,
@@ -35,11 +56,14 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
     setCurrentCategory,
     newSearch,
     initializeLocale,
+    loadSessionMessages,
     addSearchToHistory,
   } = useChatStore();
 
+  const { accessToken } = useAuthStore();
+
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
-    WS_URL,
+    getWebSocketUrl(),
     {
       shouldReconnect: () => true,
       reconnectAttempts: 10,
@@ -69,20 +93,46 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
     initializeLocale();
   }, [initializeLocale]);
 
+  // Initialize session on mount only
   useEffect(() => {
-    if (!sessionId) {
+    const initializeSession = async () => {
+      const store = useChatStore.getState();
+      if (store._hasInitialized) {
+        return;
+      }
+
+      useChatStore.setState({ _hasInitialized: true });
+
       const savedSessionId = localStorage.getItem("chat_session_id");
+
       if (savedSessionId) {
         setSessionId(savedSessionId);
+
+        try {
+          await loadSessionMessages(savedSessionId);
+        } catch (error) {
+          console.error("Failed to load messages:", error);
+        }
       } else {
         const newSessionId = generateId();
         setSessionId(newSessionId);
         localStorage.setItem("chat_session_id", newSessionId);
       }
-    } else {
-      localStorage.setItem("chat_session_id", sessionId);
+    };
+
+    initializeSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync sessionId to localStorage when it changes
+  useEffect(() => {
+    if (sessionId && _hasInitialized) {
+      const currentStoredId = localStorage.getItem("chat_session_id");
+      if (currentStoredId !== sessionId) {
+        localStorage.setItem("chat_session_id", sessionId);
+      }
     }
-  }, [sessionId, setSessionId]);
+  }, [sessionId, _hasInitialized]);
 
   useEffect(() => {
     if (lastJsonMessage !== null) {
@@ -113,9 +163,11 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
         return;
       }
 
+      // Server should always return the same session_id we sent
+      // If it's different, log a warning but don't update (client is source of truth)
       if (data.session_id && data.session_id !== sessionId) {
-        setSessionId(data.session_id);
-        localStorage.setItem("chat_session_id", data.session_id);
+        console.warn("⚠️ Server returned different session_id:", data.session_id, "Expected:", sessionId);
+        // Don't update - keep client's session_id as source of truth
       }
 
       const assistantMessage = {
@@ -153,7 +205,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
         }
       }
     }
-  }, [lastJsonMessage, addMessage, setLoading, setSearchInProgress, setCurrentCategory, sessionId, setSessionId, messages, addSearchToHistory]);
+  }, [lastJsonMessage, addMessage, setLoading, setSearchInProgress, setCurrentCategory, sessionId, messages, addSearchToHistory]);
 
   useEffect(() => {
     if (
@@ -191,6 +243,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
         language,
         new_search: false,
         current_category: currentCategory,
+        ...(accessToken && { access_token: accessToken }),
       });
     } catch (error) {
       console.error("Error sending message:", error);
@@ -207,6 +260,8 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
   const handleNewSearch = () => {
     processedMessageIds.current.clear();
     initialQuerySentRef.current = false;
+    // Reset initialization flag to allow loading new session
+    useChatStore.setState({ _hasInitialized: false });
     newSearch();
     const newSessionId = generateId();
     setSessionId(newSessionId);
@@ -263,6 +318,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
               <span className="hidden sm:inline">New Search</span>
             </button>
             <ThemeToggle />
+            <UserMenu />
           </div>
         </div>
       </header>
@@ -312,7 +368,8 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
 
       <div className="border-t border-border bg-background">
         <div className="container mx-auto px-4 py-4 max-w-4xl">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-end">
+            <CountrySelector />
             <input
               type="text"
               value={input}
