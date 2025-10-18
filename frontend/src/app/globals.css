@@ -43,3 +43,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Better emoji rendering for country flags */
+@supports (font-variation-settings: normal) {
+  * {
+    font-family: var(--font-geist-sans), "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif;
+  }
+}

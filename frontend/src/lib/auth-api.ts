@@ -40,32 +40,11 @@ class AuthAPI {
     return fetch(url, { ...options, headers });
   }
 
-   async fetchWithAuth(
+  private async fetchWithAuth(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<Response> {
-    const { accessToken, isTokenExpired, refreshToken } = useAuthStore.getState();
-
- // Only try to refresh if we have BOTH access token AND refresh token
-  // and the access token is expired
-  if (accessToken && refreshToken && isTokenExpired()) {
-      try {
-        await this.refreshAccessToken();
-      } catch (error) {
-        console.error("Failed to refresh token:", error);
-        useAuthStore.getState().clearAuth();
-        throw new Error("Authentication expired. Please login again.");
-      }
-    }
-
-    const token = useAuthStore.getState().accessToken;
-    const headers = {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    };
-
-    return fetch(`${API_URL}/api/auth${endpoint}`, { ...options, headers });
+    return fetchWithAuth(`${API_URL}/api/auth${endpoint}`, options);
   }
 
   async signup(data: SignupRequest): Promise<AuthResponse> {
@@ -130,6 +109,14 @@ class AuthAPI {
 
     // Clear auth state
     useAuthStore.getState().clearAuth();
+
+    // Clear chat session and messages
+    const chatStore = useChatStore.getState();
+    chatStore.clearMessages();
+    chatStore.setSessionId("");
+
+    // Clear session from localStorage
+    localStorage.removeItem("chat_session_id");
   }
 
   async refreshAccessToken(): Promise<void> {
@@ -210,7 +197,7 @@ export async function fetchWithAuth(
   // and the access token is expired
   if (accessToken && refreshToken && isTokenExpired()) {
     try {
-      await authAPI["refreshAccessToken"]();
+      await authAPI.refreshAccessToken();
     } catch (error) {
       console.error("Failed to refresh token:", error);
       useAuthStore.getState().clearAuth();

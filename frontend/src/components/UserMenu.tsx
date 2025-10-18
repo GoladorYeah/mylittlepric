@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 import { authAPI } from "@/lib/auth-api";
+import { useClickOutside } from "@/hooks";
 import AuthDialog from "./AuthDialog";
 
 export default function UserMenu() {
@@ -12,16 +13,7 @@ export default function UserMenu() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  useClickOutside(menuRef, () => setIsMenuOpen(false), isMenuOpen);
 
   const handleLogout = async () => {
     try {

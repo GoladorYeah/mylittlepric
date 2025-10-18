@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useChatStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth-store";
 import { SearchHistoryAPI, type SearchHistoryItem as APISearchHistoryItem } from "@/lib/search-history-api";
-import { Clock, ChevronLeft, ChevronRight, Trash2, Search, Package, RefreshCw } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Trash2, Search, Package, RefreshCw, LogIn } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru, uk, enUS } from "date-fns/locale";
+import AuthDialog from "./AuthDialog";
 
 const localeMap: Record<string, any> = {
   ru,
@@ -20,16 +22,26 @@ export function SearchHistory() {
     language,
   } = useChatStore();
 
+  const { isAuthenticated } = useAuthStore();
+
   const [history, setHistory] = useState<APISearchHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const limit = 20;
 
   const locale = localeMap[language] || enUS;
 
   const loadHistory = async (resetOffset = false) => {
+    // Don't load history for unauthenticated users
+    if (!isAuthenticated) {
+      setHistory([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -58,7 +70,7 @@ export function SearchHistory() {
     if (isSidebarOpen) {
       loadHistory(true);
     }
-  }, [isSidebarOpen]);
+  }, [isSidebarOpen, isAuthenticated]);
 
   const handleHistoryClick = async (item: APISearchHistoryItem) => {
     // Skip if no session_id (shouldn't happen, but be safe)
@@ -198,7 +210,23 @@ export function SearchHistory() {
 
           {/* History List */}
           <div className="flex-1 overflow-y-auto">
-            {loading && history.length === 0 ? (
+            {!isAuthenticated ? (
+              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                <LogIn className="w-12 h-12 text-muted-foreground/50 mb-3" />
+                <p className="text-base font-medium text-foreground mb-2">
+                  Sign in to save history
+                </p>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Create an account to save and access your search history across devices
+                </p>
+                <button
+                  onClick={() => setIsAuthDialogOpen(true)}
+                  className="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all"
+                >
+                  Sign in
+                </button>
+              </div>
+            ) : loading && history.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
@@ -285,6 +313,12 @@ export function SearchHistory() {
           onClick={toggleSidebar}
         />
       )}
+
+      {/* Auth Dialog */}
+      <AuthDialog
+        isOpen={isAuthDialogOpen}
+        onClose={() => setIsAuthDialogOpen(false)}
+      />
     </>
   );
 }

@@ -3,11 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Globe, Check } from "lucide-react";
 import { useChatStore } from "@/lib/store";
+import { useClickOutside } from "@/hooks";
 
 interface Country {
   code: string;
   name: string;
   flag: string;
+  flagSvg?: string; // SVG icon as fallback for systems without emoji support
 }
 
 const COUNTRIES: Country[] = [
@@ -59,6 +61,21 @@ const COUNTRIES: Country[] = [
   { code: "vn", name: "Vietnam", flag: "🇻🇳" },
 ];
 
+// Flag component with emoji fallback to circle with country code
+function CountryFlag({ country, size = "base" }: { country: Country; size?: "sm" | "base" | "lg" }) {
+  const sizeClasses = {
+    sm: "text-base w-5 h-5",
+    base: "text-lg w-6 h-6",
+    lg: "text-xl w-7 h-7",
+  };
+
+  return (
+    <span className={`inline-flex items-center justify-center ${sizeClasses[size]}`}>
+      {country.flag}
+    </span>
+  );
+}
+
 export function CountrySelector() {
   const { country, setCountry } = useChatStore();
   const [isOpen, setIsOpen] = useState(false);
@@ -74,23 +91,20 @@ export function CountrySelector() {
       c.code.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setSearchQuery("");
-      }
-    };
+  useClickOutside(
+    dropdownRef,
+    () => {
+      setIsOpen(false);
+      setSearchQuery("");
+    },
+    isOpen
+  );
 
+  useEffect(() => {
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
       // Focus search input when dropdown opens
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
   }, [isOpen]);
 
   const handleCountrySelect = (countryCode: string) => {
@@ -104,11 +118,11 @@ export function CountrySelector() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors border border-border"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-background/50 transition-colors flex-shrink-0"
         title="Select country"
       >
         <Globe className="w-4 h-4 text-muted-foreground" />
-        <span className="text-lg">{selectedCountry.flag}</span>
+        <CountryFlag country={selectedCountry} size="base" />
       </button>
 
       {isOpen && (
@@ -137,7 +151,7 @@ export function CountrySelector() {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">{c.flag}</span>
+                    <CountryFlag country={c} size="lg" />
                     <span className="text-sm font-medium">{c.name}</span>
                   </div>
                   {c.code === country.toLowerCase() && (
