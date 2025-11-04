@@ -31,6 +31,7 @@ type Container struct {
 	SerpService          *services.SerpService
 	CacheService         *services.CacheService
 	SessionService       *services.SessionService
+	GoogleOAuthService   *services.GoogleOAuthService
 	AuthService          *services.AuthService
 	SearchHistoryService *services.SearchHistoryService
 }
@@ -122,8 +123,12 @@ func (c *Container) initServices() error {
 	)
 	log.Println("🔐 JWT Service initialized")
 
+	// Initialize Google OAuth Service
+	c.GoogleOAuthService = services.NewGoogleOAuthService(c.Config)
+	log.Println("🔑 Google OAuth Service initialized")
+
 	// Initialize Auth Service
-	c.AuthService = services.NewAuthService(c.Redis, c.JWTService)
+	c.AuthService = services.NewAuthService(c.Redis, c.JWTService, c.GoogleOAuthService)
 	log.Println("🔑 Auth Service initialized")
 
 	c.SessionService = services.NewSessionService(

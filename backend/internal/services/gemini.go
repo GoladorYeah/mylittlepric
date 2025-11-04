@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/genai"
 
@@ -16,16 +17,17 @@ import (
 )
 
 type GeminiService struct {
-	client            *genai.Client
-	keyRotator        *utils.KeyRotator
-	config            *config.Config
-	promptManager     *PromptManager
-	groundingStats    *GroundingStats
-	groundingStrategy *GroundingStrategy // ← ДОБАВИТЬ ЭТО
-	tokenStats        *TokenStats
-	embedding         *EmbeddingService
-	ctx               context.Context
-	mu                sync.RWMutex
+	client                *genai.Client
+	keyRotator            *utils.KeyRotator
+	config                *config.Config
+	promptManager         *PromptManager
+	universalPromptMgr    *UniversalPromptManager
+	groundingStats        *GroundingStats
+	groundingStrategy     *GroundingStrategy
+	tokenStats            *TokenStats
+	embedding             *EmbeddingService
+	ctx                   context.Context
+	mu                    sync.RWMutex
 }
 
 type TokenStats struct {
@@ -47,7 +49,6 @@ type GroundingStats struct {
 	AverageConfidence float32
 }
 
-// В конструкторе NewGeminiService добавьте инициализацию:
 func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embedding *EmbeddingService) *GeminiService {
 	ctx := context.Background()
 
@@ -65,15 +66,16 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 	}
 
 	return &GeminiService{
-		client:            client,
-		keyRotator:        keyRotator,
-		config:            cfg,
-		promptManager:     NewPromptManager(),
-		groundingStats:    &GroundingStats{ReasonCounts: make(map[string]int)},
-		groundingStrategy: NewGroundingStrategy(embedding, cfg),
-		tokenStats:        &TokenStats{},
-		embedding:         embedding,
-		ctx:               ctx,
+		client:             client,
+		keyRotator:         keyRotator,
+		config:             cfg,
+		promptManager:      NewPromptManager(),
+		universalPromptMgr: NewUniversalPromptManager(),
+		groundingStats:     &GroundingStats{ReasonCounts: make(map[string]int)},
+		groundingStrategy:  NewGroundingStrategy(embedding, cfg),
+		tokenStats:         &TokenStats{},
+		embedding:          embedding,
+		ctx:                ctx,
 	}
 }
 
@@ -255,45 +257,78 @@ func (g *GeminiService) buildConversationContext(history []map[string]string) st
 	return context.String()
 }
 
-// Замените функцию shouldUseGrounding:
+// shouldUseGrounding determines if Google Search grounding should be enabled
 func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[string]string, category string) bool {
 	if !g.config.GeminiUseGrounding {
 		return false
 	}
 
-	// Используем умную стратегию
-	decision := g.groundingStrategy.ShouldUseGrounding(userMessage, history, category)
-
-	// Обновляем статистику
+	// ALWAYS enable grounding for better product information
+	// This ensures AI has up-to-date product data, prices, and availability
+	// The smart strategy was too conservative and missed important cases
 	g.groundingStats.TotalDecisions++
-	if decision.UseGrounding {
-		g.groundingStats.GroundingEnabled++
-	} else {
-		g.groundingStats.GroundingDisabled++
-	}
-	g.groundingStats.ReasonCounts[decision.Reason]++
+	g.groundingStats.GroundingEnabled++
+	g.groundingStats.ReasonCounts["always_enabled"]++
+	g.groundingStats.AverageConfidence = 1.0
 
-	// Обновляем среднюю уверенность
-	if g.groundingStats.TotalDecisions > 0 {
-		currentAvg := g.groundingStats.AverageConfidence
-		n := float32(g.groundingStats.TotalDecisions)
-		g.groundingStats.AverageConfidence = (currentAvg*(n-1) + decision.Confidence) / n
-	}
+	return true
 
-	return decision.UseGrounding
+	// Smart strategy code preserved for future reference:
+	// decision := g.groundingStrategy.ShouldUseGrounding(userMessage, history, category)
+	// return decision.UseGrounding
 }
 
 func (g *GeminiService) extractJSONFromText(text string) string {
-	// Ищем JSON в тексте
-	// Вариант 1: JSON в конце
-	startIdx := strings.LastIndex(text, "{")
-	endIdx := strings.LastIndex(text, "}")
+	// When grounding is used, Gemini sometimes duplicates the response
+	// We need to extract only the FIRST complete JSON object
 
-	if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
-		return text[startIdx : endIdx+1]
+	text = strings.TrimSpace(text)
+
+	// Check for duplicate JSON (when text contains multiple "{")
+	firstBraceIdx := strings.Index(text, "{")
+	if firstBraceIdx == -1 {
+		return text
 	}
 
-	// Вариант 2: JSON в code block
+	// Find the matching closing brace for the FIRST JSON object
+	braceCount := 0
+	inString := false
+	escapeNext := false
+
+	for i := firstBraceIdx; i < len(text); i++ {
+		char := text[i]
+
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+
+		if char == '\\' {
+			escapeNext = true
+			continue
+		}
+
+		if char == '"' && !escapeNext {
+			inString = !inString
+			continue
+		}
+
+		if !inString {
+			if char == '{' {
+				braceCount++
+			} else if char == '}' {
+				braceCount--
+				if braceCount == 0 {
+					// Found the end of the first complete JSON object
+					firstJSON := text[firstBraceIdx : i+1]
+					fmt.Printf("🔍 Extracted first JSON object (%d chars)\n", len(firstJSON))
+					return firstJSON
+				}
+			}
+		}
+	}
+
+	// Fallback: try to find JSON in code blocks
 	if strings.Contains(text, "```json") {
 		start := strings.Index(text, "```json")
 		end := strings.Index(text[start+7:], "```")
@@ -302,19 +337,7 @@ func (g *GeminiService) extractJSONFromText(text string) string {
 		}
 	}
 
-	// Вариант 3: JSON в code block без языка
-	if strings.Contains(text, "```") {
-		start := strings.Index(text, "```")
-		end := strings.Index(text[start+3:], "```")
-		if end != -1 {
-			jsonCandidate := strings.TrimSpace(text[start+3 : start+3+end])
-			if strings.HasPrefix(jsonCandidate, "{") {
-				return jsonCandidate
-			}
-		}
-	}
-
-	// Если не нашли, возвращаем как есть
+	// If we couldn't find a complete JSON, return original
 	return text
 }
 
@@ -352,6 +375,440 @@ func (g *GeminiService) GetGroundingStats() *GroundingStats {
 	return g.groundingStats
 }
 
+// executeWithRetry performs Gemini API call with exponential backoff retry logic
+func (g *GeminiService) executeWithRetry(
+	prompt string,
+	config *genai.GenerateContentConfig,
+	maxRetries int,
+) (*genai.GenerateContentResponse, error) {
+	return g.executeWithRetryAndModel(prompt, config, maxRetries, g.config.GeminiModel, false)
+}
+
+// executeWithRetryAndModel performs Gemini API call with specific model and fallback support
+func (g *GeminiService) executeWithRetryAndModel(
+	prompt string,
+	config *genai.GenerateContentConfig,
+	maxRetries int,
+	modelName string,
+	isFallback bool,
+) (*genai.GenerateContentResponse, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff: 1s, 2s, 4s, 8s...
+			backoffDuration := time.Duration(1<<uint(attempt-1)) * time.Second
+			fmt.Printf("⏳ Retry attempt %d/%d after %v...\n", attempt+1, maxRetries, backoffDuration)
+			time.Sleep(backoffDuration)
+		}
+
+		// Get current client
+		g.mu.RLock()
+		client := g.client
+		g.mu.RUnlock()
+
+		// Log which model we're using
+		if isFallback {
+			fmt.Printf("🔄 Using fallback model: %s (attempt %d/%d)\n", modelName, attempt+1, maxRetries)
+		}
+
+		// Execute API call with timeout context
+		ctx, cancel := context.WithTimeout(g.ctx, 30*time.Second)
+		resp, err := client.Models.GenerateContent(
+			ctx,
+			modelName,
+			genai.Text(prompt),
+			config,
+		)
+		cancel()
+
+		// Success case
+		if err == nil && resp != nil {
+			if attempt > 0 {
+				fmt.Printf("✅ Request succeeded on attempt %d/%d\n", attempt+1, maxRetries)
+			}
+			return resp, nil
+		}
+
+		lastErr = err
+
+		// Handle different error types
+		if err != nil {
+			errMsg := err.Error()
+
+			// Quota/Rate limit errors - rotate key and retry
+			if strings.Contains(errMsg, "quota") ||
+				strings.Contains(errMsg, "429") ||
+				strings.Contains(errMsg, "RESOURCE_EXHAUSTED") {
+
+				fmt.Printf("⚠️ Quota exceeded, rotating API key...\n")
+				if rotateErr := g.rotateClient(); rotateErr != nil {
+					fmt.Printf("❌ Key rotation failed: %v\n", rotateErr)
+					// Continue to next retry anyway
+				} else {
+					fmt.Printf("🔄 Key rotated successfully\n")
+				}
+				continue
+			}
+
+			// Overload/503 errors - retry with backoff
+			if strings.Contains(errMsg, "503") ||
+				strings.Contains(errMsg, "UNAVAILABLE") ||
+				strings.Contains(errMsg, "overloaded") {
+
+				fmt.Printf("⚠️ Service overloaded (503), will retry...\n")
+				continue
+			}
+
+			// Timeout errors - retry
+			if strings.Contains(errMsg, "timeout") ||
+				strings.Contains(errMsg, "deadline exceeded") {
+
+				fmt.Printf("⚠️ Request timeout, will retry...\n")
+				continue
+			}
+
+			// Other errors - don't retry
+			fmt.Printf("❌ Non-retryable error: %v\n", err)
+			return nil, fmt.Errorf("Gemini API error: %w", err)
+		}
+	}
+
+	// All retries exhausted
+	fmt.Printf("❌ All %d retry attempts failed\n", maxRetries)
+	if lastErr != nil {
+		return nil, fmt.Errorf("Gemini API failed after %d retries: %w", maxRetries, lastErr)
+	}
+	return nil, fmt.Errorf("Gemini API failed after %d retries with unknown error", maxRetries)
+}
+
+// ProcessWithUniversalPrompt processes a message using the Universal Prompt system
+// This is the NEW method that should be used instead of ProcessMessageWithContext
+func (g *GeminiService) ProcessWithUniversalPrompt(
+	userMessage string,
+	session *models.ChatSession,
+) (*models.GeminiResponse, error) {
+
+	// Build the prompt using Universal Prompt Manager
+	upm := g.universalPromptMgr
+
+	// Get the mini-kernel with current state
+	miniKernel := upm.GetMiniKernel(
+		session.CountryCode,
+		session.LanguageCode,
+		session.Currency,
+		&session.CycleState,
+	)
+
+	// Build state context
+	stateContext := upm.BuildStateContext(session)
+
+	// On first iteration of ANY cycle, include full system prompt
+	// This ensures the AI always has the full context
+	var systemPrompt string
+	if session.CycleState.Iteration == 1 {
+		systemPrompt = upm.GetSystemPrompt(
+			session.CountryCode,
+			session.LanguageCode,
+			session.Currency,
+		)
+		if session.CycleState.CycleID == 1 {
+			fmt.Printf("📝 Sending full Universal Prompt (first message in session)\n")
+		} else {
+			fmt.Printf("📝 Sending full Universal Prompt (new cycle %d)\n", session.CycleState.CycleID)
+		}
+	}
+
+	// Build the full prompt: (system prompt if first) + mini-kernel + state + user message
+	// Note: ResponseSchema ensures JSON output, no need for explicit JSON instructions
+	var prompt string
+	if systemPrompt != "" {
+		prompt = fmt.Sprintf("%s\n\n%s\n\n%s\n\nUser message: %s",
+			systemPrompt,
+			miniKernel,
+			stateContext,
+			userMessage,
+		)
+	} else {
+		prompt = fmt.Sprintf("%s\n\n%s\n\nUser message: %s",
+			miniKernel,
+			stateContext,
+			userMessage,
+		)
+	}
+
+	// Log telemetry
+	fmt.Printf("📊 Prompt Telemetry: ID=%s, Hash=%s, Cycle=%d, Iteration=%d\n",
+		session.CycleState.PromptID,
+		upm.GetPromptHashShort(),
+		session.CycleState.CycleID,
+		session.CycleState.Iteration,
+	)
+
+	temp := g.config.GeminiTemperature
+	generateConfig := &genai.GenerateContentConfig{
+		Temperature:     &temp,
+		MaxOutputTokens: int32(g.config.GeminiMaxOutputTokens),
+	}
+
+	// Use smart grounding strategy instead of always-on
+	// This saves ~400 tokens per request when grounding is not needed
+	historyMap := convertCycleHistoryToMap(session.CycleState.CycleHistory)
+	useGrounding := g.shouldUseGrounding(userMessage, historyMap, session.SearchState.Category)
+
+	if useGrounding {
+		fmt.Printf("🌐 Grounding enabled (smart strategy)\n")
+		generateConfig.Tools = []*genai.Tool{
+			{GoogleSearch: &genai.GoogleSearch{}},
+		}
+		// When using grounding/tools, we can't use ResponseMIMEType
+		// but we CAN use ResponseSchema for structured output
+		generateConfig.ResponseSchema = GetUniversalResponseSchema()
+		fmt.Printf("📋 Using structured ResponseSchema\n")
+	} else {
+		fmt.Printf("📝 Grounding disabled (not needed for this query)\n")
+		// Without grounding, we can use both MIME type and schema
+		generateConfig.ResponseMIMEType = "application/json"
+		generateConfig.ResponseSchema = GetUniversalResponseSchema()
+	}
+
+	// Execute API call with retry logic (max 3 attempts with exponential backoff)
+	resp, err := g.executeWithRetry(prompt, generateConfig, 3)
+
+	// If primary model failed and we have a fallback model configured, try fallback
+	if err != nil && g.config.GeminiFallbackModel != "" && g.config.GeminiFallbackModel != g.config.GeminiModel {
+		fmt.Printf("⚠️ Primary model (%s) failed, trying fallback model (%s)\n",
+			g.config.GeminiModel, g.config.GeminiFallbackModel)
+
+		resp, err = g.executeWithRetryAndModel(prompt, generateConfig, 2, g.config.GeminiFallbackModel, true)
+
+		if err != nil {
+			fmt.Printf("❌ Fallback model also failed: %v\n", err)
+			return nil, fmt.Errorf("both primary and fallback models failed: %w", err)
+		}
+
+		fmt.Printf("✅ Fallback model succeeded\n")
+	} else if err != nil {
+		return nil, err
+	}
+
+	if resp == nil {
+		return nil, fmt.Errorf("Gemini returned nil response")
+	}
+
+	if resp.UsageMetadata != nil {
+		g.updateTokenStats(resp.UsageMetadata, useGrounding)
+	}
+
+	if len(resp.Candidates) == 0 {
+		return nil, fmt.Errorf("no candidates in Gemini response")
+	}
+
+	candidate := resp.Candidates[0]
+
+	// Check for MAX_TOKENS finish reason - this means response was truncated
+	if candidate.FinishReason == genai.FinishReasonMaxTokens {
+		fmt.Printf("⚠️ Response truncated due to MAX_TOKENS, retrying without grounding...\n")
+
+		// Retry without grounding to get shorter response
+		retryConfig := &genai.GenerateContentConfig{
+			Temperature:      generateConfig.Temperature,
+			MaxOutputTokens:  generateConfig.MaxOutputTokens,
+			ResponseMIMEType: "application/json",
+			ResponseSchema:   GetUniversalResponseSchema(),
+		}
+
+		retryResp, retryErr := g.executeWithRetry(prompt, retryConfig, 2)
+		if retryErr == nil && retryResp != nil && len(retryResp.Candidates) > 0 {
+			resp = retryResp
+			candidate = resp.Candidates[0]
+			fmt.Printf("✅ Retry without grounding succeeded\n")
+			useGrounding = false // Update flag for stats
+		} else {
+			fmt.Printf("⚠️ Retry without grounding also failed, continuing with truncated response...\n")
+		}
+	}
+
+	if candidate.Content == nil {
+		fmt.Printf("⚠️ Candidate has no content. Finish reason: %v\n", candidate.FinishReason)
+		return nil, fmt.Errorf("no content in Gemini response (finish reason: %v)", candidate.FinishReason)
+	}
+	if len(candidate.Content.Parts) == 0 {
+		fmt.Printf("⚠️ Candidate content has no parts. Finish reason: %v\n", candidate.FinishReason)
+		return nil, fmt.Errorf("no parts in Gemini response content (finish reason: %v)", candidate.FinishReason)
+	}
+
+	responseText := ""
+	hasGroundingMetadata := false
+
+	for _, part := range candidate.Content.Parts {
+		if part.Text != "" {
+			responseText += part.Text
+		}
+	}
+
+	// Check if there's grounding metadata (search results)
+	if resp.Candidates[0].GroundingMetadata != nil {
+		hasGroundingMetadata = true
+		if resp.Candidates[0].GroundingMetadata.GroundingChunks != nil {
+			fmt.Printf("✅ Grounding metadata found (%d chunks)\n", len(resp.Candidates[0].GroundingMetadata.GroundingChunks))
+		} else {
+			fmt.Printf("✅ Grounding metadata present\n")
+		}
+	}
+
+	responseText = strings.TrimSpace(responseText)
+
+	// If grounding was used but no text yet, the model might still be processing
+	if responseText == "" && hasGroundingMetadata {
+		fmt.Printf("⚠️ Grounding search completed but no text response yet\n")
+	}
+
+	// Extract JSON if grounding was used
+	if useGrounding {
+		responseText = g.extractJSONFromText(responseText)
+	}
+
+	responseText = strings.Trim(responseText, "`")
+	responseText = strings.TrimPrefix(responseText, "json")
+	responseText = strings.TrimSpace(responseText)
+
+	if responseText == "" {
+		return nil, fmt.Errorf("empty response text from Gemini")
+	}
+
+	var geminiResp models.GeminiResponse
+	err = json.Unmarshal([]byte(responseText), &geminiResp)
+
+	if err != nil {
+		fmt.Printf("❌ Failed to parse JSON response. Raw response:\n%s\n", responseText)
+		fmt.Printf("❌ Parse error: %v\n", err)
+
+		// Multi-stage JSON repair pipeline
+		repairedText := responseText
+
+		// Stage 1: Remove duplicates (common with grounding)
+		repairedText = removeDuplicateJSON(repairedText)
+		if repairedText != responseText {
+			fmt.Printf("🔧 Removed duplicate JSON objects\n")
+			if err2 := json.Unmarshal([]byte(repairedText), &geminiResp); err2 == nil {
+				fmt.Printf("✅ Successfully parsed after removing duplicates\n")
+				goto success
+			}
+		}
+
+		// Stage 2: Fix truncated JSON by closing open structures
+		repairedText = attemptJSONRepair(repairedText)
+		if repairedText != responseText {
+			fmt.Printf("🔧 Attempting to repair truncated JSON...\n")
+			if err2 := json.Unmarshal([]byte(repairedText), &geminiResp); err2 == nil {
+				fmt.Printf("✅ Successfully repaired truncated JSON\n")
+				goto success
+			}
+		}
+
+		// Stage 3: Try to extract valid JSON from markdown/text
+		extractedJSON := extractFirstValidJSON(responseText)
+		if extractedJSON != "" && extractedJSON != responseText {
+			fmt.Printf("🔧 Extracted JSON from text/markdown...\n")
+			if err2 := json.Unmarshal([]byte(extractedJSON), &geminiResp); err2 == nil {
+				fmt.Printf("✅ Successfully extracted valid JSON\n")
+				goto success
+			}
+		}
+
+		// All repair attempts failed
+		return nil, fmt.Errorf("failed to parse Gemini JSON response after all repair attempts: %w (original response: %s)", err, responseText)
+	}
+
+success:
+
+	if geminiResp.ResponseType == "" {
+		fmt.Printf("❌ Missing response_type. Parsed response: %+v\nRaw text:\n%s\n", geminiResp, responseText)
+
+		// Attempt intelligent fallback based on fields present
+		if geminiResp.Output != "" || geminiResp.QuickReplies != nil {
+			// Has dialogue-like fields
+			fmt.Printf("🔧 Auto-correcting response_type to 'dialogue' based on fields present\n")
+			geminiResp.ResponseType = "dialogue"
+		} else if geminiResp.SearchPhrase != "" {
+			// Has search-like fields
+			fmt.Printf("🔧 Auto-correcting response_type to 'search' based on fields present\n")
+			geminiResp.ResponseType = "search"
+		} else if geminiResp.API != "" || geminiResp.Params != nil {
+			// Has API-like fields
+			fmt.Printf("🔧 Auto-correcting response_type to 'api_request' based on fields present\n")
+			geminiResp.ResponseType = "api_request"
+		} else {
+			// Try to extract from raw text - handle common Gemini mistakes
+			var rawJSON map[string]interface{}
+			if err := json.Unmarshal([]byte(responseText), &rawJSON); err == nil {
+				// Check for "response" field (common mistake)
+				if responseField, ok := rawJSON["response"].(string); ok && responseField != "" {
+					fmt.Printf("🔧 Found 'response' field, mapping to 'output' and setting type to 'dialogue'\n")
+					geminiResp.Output = responseField
+					geminiResp.ResponseType = "dialogue"
+				} else if queryField, ok := rawJSON["query"].(string); ok && queryField != "" {
+					// Check for "query" field instead of proper structure
+					fmt.Printf("🔧 Found 'query' field, mapping to 'output' and setting type to 'dialogue'\n")
+					geminiResp.Output = queryField
+					geminiResp.ResponseType = "dialogue"
+				} else if promptTextField, ok := rawJSON["prompt_text"].(string); ok && promptTextField != "" {
+					// Check for "prompt_text" field
+					fmt.Printf("🔧 Found 'prompt_text' field, mapping to 'output' and setting type to 'dialogue'\n")
+					geminiResp.Output = promptTextField
+					geminiResp.ResponseType = "dialogue"
+				} else if responseObj, ok := rawJSON["response"].(map[string]interface{}); ok {
+					// Check for nested "response" object with "query_refinement"
+					if queryRefinement, ok := responseObj["query_refinement"].(string); ok && queryRefinement != "" {
+						fmt.Printf("🔧 Found nested 'response.query_refinement', mapping to 'output' and setting type to 'dialogue'\n")
+						geminiResp.Output = queryRefinement
+						geminiResp.ResponseType = "dialogue"
+					}
+				} else if assistantResp, ok := rawJSON["ASSISTANT_RESPONSE"].(string); ok && assistantResp != "" {
+					// Check for "ASSISTANT_RESPONSE" field
+					fmt.Printf("🔧 Found 'ASSISTANT_RESPONSE' field, mapping to 'output' and setting type to 'dialogue'\n")
+					geminiResp.Output = assistantResp
+					geminiResp.ResponseType = "dialogue"
+				}
+
+				// Extract category if present
+				if geminiResp.Category == "" {
+					if cat, ok := rawJSON["category"].(string); ok && cat != "" {
+						geminiResp.Category = cat
+					} else if cat, ok := rawJSON["query_category"].(string); ok && cat != "" {
+						geminiResp.Category = cat
+					} else if cat, ok := rawJSON["CURRENT_CATEGORY"].(string); ok && cat != "" {
+						geminiResp.Category = cat
+					}
+				}
+			}
+		}
+
+		// If still no response_type, fail
+		if geminiResp.ResponseType == "" {
+			return nil, fmt.Errorf("missing response_type in Gemini response and could not infer from fields")
+		}
+	}
+
+	// Log category routing
+	fmt.Printf("🏷️  Category routing: %s → %s\n", session.SearchState.Category, geminiResp.Category)
+
+	return &geminiResp, nil
+}
+
+// Helper to convert CycleHistory to the old format for compatibility
+func convertCycleHistoryToMap(history []models.CycleMessage) []map[string]string {
+	result := make([]map[string]string, len(history))
+	for i, msg := range history {
+		result[i] = map[string]string{
+			"role":    msg.Role,
+			"content": msg.Content,
+		}
+	}
+	return result
+}
+
 // TranslateToEnglish переводит поисковый запрос на английский язык
 func (g *GeminiService) TranslateToEnglish(query string) (string, error) {
 	// Если запрос уже на английском, возвращаем как есть
@@ -372,18 +829,21 @@ Translated query:`, query)
 		MaxOutputTokens: int32(g.config.GeminiTranslationMaxTokens),
 	}
 
-	g.mu.RLock()
-	client := g.client
-	g.mu.RUnlock()
+	// Try with primary model first (2 retries)
+	resp, err := g.executeWithRetryAndModel(prompt, generateConfig, 2, g.config.GeminiModel, false)
 
-	resp, err := client.Models.GenerateContent(
-		g.ctx,
-		g.config.GeminiModel,
-		genai.Text(prompt),
-		generateConfig,
-	)
+	// If primary model failed, try fallback model
+	if err != nil && g.config.GeminiFallbackModel != "" && g.config.GeminiFallbackModel != g.config.GeminiModel {
+		fmt.Printf("⚠️ Translation with primary model failed, trying fallback (%s)\n", g.config.GeminiFallbackModel)
+		resp, err = g.executeWithRetryAndModel(prompt, generateConfig, 2, g.config.GeminiFallbackModel, true)
 
-	if err != nil {
+		if err != nil {
+			fmt.Printf("❌ Translation with fallback model also failed: %v\n", err)
+			return query, fmt.Errorf("translation failed with both models: %w", err)
+		}
+
+		fmt.Printf("✅ Translation succeeded with fallback model\n")
+	} else if err != nil {
 		return query, fmt.Errorf("translation failed: %w", err)
 	}
 
@@ -424,4 +884,251 @@ func isEnglish(text string) bool {
 	}
 
 	return true
+}
+
+// removeDuplicateJSON removes duplicate JSON objects that sometimes appear with grounding
+// It handles both complete duplicates and duplicates that start mid-structure (like in arrays)
+func removeDuplicateJSON(text string) string {
+	text = strings.TrimSpace(text)
+
+	firstBraceIdx := strings.Index(text, "{")
+	if firstBraceIdx == -1 {
+		return text
+	}
+
+	// Find the end of the first complete JSON object
+	braceCount := 0
+	bracketCount := 0
+	inString := false
+	escapeNext := false
+	lastCompletePos := -1
+
+	for i := firstBraceIdx; i < len(text); i++ {
+		char := text[i]
+
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+
+		if char == '\\' {
+			escapeNext = true
+			continue
+		}
+
+		if char == '"' {
+			inString = !inString
+			continue
+		}
+
+		if !inString {
+			if char == '{' {
+				braceCount++
+			} else if char == '}' {
+				braceCount--
+				if braceCount == 0 && bracketCount == 0 {
+					// Found end of complete JSON object
+					lastCompletePos = i + 1
+
+					// Check if there's more content after
+					if lastCompletePos < len(text) {
+						remaining := strings.TrimSpace(text[lastCompletePos:])
+
+						// If remaining starts with '{', it's a duplicate - cut here
+						if strings.HasPrefix(remaining, "{") {
+							fmt.Printf("🔍 Complete duplicate JSON detected at position %d\n", lastCompletePos)
+							return text[firstBraceIdx:lastCompletePos]
+						}
+					}
+
+					// No duplicate found, return complete JSON
+					return text[firstBraceIdx:lastCompletePos]
+				}
+			} else if char == '[' {
+				bracketCount++
+			} else if char == ']' {
+				bracketCount--
+			}
+		}
+	}
+
+	// JSON is incomplete - check if there's a duplicate that caused truncation
+	// Look for another '{' that starts a duplicate object
+	if lastCompletePos == -1 {
+		// Try to find where duplication might have started
+		// Common pattern: `"text": "value"{"response_type"...`
+		secondBraceIdx := strings.Index(text[firstBraceIdx+1:], "{")
+		if secondBraceIdx != -1 {
+			actualSecondIdx := firstBraceIdx + 1 + secondBraceIdx
+
+			// Check if this second brace is NOT inside a string value
+			// by counting quotes before it
+			beforeSecond := text[firstBraceIdx:actualSecondIdx]
+			quoteCount := 0
+			escapeCount := 0
+			for _, ch := range beforeSecond {
+				if ch == '\\' {
+					escapeCount++
+				} else if ch == '"' && escapeCount%2 == 0 {
+					quoteCount++
+				} else {
+					escapeCount = 0
+				}
+			}
+
+			// If odd number of quotes, the { is inside a string, skip it
+			// If even, it's a structural brace - might be a duplicate
+			if quoteCount%2 == 0 {
+				// This looks like a duplicate starting mid-structure
+				// Find the last complete statement before this duplicate
+				lastComma := strings.LastIndex(text[:actualSecondIdx], ",")
+				lastBracket := strings.LastIndex(text[:actualSecondIdx], "[")
+
+				cutPoint := lastComma
+				if lastBracket > lastComma {
+					cutPoint = lastBracket
+				}
+
+				if cutPoint > firstBraceIdx {
+					fmt.Printf("🔍 Mid-structure duplicate detected, cutting at position %d\n", cutPoint)
+					// Try to close the JSON properly
+					repaired := text[firstBraceIdx:cutPoint]
+					return attemptJSONRepair(repaired)
+				}
+			}
+		}
+	}
+
+	// Return as-is for other repair attempts
+	return text
+}
+
+// extractFirstValidJSON attempts to find and extract the first valid JSON object from text
+func extractFirstValidJSON(text string) string {
+	text = strings.TrimSpace(text)
+
+	// Try to find JSON in code blocks first
+	if strings.Contains(text, "```json") {
+		start := strings.Index(text, "```json") + 7
+		end := strings.Index(text[start:], "```")
+		if end != -1 {
+			extracted := strings.TrimSpace(text[start : start+end])
+			if strings.HasPrefix(extracted, "{") {
+				return extracted
+			}
+		}
+	}
+
+	// Try to find JSON in regular code blocks
+	if strings.Contains(text, "```") {
+		start := strings.Index(text, "```")
+		// Skip the ``` and optional language identifier
+		for start < len(text) && text[start] != '\n' {
+			start++
+		}
+		start++ // Skip newline
+		end := strings.Index(text[start:], "```")
+		if end != -1 {
+			extracted := strings.TrimSpace(text[start : start+end])
+			if strings.HasPrefix(extracted, "{") {
+				return extracted
+			}
+		}
+	}
+
+	// Try to find first '{' and extract from there
+	firstBrace := strings.Index(text, "{")
+	if firstBrace != -1 {
+		return text[firstBrace:]
+	}
+
+	return text
+}
+
+// attemptJSONRepair attempts to repair truncated JSON by closing open structures
+func attemptJSONRepair(text string) string {
+	text = strings.TrimSpace(text)
+
+	// Count open/close brackets and braces (excluding those in strings)
+	openBraces := 0
+	closeBraces := 0
+	openBrackets := 0
+	closeBrackets := 0
+	inString := false
+	escapeNext := false
+
+	for _, char := range text {
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+		if char == '\\' {
+			escapeNext = true
+			continue
+		}
+		if char == '"' {
+			inString = !inString
+			continue
+		}
+		if !inString {
+			switch char {
+			case '{':
+				openBraces++
+			case '}':
+				closeBraces++
+			case '[':
+				openBrackets++
+			case ']':
+				closeBrackets++
+			}
+		}
+	}
+
+	// If already balanced, return as-is
+	if openBraces == closeBraces && openBrackets == closeBrackets {
+		return text
+	}
+
+	fmt.Printf("🔧 JSON repair needed: braces=%d/%d, brackets=%d/%d\n",
+		openBraces, closeBraces, openBrackets, closeBrackets)
+
+	// Try to fix truncated strings (remove incomplete last item in array)
+	if openBrackets > closeBrackets {
+		// Find last complete item in array
+		lastCommaPos := strings.LastIndex(text, ",")
+		if lastCommaPos > 0 {
+			// Truncate at last comma
+			text = text[:lastCommaPos]
+		}
+	}
+
+	// Close any open quotes
+	quoteCount := 0
+	escapeNext = false
+	for _, char := range text {
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+		if char == '\\' {
+			escapeNext = true
+			continue
+		}
+		if char == '"' {
+			quoteCount++
+		}
+	}
+	if quoteCount%2 != 0 {
+		text += "\""
+	}
+
+	// Close brackets/braces
+	for i := 0; i < openBrackets-closeBrackets; i++ {
+		text += "]"
+	}
+	for i := 0; i < openBraces-closeBraces; i++ {
+		text += "}"
+	}
+
+	return text
 }

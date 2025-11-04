@@ -63,6 +63,36 @@ func (h *AuthHandler) Signup(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(authResp)
 }
 
+// GoogleLogin handles Google OAuth authentication
+// POST /api/auth/google
+func (h *AuthHandler) GoogleLogin(c *fiber.Ctx) error {
+	var req models.GoogleAuthRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "invalid_request",
+			Message: "Invalid request body",
+		})
+	}
+
+	if req.IDToken == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "ID token is required",
+		})
+	}
+
+	// Authenticate user with Google
+	authResp, err := h.container.AuthService.GoogleLogin(req.IDToken)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.ErrorResponse{
+			Error:   "invalid_token",
+			Message: "Failed to verify Google token",
+		})
+	}
+
+	return c.JSON(authResp)
+}
+
 // Login handles user authentication
 // POST /api/auth/login
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
@@ -188,6 +218,8 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 		ID:        user.ID,
 		Email:     user.Email,
 		FullName:  user.FullName,
+		Picture:   user.Picture,
+		Provider:  user.Provider,
 		CreatedAt: user.CreatedAt,
 	})
 }

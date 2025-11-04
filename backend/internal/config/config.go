@@ -16,7 +16,7 @@ type Config struct {
 	Env  string
 
 	// Database
-	DatabaseURL   string
+	DatabaseURL string
 
 	// Redis
 	RedisURL      string
@@ -29,6 +29,11 @@ type Config struct {
 	JWTAccessTTL     time.Duration
 	JWTRefreshTTL    time.Duration
 
+	// Google OAuth
+	GoogleClientID     string
+	GoogleClientSecret string
+	GoogleRedirectURL  string
+
 	// Session
 	SessionTTL            int
 	MaxMessagesPerSession int
@@ -40,6 +45,7 @@ type Config struct {
 
 	// Gemini Configuration
 	GeminiModel           string
+	GeminiFallbackModel   string // Fallback model for retries
 	GeminiTemperature     float32
 	GeminiMaxOutputTokens int
 	GeminiUseGrounding    bool
@@ -49,30 +55,30 @@ type Config struct {
 	GeminiGroundingMinWords int
 
 	// Grounding Strategy Thresholds
-	GeminiBrandQueryConfidence      float64
-	GeminiGroundingWeightFreshInfo  float64
-	GeminiGroundingWeightSpecific   float64
-	GeminiGroundingWeightDrift      float64
-	GeminiGroundingWeightElectron   float64
-	GeminiGroundingDecisionThresh   float64
-	GeminiBrandQueryMaxWords        int
-	GeminiBrandSimilarityThresh     float64
-	GeminiDialogueHistoryWindow     int
-	GeminiDialogueDriftThresh       float64
-	GeminiDriftScoreBonus           float64
-	GeminiElectronicsThreshHigh     float64
-	GeminiElectronicsScoreHigh      float64
-	GeminiCategorySimilarityThresh  float64
-	GeminiCategoryScore             float64
+	GeminiBrandQueryConfidence     float64
+	GeminiGroundingWeightFreshInfo float64
+	GeminiGroundingWeightSpecific  float64
+	GeminiGroundingWeightDrift     float64
+	GeminiGroundingWeightElectron  float64
+	GeminiGroundingDecisionThresh  float64
+	GeminiBrandQueryMaxWords       int
+	GeminiBrandSimilarityThresh    float64
+	GeminiDialogueHistoryWindow    int
+	GeminiDialogueDriftThresh      float64
+	GeminiDriftScoreBonus          float64
+	GeminiElectronicsThreshHigh    float64
+	GeminiElectronicsScoreHigh     float64
+	GeminiCategorySimilarityThresh float64
+	GeminiCategoryScore            float64
 
 	// Gemini Translation Settings
 	GeminiTranslationTemperature float32
 	GeminiTranslationMaxTokens   int
 
 	// Embedding Settings
-	GeminiEmbeddingModel            string
+	GeminiEmbeddingModel             string
 	EmbeddingCategoryDetectionThresh float64
-	CacheQueryEmbeddingTTL          int
+	CacheQueryEmbeddingTTL           int
 
 	// SERP Relevance Thresholds
 	SerpThresholdExact      float64
@@ -82,14 +88,14 @@ type Config struct {
 	SerpFallbackMinResults  int
 
 	// SERP Scoring Weights
-	SerpScorePhraseMatch      float64
-	SerpScoreAllWords         float64
-	SerpScorePartialWords     float64
-	SerpScoreWordOrderWeight  float64
-	SerpScoreBrandMatch       float64
-	SerpScoreModelMatch       float64
-	SerpMinWordLength         int
-	SerpModelNumberMinLength  int
+	SerpScorePhraseMatch     float64
+	SerpScoreAllWords        float64
+	SerpScorePartialWords    float64
+	SerpScoreWordOrderWeight float64
+	SerpScoreBrandMatch      float64
+	SerpScoreModelMatch      float64
+	SerpMinWordLength        int
+	SerpModelNumberMinLength int
 
 	// SERP Max Products
 	SerpMaxProductsExact      int
@@ -100,6 +106,7 @@ type Config struct {
 	// Default Values
 	DefaultCountry  string
 	DefaultLanguage string
+	DefaultCurrency string
 
 	// Cache TTL (seconds)
 	CacheGeminiTTL    int
@@ -130,16 +137,20 @@ func Load() (*Config, error) {
 		RedisDB:               getEnvAsInt("REDIS_DB", 0),
 		JWTAccessSecret:       getEnv("JWT_ACCESS_SECRET", "change-me-in-production-access-secret-key"),
 		JWTRefreshSecret:      getEnv("JWT_REFRESH_SECRET", "change-me-in-production-refresh-secret-key"),
-		JWTAccessTTL:          time.Duration(getEnvAsInt("JWT_ACCESS_TTL", 900)) * time.Second,  // 15 minutes default
+		JWTAccessTTL:          time.Duration(getEnvAsInt("JWT_ACCESS_TTL", 900)) * time.Second,     // 15 minutes default
 		JWTRefreshTTL:         time.Duration(getEnvAsInt("JWT_REFRESH_TTL", 604800)) * time.Second, // 7 days default
+		GoogleClientID:        getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret:    getEnv("GOOGLE_CLIENT_SECRET", ""),
+		GoogleRedirectURL:     getEnv("GOOGLE_REDIRECT_URL", ""),
 		SessionTTL:            getEnvAsInt("SESSION_TTL", 86400),
 		MaxMessagesPerSession: getEnvAsInt("MAX_MESSAGES_PER_SESSION", 8),
 		MaxSearchesPerSession: getEnvAsInt("MAX_SEARCHES_PER_SESSION", 3),
 		GeminiAPIKeys:         getEnvAsSlice("GEMINI_API_KEYS", []string{}),
 		SerpAPIKeys:           getEnvAsSlice("SERP_API_KEYS", []string{}),
-		GeminiModel:           getEnv("GEMINI_MODEL", "gemini-2.5-flash-preview-09-2025"),
+		GeminiModel:           getEnv("GEMINI_MODEL", "gemini-flash-latest"),
+		GeminiFallbackModel:   getEnv("GEMINI_FALLBACK_MODEL", "gemini-flash-lite-latest"),
 		GeminiTemperature:     float32(getEnvAsFloat("GEMINI_TEMPERATURE", 0.7)),
-		GeminiMaxOutputTokens: getEnvAsInt("GEMINI_MAX_OUTPUT_TOKENS", 1100),
+		GeminiMaxOutputTokens: getEnvAsInt("GEMINI_MAX_OUTPUT_TOKENS", 8192),
 		GeminiUseGrounding:    getEnvAsBool("GEMINI_USE_GROUNDING", true),
 
 		// Grounding Strategy
@@ -147,30 +158,30 @@ func Load() (*Config, error) {
 		GeminiGroundingMinWords: getEnvAsInt("GEMINI_GROUNDING_MIN_WORDS", 2),
 
 		// Grounding Strategy Thresholds
-		GeminiBrandQueryConfidence:      getEnvAsFloat("GEMINI_BRAND_QUERY_CONFIDENCE", 0.95),
-		GeminiGroundingWeightFreshInfo:  getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_FRESH_INFO", 0.3),
-		GeminiGroundingWeightSpecific:   getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_SPECIFIC_PRODUCT", 0.35),
-		GeminiGroundingWeightDrift:      getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_DIALOGUE_DRIFT", 0.2),
-		GeminiGroundingWeightElectron:   getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_ELECTRONICS", 0.15),
-		GeminiGroundingDecisionThresh:   getEnvAsFloat("GEMINI_GROUNDING_DECISION_THRESHOLD", 0.5),
-		GeminiBrandQueryMaxWords:        getEnvAsInt("GEMINI_BRAND_QUERY_MAX_WORDS", 3),
-		GeminiBrandSimilarityThresh:     getEnvAsFloat("GEMINI_BRAND_SIMILARITY_THRESHOLD", 0.65),
-		GeminiDialogueHistoryWindow:     getEnvAsInt("GEMINI_DIALOGUE_HISTORY_WINDOW", 4),
-		GeminiDialogueDriftThresh:       getEnvAsFloat("GEMINI_DIALOGUE_DRIFT_THRESHOLD", 0.4),
-		GeminiDriftScoreBonus:           getEnvAsFloat("GEMINI_DRIFT_SCORE_BONUS", 0.8),
-		GeminiElectronicsThreshHigh:     getEnvAsFloat("GEMINI_ELECTRONICS_THRESHOLD_HIGH", 0.7),
-		GeminiElectronicsScoreHigh:      getEnvAsFloat("GEMINI_ELECTRONICS_SCORE_HIGH", 0.9),
-		GeminiCategorySimilarityThresh:  getEnvAsFloat("GEMINI_CATEGORY_SIMILARITY_THRESHOLD", 0.6),
-		GeminiCategoryScore:             getEnvAsFloat("GEMINI_CATEGORY_SCORE", 0.5),
+		GeminiBrandQueryConfidence:     getEnvAsFloat("GEMINI_BRAND_QUERY_CONFIDENCE", 0.95),
+		GeminiGroundingWeightFreshInfo: getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_FRESH_INFO", 0.3),
+		GeminiGroundingWeightSpecific:  getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_SPECIFIC_PRODUCT", 0.35),
+		GeminiGroundingWeightDrift:     getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_DIALOGUE_DRIFT", 0.2),
+		GeminiGroundingWeightElectron:  getEnvAsFloat("GEMINI_GROUNDING_WEIGHT_ELECTRONICS", 0.15),
+		GeminiGroundingDecisionThresh:  getEnvAsFloat("GEMINI_GROUNDING_DECISION_THRESHOLD", 0.5),
+		GeminiBrandQueryMaxWords:       getEnvAsInt("GEMINI_BRAND_QUERY_MAX_WORDS", 3),
+		GeminiBrandSimilarityThresh:    getEnvAsFloat("GEMINI_BRAND_SIMILARITY_THRESHOLD", 0.65),
+		GeminiDialogueHistoryWindow:    getEnvAsInt("GEMINI_DIALOGUE_HISTORY_WINDOW", 4),
+		GeminiDialogueDriftThresh:      getEnvAsFloat("GEMINI_DIALOGUE_DRIFT_THRESHOLD", 0.4),
+		GeminiDriftScoreBonus:          getEnvAsFloat("GEMINI_DRIFT_SCORE_BONUS", 0.8),
+		GeminiElectronicsThreshHigh:    getEnvAsFloat("GEMINI_ELECTRONICS_THRESHOLD_HIGH", 0.7),
+		GeminiElectronicsScoreHigh:     getEnvAsFloat("GEMINI_ELECTRONICS_SCORE_HIGH", 0.9),
+		GeminiCategorySimilarityThresh: getEnvAsFloat("GEMINI_CATEGORY_SIMILARITY_THRESHOLD", 0.6),
+		GeminiCategoryScore:            getEnvAsFloat("GEMINI_CATEGORY_SCORE", 0.5),
 
 		// Gemini Translation Settings
 		GeminiTranslationTemperature: float32(getEnvAsFloat("GEMINI_TRANSLATION_TEMPERATURE", 0.3)),
 		GeminiTranslationMaxTokens:   getEnvAsInt("GEMINI_TRANSLATION_MAX_TOKENS", 100),
 
 		// Embedding Settings
-		GeminiEmbeddingModel:            getEnv("GEMINI_EMBEDDING_MODEL", "text-embedding-004"),
+		GeminiEmbeddingModel:             getEnv("GEMINI_EMBEDDING_MODEL", "text-embedding-004"),
 		EmbeddingCategoryDetectionThresh: getEnvAsFloat("EMBEDDING_CATEGORY_DETECTION_THRESHOLD", 0.6),
-		CacheQueryEmbeddingTTL:          getEnvAsInt("CACHE_QUERY_EMBEDDING_TTL", 86400),
+		CacheQueryEmbeddingTTL:           getEnvAsInt("CACHE_QUERY_EMBEDDING_TTL", 86400),
 
 		// SERP Relevance Thresholds
 		SerpThresholdExact:      getEnvAsFloat("SERP_THRESHOLD_EXACT", 0.4),
@@ -198,6 +209,7 @@ func Load() (*Config, error) {
 		// Default Values
 		DefaultCountry:  getEnv("DEFAULT_COUNTRY", "CH"),
 		DefaultLanguage: getEnv("DEFAULT_LANGUAGE", "en"),
+		DefaultCurrency: getEnv("DEFAULT_CURRENCY", "CHF"),
 
 		CacheGeminiTTL:    getEnvAsInt("CACHE_GEMINI_TTL", 3600),
 		CacheSerpTTL:      getEnvAsInt("CACHE_SERP_TTL", 86400),
@@ -222,6 +234,14 @@ func (c *Config) validate() error {
 
 	if len(c.SerpAPIKeys) == 0 {
 		return fmt.Errorf("at least one SERP_API_KEY is required")
+	}
+
+	// Validate Google OAuth config (required for authentication)
+	if c.GoogleClientID == "" {
+		return fmt.Errorf("GOOGLE_CLIENT_ID is required")
+	}
+	if c.GoogleClientSecret == "" {
+		return fmt.Errorf("GOOGLE_CLIENT_SECRET is required")
 	}
 
 	// Validate grounding mode

@@ -3,9 +3,9 @@
 import { useChat } from "@/hooks";
 import { useChatStore } from "@/lib/store";
 import { SearchHistory } from "./SearchHistory";
-import { ChatHeader } from "./chat/chat-header";
 import { ChatMessages } from "./chat/chat-messages";
 import { ChatInput } from "./chat/chat-input";
+import { AdPlaceholder } from "./AdPlaceholder";
 
 interface ChatInterfaceProps {
   initialQuery?: string;
@@ -22,14 +22,20 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      <SearchHistory />
-
-      <ChatHeader
+    <div className="flex flex-col h-screen bg-gradient-to-br from-background via-background to-background/95">
+      {/* Sidebar with all controls */}
+      <SearchHistory
         isConnected={isConnected}
         connectionStatus={connectionStatus}
         onNewSearch={handleNewSearch}
       />
+
+      {/* Top Banner Ad - Only show when there are messages */}
+      {messages.length > 0 && (
+        <div className="flex justify-center py-3 px-4 border-b border-border/30 bg-muted/20 backdrop-blur-sm">
+          <AdPlaceholder format="banner" />
+        </div>
+      )}
 
       <ChatMessages
         messages={messages}

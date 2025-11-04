@@ -108,6 +108,7 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage) {
 		Message:         msg.Message,
 		Country:         msg.Country,
 		Language:        msg.Language,
+		Currency:        msg.Currency,
 		NewSearch:       msg.NewSearch,
 		CurrentCategory: msg.CurrentCategory,
 	}

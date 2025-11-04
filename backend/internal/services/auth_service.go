@@ -24,16 +24,18 @@ var (
 )
 
 type AuthService struct {
-	redis      *redis.Client
-	jwtService *utils.JWTService
-	ctx        context.Context
+	redis       *redis.Client
+	jwtService  *utils.JWTService
+	googleOAuth *GoogleOAuthService
+	ctx         context.Context
 }
 
-func NewAuthService(redis *redis.Client, jwtService *utils.JWTService) *AuthService {
+func NewAuthService(redis *redis.Client, jwtService *utils.JWTService, googleOAuth *GoogleOAuthService) *AuthService {
 	return &AuthService{
-		redis:      redis,
-		jwtService: jwtService,
-		ctx:        context.Background(),
+		redis:       redis,
+		jwtService:  jwtService,
+		googleOAuth: googleOAuth,
+		ctx:         context.Background(),
 	}
 }
 
@@ -60,12 +62,58 @@ func (s *AuthService) Signup(req *models.SignupRequest) (*models.AuthResponse, e
 		Email:        req.Email,
 		PasswordHash: string(hashedPassword),
 		FullName:     req.FullName,
+		Provider:     "email",
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
 
 	if err := s.saveUser(user); err != nil {
 		return nil, fmt.Errorf("failed to save user: %w", err)
+	}
+
+	// Generate tokens
+	return s.generateAuthResponse(user)
+}
+
+// GoogleLogin authenticates a user via Google OAuth and returns tokens
+func (s *AuthService) GoogleLogin(idToken string) (*models.AuthResponse, error) {
+	// Verify the Google ID token
+	googleUser, err := s.googleOAuth.VerifyIDToken(s.ctx, idToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify Google token: %w", err)
+	}
+
+	// Check if user exists by provider ID
+	user, err := s.getUserByProviderID("google", googleUser.Sub)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// If user doesn't exist, create new account
+	if errors.Is(err, redis.Nil) {
+		user = &models.User{
+			ID:         uuid.New(),
+			Email:      googleUser.Email,
+			FullName:   googleUser.Name,
+			Picture:    googleUser.Picture,
+			Provider:   "google",
+			ProviderID: googleUser.Sub,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+
+		if err := s.saveUser(user); err != nil {
+			return nil, fmt.Errorf("failed to save user: %w", err)
+		}
+	}
+
+	// Update last login
+	now := time.Now()
+	user.LastLoginAt = &now
+	user.Picture = googleUser.Picture // Update picture in case it changed
+	user.FullName = googleUser.Name   // Update name in case it changed
+	if err := s.saveUser(user); err != nil {
+		fmt.Printf("Warning: failed to update user info: %v\n", err)
 	}
 
 	// Generate tokens
@@ -215,6 +263,9 @@ func (s *AuthService) saveUser(user *models.User) error {
 		"email":         user.Email,
 		"password_hash": user.PasswordHash,
 		"full_name":     user.FullName,
+		"picture":       user.Picture,
+		"provider":      user.Provider,
+		"provider_id":   user.ProviderID,
 		"created_at":    user.CreatedAt.Format(time.RFC3339),
 		"updated_at":    user.UpdatedAt.Format(time.RFC3339),
 	}
@@ -229,7 +280,19 @@ func (s *AuthService) saveUser(user *models.User) error {
 
 	// Create email -> ID mapping
 	emailKey := fmt.Sprintf("user:email:%s", user.Email)
-	return s.redis.Set(s.ctx, emailKey, user.ID.String(), 0).Err()
+	if err := s.redis.Set(s.ctx, emailKey, user.ID.String(), 0).Err(); err != nil {
+		return err
+	}
+
+	// Create provider -> ID mapping for OAuth users
+	if user.Provider != "email" && user.ProviderID != "" {
+		providerKey := fmt.Sprintf("user:provider:%s:%s", user.Provider, user.ProviderID)
+		if err := s.redis.Set(s.ctx, providerKey, user.ID.String(), 0).Err(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *AuthService) getUserByEmail(email string) (*models.User, error) {
@@ -263,6 +326,9 @@ func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
 	user.Email = userData["email"]
 	user.PasswordHash = userData["password_hash"]
 	user.FullName = userData["full_name"]
+	user.Picture = userData["picture"]
+	user.Provider = userData["provider"]
+	user.ProviderID = userData["provider_id"]
 
 	if createdAt, err := time.Parse(time.RFC3339, userData["created_at"]); err == nil {
 		user.CreatedAt = createdAt
@@ -277,6 +343,21 @@ func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
 	}
 
 	return user, nil
+}
+
+func (s *AuthService) getUserByProviderID(provider, providerID string) (*models.User, error) {
+	providerKey := fmt.Sprintf("user:provider:%s:%s", provider, providerID)
+	userIDStr, err := s.redis.Get(s.ctx, providerKey).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.getUserByID(userID)
 }
 
 func (s *AuthService) saveRefreshToken(token *models.RefreshToken) error {
@@ -347,6 +428,8 @@ func (s *AuthService) toUserInfo(user *models.User) *models.UserInfo {
 		ID:        user.ID,
 		Email:     user.Email,
 		FullName:  user.FullName,
+		Picture:   user.Picture,
+		Provider:  user.Provider,
 		CreatedAt: user.CreatedAt,
 	}
 }

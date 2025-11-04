@@ -5,6 +5,7 @@ import { ChatMessage as ChatMessageComponent } from "../ChatMessage";
 import { LoadingDots } from "../ui/loading-dots";
 import { ChatMessage } from "@/types";
 import { ChatEmptyState } from "./chat-empty-state";
+import { useChatStore } from "@/lib/store";
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
@@ -18,6 +19,7 @@ export function ChatMessages({
   onQuickReply,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { sessionId } = useChatStore();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,7 +35,7 @@ export function ChatMessages({
         {messages.length === 0 ? (
           <ChatEmptyState />
         ) : (
-          <div className="space-y-6">
+          <div key={sessionId} className="space-y-6">
             {messages.map((message) => (
               <ChatMessageComponent
                 key={message.id}

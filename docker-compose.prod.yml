@@ -40,6 +40,9 @@ services:
       - GEMINI_API_KEYS=${GEMINI_API_KEYS:?Error - Set GEMINI_API_KEYS in .env}
       - SERP_API_KEYS=${SERP_API_KEYS:?Error - Set SERP_API_KEYS in .env}
       - CORS_ORIGINS=${CORS_ORIGINS:?Error - Set CORS_ORIGINS in .env}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?Error - Set GOOGLE_CLIENT_ID in .env}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?Error - Set GOOGLE_CLIENT_SECRET in .env}
+      - GOOGLE_REDIRECT_URL=${GOOGLE_REDIRECT_URL:?Error - Set GOOGLE_REDIRECT_URL in .env}
     deploy:
       resources:
         limits:

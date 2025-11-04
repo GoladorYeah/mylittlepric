@@ -10,6 +10,7 @@ import { ProductInfo } from "./product/product-info";
 import { ProductOffers } from "./product/product-offers";
 import { ProductRatingBreakdown } from "./product/product-rating-breakdown";
 import { ProductSimilarItems } from "./product/product-similar-items";
+import { ProductDrawerSkeleton } from "./ui/product-skeletons";
 
 interface ProductDrawerProps {
   pageToken: string;
@@ -39,11 +40,9 @@ export function ProductDrawer({ pageToken, onClose }: ProductDrawerProps) {
   return (
     <Drawer isOpen={true} onClose={onClose}>
       {loading ? (
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
+        <ProductDrawerSkeleton />
       ) : product ? (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-fade-in">
           <ProductImageGallery
             images={product.images || []}
             title={product.title}
@@ -65,8 +64,16 @@ export function ProductDrawer({ pageToken, onClose }: ProductDrawerProps) {
           <ProductSimilarItems products={product.more_options || []} />
         </div>
       ) : (
-        <div className="flex items-center justify-center h-96">
-          <p className="text-muted-foreground">Failed to load product details</p>
+        <div className="flex items-center justify-center h-96 animate-fade-in">
+          <div className="text-center space-y-2">
+            <p className="text-muted-foreground text-lg">Failed to load product details</p>
+            <button
+              onClick={onClose}
+              className="text-primary hover:underline text-sm"
+            >
+              Close and try again
+            </button>
+          </div>
         </div>
       )}
     </Drawer>

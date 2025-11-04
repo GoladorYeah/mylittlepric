@@ -91,11 +91,44 @@ func setupRoutes(app *fiber.App, c *container.Container) {
 	// Authentication routes (public)
 	setupAuthRoutes(api, c)
 
-	// WebSocket chat (supports both anonymous and authenticated)
+	// WebSocket chat (REQUIRES authentication)
 	wsHandler := handlers.NewWSHandler(c)
+	authMiddleware := middleware.AuthMiddleware(c.JWTService)
 
 	app.Use("/ws", func(ctx *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(ctx) {
+			// Try to get token from query parameter or Authorization header
+			var token string
+
+			// First, try query parameter (for WebSocket compatibility)
+			queryToken := ctx.Query("token")
+			if queryToken != "" {
+				token = queryToken
+			} else {
+				// Fallback to Authorization header
+				authHeader := ctx.Get("Authorization")
+				if authHeader != "" && len(authHeader) > 7 {
+					token = authHeader[7:] // Remove "Bearer " prefix
+				}
+			}
+
+			if token == "" {
+				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "authentication required",
+				})
+			}
+
+			// Validate token
+			claims, err := c.JWTService.ValidateAccessToken(token)
+			if err != nil {
+				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "invalid or expired token",
+				})
+			}
+
+			// Store user info in locals for WebSocket handler
+			ctx.Locals("user_id", claims.UserID)
+			ctx.Locals("user_email", claims.Email)
 			ctx.Locals("allowed", true)
 			return ctx.Next()
 		}
@@ -106,17 +139,16 @@ func setupRoutes(app *fiber.App, c *container.Container) {
 		wsHandler.HandleWebSocket(conn)
 	}))
 
-	// Chat endpoints (support both anonymous and authenticated)
-	optionalAuth := middleware.OptionalAuthMiddleware(c.JWTService)
+	// Chat endpoints (REQUIRE authentication)
 	chatHandler := handlers.NewChatHandler(c)
-	api.Post("/chat", optionalAuth, chatHandler.HandleChat)
-	api.Get("/chat/messages", chatHandler.GetSessionMessages)
+	api.Post("/chat", authMiddleware, chatHandler.HandleChat)
+	api.Get("/chat/messages", authMiddleware, chatHandler.GetSessionMessages)
 
 	productHandler := handlers.NewProductHandler(c)
 	api.Post("/product-details", productHandler.HandleProductDetails)
 
-	// Search history routes (support both anonymous and authenticated)
-	setupSearchHistoryRoutes(api, c)
+	// Search history routes (REQUIRE authentication)
+	setupSearchHistoryRoutes(api, c, authMiddleware)
 
 	setupStatsRoutes(api, c)
 }
@@ -128,6 +160,7 @@ func setupAuthRoutes(api fiber.Router, c *container.Container) {
 	// Public routes
 	auth.Post("/signup", authHandler.Signup)
 	auth.Post("/login", authHandler.Login)
+	auth.Post("/google", authHandler.GoogleLogin)
 	auth.Post("/refresh", authHandler.RefreshToken)
 	auth.Post("/logout", authHandler.Logout)
 
@@ -137,17 +170,13 @@ func setupAuthRoutes(api fiber.Router, c *container.Container) {
 	auth.Post("/claim-sessions", authMiddleware, authHandler.ClaimSessions)
 }
 
-func setupSearchHistoryRoutes(api fiber.Router, c *container.Container) {
+func setupSearchHistoryRoutes(api fiber.Router, c *container.Container, authMiddleware fiber.Handler) {
 	historyHandler := handlers.NewSearchHistoryHandler(c)
-	optionalAuth := middleware.OptionalAuthMiddleware(c.JWTService)
 
-	// Search history routes (work for both authenticated and anonymous users)
-	api.Get("/search-history", optionalAuth, historyHandler.GetSearchHistory)
-	api.Delete("/search-history/:id", optionalAuth, historyHandler.DeleteSearchHistory)
-	api.Post("/search-history/:id/click", optionalAuth, historyHandler.TrackProductClick)
-
-	// Delete all history (authenticated users only)
-	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+	// Search history routes (REQUIRE authentication)
+	api.Get("/search-history", authMiddleware, historyHandler.GetSearchHistory)
+	api.Delete("/search-history/:id", authMiddleware, historyHandler.DeleteSearchHistory)
+	api.Post("/search-history/:id/click", authMiddleware, historyHandler.TrackProductClick)
 	api.Delete("/search-history", authMiddleware, historyHandler.DeleteAllSearchHistory)
 }
 

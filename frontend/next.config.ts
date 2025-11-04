@@ -4,6 +4,17 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
 
+  // Image optimization configuration
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+    unoptimized: false,
+  },
+
   // WebSocket configuration for API communication
   async rewrites() {
     return [

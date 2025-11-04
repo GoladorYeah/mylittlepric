@@ -14,6 +14,7 @@ type ChatSession struct {
 	Currency     string      `json:"currency" db:"currency"`
 	MessageCount int         `json:"message_count" db:"message_count"`
 	SearchState  SearchState `json:"search_state" db:"search_state"`
+	CycleState   CycleState  `json:"cycle_state" db:"cycle_state"` // NEW: Cycle tracking
 	CreatedAt    time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time   `json:"updated_at" db:"updated_at"`
 	ExpiresAt    time.Time   `json:"expires_at" db:"expires_at"`
@@ -39,6 +40,32 @@ const (
 	SearchStatusInProgress SearchStatus = "in_progress"
 	SearchStatusCompleted  SearchStatus = "completed"
 )
+
+// CycleState tracks the Universal Prompt Cycle system state
+type CycleState struct {
+	CycleID          int                      `json:"cycle_id"`            // Current cycle number (increments on new cycle)
+	Iteration        int                      `json:"iteration"`           // Current iteration within cycle (1-6)
+	CycleHistory     []CycleMessage           `json:"cycle_history"`       // Messages in current cycle
+	LastCycleContext *LastCycleContext        `json:"last_cycle_context"`  // Context from previous cycle
+	LastDefined      []string                 `json:"last_defined"`        // Last confirmed product names or shortlist
+	PromptID         string                   `json:"prompt_id"`           // Prompt version identifier
+	PromptHash       string                   `json:"prompt_hash"`         // SHA-256 hash of prompt for drift detection
+}
+
+// CycleMessage represents a single message in a cycle
+type CycleMessage struct {
+	Role      string    `json:"role"`      // "user" or "assistant"
+	Content   string    `json:"content"`   // Message content
+	Timestamp time.Time `json:"timestamp"` // When message was sent
+}
+
+// LastCycleContext contains context from the previous cycle to carry over
+type LastCycleContext struct {
+	Groups      []string      `json:"groups"`       // Product groups discussed
+	Subgroups   []string      `json:"subgroups"`    // Product subgroups discussed
+	Products    []ProductInfo `json:"products"`     // Products identified
+	LastRequest string        `json:"last_request"` // The final user request from last cycle
+}
 
 type Message struct {
 	ID           uuid.UUID              `json:"id" db:"id"`
@@ -94,16 +121,22 @@ type SearchStateResponse struct {
 }
 
 type GeminiResponse struct {
-	ResponseType  string   `json:"response_type"`
-	Output        string   `json:"output"`
-	QuickReplies  []string `json:"quick_replies"`
-	SearchPhrase  string   `json:"search_phrase"`
-	SearchType    string   `json:"search_type"`
-	Category      string   `json:"category"`
-	ProductType   string   `json:"product_type"`
-	Brand         string   `json:"brand"`
-	Confidence    float32  `json:"confidence"`
-	RequiresInput bool     `json:"requires_input"`
+	ResponseType  string                 `json:"response_type"` // "dialogue", "search", or "api_request"
+	Output        string                 `json:"output"`
+	QuickReplies  []string               `json:"quick_replies"`
+	SearchPhrase  string                 `json:"search_phrase"` // For response_type="search"
+	SearchType    string                 `json:"search_type"`   // "exact", "parameters", or "category"
+	Category      string                 `json:"category"`
+	PriceFilter   string                 `json:"price_filter,omitempty"`   // "cheaper" or "expensive"
+	MinPrice      *float64               `json:"min_price,omitempty"`      // Minimum price in user's currency
+	MaxPrice      *float64               `json:"max_price,omitempty"`      // Maximum price in user's currency
+	ProductType   string                 `json:"product_type"`
+	Brand         string                 `json:"brand"`
+	Confidence    float32                `json:"confidence"`
+	RequiresInput bool                   `json:"requires_input"`
+	// New fields for api_request response type
+	API    string                 `json:"api,omitempty"`    // API name (e.g., "google_shopping")
+	Params map[string]interface{} `json:"params,omitempty"` // API parameters
 }
 
 type SerpConfig struct {
@@ -146,13 +179,25 @@ type Variant struct {
 }
 
 type Offer struct {
-	Merchant     string  `json:"merchant"`
-	Price        string  `json:"price"`
-	Currency     string  `json:"currency"`
-	Link         string  `json:"link"`
-	Availability string  `json:"availability,omitempty"`
-	Shipping     string  `json:"shipping,omitempty"`
-	Rating       float32 `json:"rating,omitempty"`
+	Merchant             string   `json:"merchant"`
+	Logo                 string   `json:"logo,omitempty"`
+	Price                string   `json:"price"`
+	ExtractedPrice       float64  `json:"extracted_price,omitempty"`
+	Currency             string   `json:"currency,omitempty"`
+	Link                 string   `json:"link"`
+	Title                string   `json:"title,omitempty"`
+	Availability         string   `json:"availability,omitempty"`
+	Shipping             string   `json:"shipping,omitempty"`
+	ShippingExtracted    float64  `json:"shipping_extracted,omitempty"`
+	Total                string   `json:"total,omitempty"`
+	ExtractedTotal       float64  `json:"extracted_total,omitempty"`
+	Rating               float32  `json:"rating,omitempty"`
+	Reviews              int      `json:"reviews,omitempty"`
+	PaymentMethods       string   `json:"payment_methods,omitempty"`
+	Tag                  string   `json:"tag,omitempty"`
+	DetailsAndOffers     []string `json:"details_and_offers,omitempty"`
+	MonthlyPaymentDur    int      `json:"monthly_payment_duration,omitempty"`
+	DownPayment          string   `json:"down_payment,omitempty"`
 }
 
 type RatingBreakdownItem struct {
@@ -168,13 +213,16 @@ type ErrorResponse struct {
 // ==================== Authentication Models ====================
 
 type User struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	Email       string    `json:"email" db:"email"`
-	PasswordHash string   `json:"-" db:"password_hash"` // Never expose password
-	FullName    string    `json:"full_name,omitempty" db:"full_name"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
-	LastLoginAt *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
+	ID           uuid.UUID `json:"id" db:"id"`
+	Email        string    `json:"email" db:"email"`
+	PasswordHash string    `json:"-" db:"password_hash"` // Never expose password (optional for OAuth)
+	FullName     string    `json:"full_name,omitempty" db:"full_name"`
+	Picture      string    `json:"picture,omitempty" db:"picture"`        // Profile picture URL
+	Provider     string    `json:"provider" db:"provider"`                // "google", "email"
+	ProviderID   string    `json:"provider_id,omitempty" db:"provider_id"` // Google user ID
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
 }
 
 type RefreshToken struct {
@@ -210,6 +258,8 @@ type UserInfo struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
 	FullName  string    `json:"full_name,omitempty"`
+	Picture   string    `json:"picture,omitempty"`
+	Provider  string    `json:"provider"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -219,6 +269,23 @@ type RefreshTokenRequest struct {
 
 type ClaimSessionsRequest struct {
 	SessionIDs []string `json:"session_ids" validate:"required"`
+}
+
+// Google OAuth Request/Response Models
+
+type GoogleAuthRequest struct {
+	IDToken string `json:"id_token" validate:"required"`
+}
+
+type GoogleUserInfo struct {
+	Sub           string `json:"sub"`            // Google user ID
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Locale        string `json:"locale"`
 }
 
 // ==================== Search History Models ====================

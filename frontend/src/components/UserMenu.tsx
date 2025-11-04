@@ -1,26 +1,46 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
-import { authAPI } from "@/lib/auth-api";
-import { useClickOutside } from "@/hooks";
-import AuthDialog from "./AuthDialog";
+import { AuthAPI } from "@/lib/api/auth";
+import { LogOut, User as UserIcon } from "lucide-react";
 
 export default function UserMenu() {
-  const { user, isAuthenticated, clearAuth } = useAuthStore();
+  const router = useRouter();
+  const { user, isAuthenticated, clearAuth, refreshToken } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
-  useClickOutside(menuRef, () => setIsMenuOpen(false), isMenuOpen);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isMenuOpen]);
 
   const handleLogout = async () => {
     try {
-      await authAPI.logout();
+      if (refreshToken) {
+        await AuthAPI.logout(refreshToken);
+      }
+      clearAuth();
       setIsMenuOpen(false);
+      router.push('/login');
     } catch (error) {
       console.error("Logout failed:", error);
+      // Clear auth anyway on error
+      clearAuth();
+      router.push('/login');
     }
   };
 
@@ -35,48 +55,63 @@ export default function UserMenu() {
   };
 
   if (!isAuthenticated) {
-    return (
-      <>
-        <button
-          onClick={() => setIsAuthDialogOpen(true)}
-          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all"
-        >
-          Sign in
-        </button>
-
-        <AuthDialog
-          isOpen={isAuthDialogOpen}
-          onClose={() => setIsAuthDialogOpen(false)}
-        />
-      </>
-    );
+    return null;
   }
 
   return (
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all overflow-hidden"
       >
-        {getUserInitial()}
+        {user?.picture ? (
+          <img
+            src={user.picture}
+            alt={user.full_name || user.email}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="text-sm font-medium">{getUserInitial()}</span>
+        )}
       </button>
 
       {isMenuOpen && (
-        <div className="absolute right-0 mt-2 w-64 rounded-lg bg-background border border-border shadow-xl">
+        <div className="fixed md:absolute right-4 md:right-0 bottom-20 md:bottom-auto md:top-full md:mt-2 w-64 rounded-lg bg-background border border-border shadow-xl z-50">
           <div className="p-4">
-            <p className="text-sm font-medium text-foreground">
-              {user?.full_name || "User"}
-            </p>
-            <p className="text-sm text-muted-foreground truncate">
-              {user?.email}
-            </p>
+            <div className="flex items-center gap-3 mb-2">
+              {user?.picture ? (
+                <img
+                  src={user.picture}
+                  alt={user.full_name || user.email}
+                  className="h-10 w-10 rounded-full"
+                />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                  <UserIcon className="h-5 w-5" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {user?.full_name || "User"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.email}
+                </p>
+              </div>
+            </div>
+            {user?.provider && (
+              <div className="mt-2 px-2 py-1 rounded-md bg-secondary/50 text-xs text-muted-foreground">
+                Signed in with {user.provider === 'google' ? 'Google' : user.provider}
+              </div>
+            )}
           </div>
 
           <div className="border-t border-border">
             <button
               onClick={handleLogout}
-              className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-secondary transition-colors"
+              className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-secondary transition-colors flex items-center gap-2"
             >
+              <LogOut className="h-4 w-4" />
               Sign out
             </button>
           </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { RotateCcw, Wifi, WifiOff } from "lucide-react";
+import { RotateCcw, Wifi, WifiOff, Coins } from "lucide-react";
 import { ThemeToggle } from "../ThemeToggle";
 import { Logo } from "../Logo";
 import UserMenu from "../UserMenu";
+import { useChatStore } from "@/lib/store";
 
 interface ChatHeaderProps {
   isConnected: boolean;
@@ -16,26 +17,43 @@ export function ChatHeader({
   connectionStatus,
   onNewSearch,
 }: ChatHeaderProps) {
+  const { currency, country } = useChatStore();
+
   return (
     <header className="border-b border-border bg-background sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Logo className="h-6 md:h-8" width={84.24} height={32} />
-          <div className="flex items-center gap-1.5">
-            {isConnected ? (
-              <>
-                <Wifi className="w-4 h-4 text-green-500" />
-                <span className="text-xs text-green-500 font-medium">
-                  {connectionStatus}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              {isConnected ? (
+                <>
+                  <Wifi className="w-4 h-4 text-green-500" />
+                  <span className="text-xs text-green-500 font-medium">
+                    {connectionStatus}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-4 h-4 text-red-500" />
+                  <span className="text-xs text-red-500 font-medium">
+                    {connectionStatus}
+                  </span>
+                </>
+              )}
+            </div>
+            {currency && (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+                <Coins className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-primary">
+                  {currency}
                 </span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-4 h-4 text-red-500" />
-                <span className="text-xs text-red-500 font-medium">
-                  {connectionStatus}
-                </span>
-              </>
+                {country && (
+                  <span className="text-xs text-muted-foreground">
+                    ({country})
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { ChatMessage } from "@/types";
-import { detectCountry, detectLanguage } from "./locale";
+import { detectCountry, detectLanguage, getCurrencyForCountry } from "./locale";
 
 export interface SearchHistoryItem {
   id: string;
@@ -18,6 +18,7 @@ interface ChatStore {
   isLoading: boolean;
   country: string;
   language: string;
+  currency: string;
   searchInProgress: boolean;
   currentCategory: string;
   searchHistory: SearchHistoryItem[];
@@ -30,6 +31,7 @@ interface ChatStore {
   setLoading: (loading: boolean) => void;
   setCountry: (country: string) => void;
   setLanguage: (language: string) => void;
+  setCurrency: (currency: string) => void;
   setSearchInProgress: (inProgress: boolean) => void;
   setCurrentCategory: (category: string) => void;
   clearMessages: () => void;
@@ -51,10 +53,11 @@ export const useChatStore = create<ChatStore>()(
       isLoading: false,
       country: "",
       language: "",
+      currency: "",
       searchInProgress: false,
       currentCategory: "",
       searchHistory: [],
-      isSidebarOpen: false,
+      isSidebarOpen: true, // По умолчанию развернута
       _hasInitialized: false,
 
       addMessage: (message) =>
@@ -69,6 +72,8 @@ export const useChatStore = create<ChatStore>()(
       setCountry: (country) => set({ country }),
 
       setLanguage: (language) => set({ language }),
+
+      setCurrency: (currency) => set({ currency }),
 
       setSearchInProgress: (inProgress) => set({ searchInProgress: inProgress }),
 
@@ -89,7 +94,12 @@ export const useChatStore = create<ChatStore>()(
         // Only initialize if country is not already set (either from localStorage or detection)
         if (!state.country) {
           const country = await detectCountry();
-          set({ country });
+          const currency = getCurrencyForCountry(country);
+          set({ country, currency });
+        } else if (!state.currency) {
+          // If country exists but currency doesn't (migration case)
+          const currency = getCurrencyForCountry(state.country);
+          set({ currency });
         }
         if (!state.language) {
           set({ language: detectLanguage() });
@@ -177,6 +187,7 @@ export const useChatStore = create<ChatStore>()(
       partialize: (state) => ({
         country: state.country,
         language: state.language,
+        currency: state.currency,
         searchHistory: state.searchHistory,
         isSidebarOpen: state.isSidebarOpen,
       }),

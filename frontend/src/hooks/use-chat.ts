@@ -7,20 +7,27 @@ import { generateId } from "@/lib/utils";
 /**
  * Build WebSocket URL dynamically based on current page protocol
  */
-function getWebSocketUrl(): string {
+function getWebSocketUrl(token?: string | null): string {
   if (typeof window === "undefined") return "";
 
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
+  let baseUrl: string;
   if (apiUrl) {
     const url = new URL(apiUrl);
-    const wsUrl = `${protocol}//${url.host}/ws`;
-    console.log("🔌 WebSocket URL:", wsUrl, "(Page protocol:", window.location.protocol + ")");
-    return wsUrl;
+    baseUrl = `${protocol}//${url.host}/ws`;
+  } else {
+    baseUrl = `${protocol}//localhost:8080/ws`;
   }
 
-  return `${protocol}//localhost:8080/ws`;
+  // Add token as query parameter if available
+  if (token) {
+    baseUrl += `?token=${encodeURIComponent(token)}`;
+  }
+
+  console.log("🔌 WebSocket URL:", baseUrl, "(Page protocol:", window.location.protocol + ")");
+  return baseUrl;
 }
 
 export interface UseChatOptions {
@@ -56,6 +63,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     sessionId,
     country,
     language,
+    currency,
     currentCategory,
     _hasInitialized,
     addMessage,
@@ -72,11 +80,20 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const { accessToken } = useAuthStore();
 
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
-    getWebSocketUrl(),
+    getWebSocketUrl(accessToken),
     {
       shouldReconnect: () => true,
       reconnectAttempts,
       reconnectInterval,
+      onOpen: () => {
+        console.log("✅ WebSocket connected");
+      },
+      onError: (event) => {
+        console.error("❌ WebSocket error:", event);
+      },
+      onClose: (event) => {
+        console.log("🔌 WebSocket closed:", event.code, event.reason);
+      },
     }
   );
 
@@ -256,6 +273,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         message: textToSend,
         country,
         language,
+        currency,
         new_search: false,
         current_category: currentCategory,
         ...(accessToken && { access_token: accessToken }),

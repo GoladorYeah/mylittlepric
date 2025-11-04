@@ -60,7 +60,45 @@ func FormatProductDetails(productData map[string]interface{}) (*models.ProductDe
 		}
 	}
 
-	if sellers, ok := productResults["sellers"].([]interface{}); ok {
+	// Try "stores" field first (used by google_immersive_product with more_stores=true)
+	if stores, ok := productResults["stores"].([]interface{}); ok {
+		for _, store := range stores {
+			if storeMap, ok := store.(map[string]interface{}); ok {
+				offer := models.Offer{
+					Merchant:          getStringValue(storeMap, "name"),
+					Logo:              getStringValue(storeMap, "logo"),
+					Price:             getStringValue(storeMap, "price"),
+					ExtractedPrice:    getFloatValue(storeMap, "extracted_price"),
+					Currency:          getStringValue(storeMap, "currency"),
+					Link:              getStringValue(storeMap, "link"),
+					Title:             getStringValue(storeMap, "title"),
+					Availability:      getStringValue(storeMap, "availability"),
+					Shipping:          getStringValue(storeMap, "shipping"),
+					ShippingExtracted: getFloatValue(storeMap, "shipping_extracted"),
+					Total:             getStringValue(storeMap, "total"),
+					ExtractedTotal:    getFloatValue(storeMap, "extracted_total"),
+					Rating:            float32(getFloatValue(storeMap, "rating")),
+					Reviews:           getIntValue(storeMap, "reviews"),
+					PaymentMethods:    getStringValue(storeMap, "payment_methods"),
+					Tag:               getStringValue(storeMap, "tag"),
+					MonthlyPaymentDur: getIntValue(storeMap, "monthly_payment_duration"),
+					DownPayment:       getStringValue(storeMap, "down_payment"),
+				}
+
+				// Parse details_and_offers array
+				if details, ok := storeMap["details_and_offers"].([]interface{}); ok {
+					for _, detail := range details {
+						if detailStr, ok := detail.(string); ok {
+							offer.DetailsAndOffers = append(offer.DetailsAndOffers, detailStr)
+						}
+					}
+				}
+
+				response.Offers = append(response.Offers, offer)
+			}
+		}
+	} else if sellers, ok := productResults["sellers"].([]interface{}); ok {
+		// Fallback to "sellers" field for compatibility
 		for _, seller := range sellers {
 			if sellerMap, ok := seller.(map[string]interface{}); ok {
 				offer := models.Offer{

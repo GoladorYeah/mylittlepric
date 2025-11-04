@@ -58,12 +58,24 @@ export interface ProductDetailsResponse {
   variants?: { title: string; items: any[] }[];
   offers: {
     merchant: string;
+    logo?: string;
     price: string;
-    currency: string;
+    extracted_price?: number;
+    currency?: string;
     link: string;
+    title?: string;
     availability?: string;
     shipping?: string;
+    shipping_extracted?: number;
+    total?: string;
+    extracted_total?: number;
     rating?: number;
+    reviews?: number;
+    payment_methods?: string;
+    tag?: string;
+    details_and_offers?: string[];
+    monthly_payment_duration?: number;
+    down_payment?: string;
   }[];
   videos?: any[];
   more_options?: any[];

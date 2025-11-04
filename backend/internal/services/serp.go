@@ -33,80 +33,132 @@ func NewSerpService(keyRotator *utils.KeyRotator, cfg *config.Config) *SerpServi
 	}
 }
 
-func (s *SerpService) SearchProducts(query, searchType, country string) ([]models.ProductCard, int, error) {
-	apiKey, keyIndex, err := s.keyRotator.GetNextKey()
-	if err != nil {
-		return nil, -1, fmt.Errorf("failed to get API key: %w", err)
-	}
+func (s *SerpService) SearchProducts(query, searchType, country string, minPrice, maxPrice *float64) ([]models.ProductCard, int, error) {
+	const maxRetries = 2
+	var lastErr error
+	var lastKeyIndex int = -1
 
-	// ✅ ЛОГИРУЕМ ОРИГИНАЛЬНЫЙ ЗАПРОС
-	fmt.Printf("\n🔍 SERP API Request:\n")
-	fmt.Printf("   Original Query: %s\n", query)
-	fmt.Printf("   Type: %s\n", searchType)
-	fmt.Printf("   Country: %s\n", country)
-	fmt.Printf("   Language: %s\n", getLanguageForCountry(country))
-	fmt.Printf("   Key Index: %d\n", keyIndex)
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff: 500ms, 1s
+			backoffDuration := time.Duration(500*(1<<uint(attempt-1))) * time.Millisecond
+			fmt.Printf("   ⏳ SERP retry attempt %d/%d after %v...\n", attempt+1, maxRetries+1, backoffDuration)
+			time.Sleep(backoffDuration)
+		}
 
-	parameter := map[string]string{
-		"engine": "google_shopping",
-		"q":      query,
-		"gl":     country,
-		"hl":     getLanguageForCountry(country),
-	}
+		apiKey, keyIndex, err := s.keyRotator.GetNextKey()
+		if err != nil {
+			return nil, -1, fmt.Errorf("failed to get API key: %w", err)
+		}
+		lastKeyIndex = keyIndex
 
-	search := g.NewGoogleSearch(parameter, apiKey)
-
-	startTime := time.Now()
-	data, err := search.GetJSON()
-	elapsed := time.Since(startTime)
-
-	if err != nil {
-		fmt.Printf("   ❌ SERP API Error (%.2fs): %v\n", elapsed.Seconds(), err)
-		return nil, keyIndex, fmt.Errorf("SERP API error: %w", err)
-	}
-
-	fmt.Printf("   ⏱️ Response time: %.2fs\n", elapsed.Seconds())
-
-	shoppingItems := []types.ShoppingItem{}
-
-	if shoppingResults, ok := data["shopping_results"].([]interface{}); ok {
-		fmt.Printf("   📦 Raw results: %d products\n", len(shoppingResults))
-
-		for _, item := range shoppingResults {
-			if itemMap, ok := item.(map[string]interface{}); ok {
-				shoppingItem := types.ShoppingItem{
-					Position:    getIntFromInterface(itemMap["position"]),
-					Title:       getStringFromInterface(itemMap["title"]),
-					Link:        getStringFromInterface(itemMap["link"]),
-					ProductLink: getStringFromInterface(itemMap["product_link"]),
-					ProductID:   getStringFromInterface(itemMap["product_id"]),
-					Thumbnail:   getStringFromInterface(itemMap["thumbnail"]),
-					Price:       getStringFromInterface(itemMap["price"]),
-					Merchant:    getStringFromInterface(itemMap["source"]),
-					Rating:      getFloat32FromInterface(itemMap["rating"]),
-					Reviews:     getIntFromInterface(itemMap["reviews"]),
-					SerpAPILink: getStringFromInterface(itemMap["serpapi_product_api"]),
-					PageToken:   getStringFromInterface(itemMap["immersive_product_page_token"]),
-				}
-				shoppingItems = append(shoppingItems, shoppingItem)
+		// ✅ ЛОГИРУЕМ ОРИГИНАЛЬНЫЙ ЗАПРОС
+		if attempt == 0 {
+			fmt.Printf("\n🔍 SERP API Request:\n")
+			fmt.Printf("   Original Query: %s\n", query)
+			fmt.Printf("   Type: %s\n", searchType)
+			fmt.Printf("   Country: %s\n", country)
+			fmt.Printf("   Language: %s\n", getLanguageForCountry(country))
+			if minPrice != nil || maxPrice != nil {
+				fmt.Printf("   Price Range: %v - %v\n", minPrice, maxPrice)
 			}
 		}
-	} else {
-		fmt.Printf("   ⚠️ No shopping_results in response\n")
+		fmt.Printf("   Key Index: %d (attempt %d)\n", keyIndex, attempt+1)
+
+		parameter := map[string]string{
+			"engine": "google_shopping",
+			"q":      query,
+			"gl":     country,
+			"hl":     getLanguageForCountry(country),
+		}
+
+		// Add price range filters if provided
+		if minPrice != nil {
+			parameter["min_price"] = fmt.Sprintf("%.0f", *minPrice)
+		}
+		if maxPrice != nil {
+			parameter["max_price"] = fmt.Sprintf("%.0f", *maxPrice)
+		}
+
+		search := g.NewGoogleSearch(parameter, apiKey)
+
+		startTime := time.Now()
+		data, err := search.GetJSON()
+		elapsed := time.Since(startTime)
+
+		if err != nil {
+			lastErr = err
+			fmt.Printf("   ❌ SERP API Error (%.2fs, attempt %d/%d): %v\n", elapsed.Seconds(), attempt+1, maxRetries+1, err)
+
+			// Check if error is retryable
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "timeout") ||
+				strings.Contains(errMsg, "503") ||
+				strings.Contains(errMsg, "502") ||
+				strings.Contains(errMsg, "500") {
+				// Retryable error - continue to next attempt
+				if attempt < maxRetries {
+					continue
+				}
+			}
+
+			// Non-retryable error or last attempt
+			return nil, keyIndex, fmt.Errorf("SERP API error: %w", err)
+		}
+
+		// Success!
+		if attempt > 0 {
+			fmt.Printf("   ✅ SERP request succeeded on attempt %d\n", attempt+1)
+		}
+		fmt.Printf("   ⏱️ Response time: %.2fs\n", elapsed.Seconds())
+
+		shoppingItems := []types.ShoppingItem{}
+
+		if shoppingResults, ok := data["shopping_results"].([]interface{}); ok {
+			fmt.Printf("   📦 Raw results: %d products\n", len(shoppingResults))
+
+			for _, item := range shoppingResults {
+				if itemMap, ok := item.(map[string]interface{}); ok {
+					shoppingItem := types.ShoppingItem{
+						Position:    getIntFromInterface(itemMap["position"]),
+						Title:       getStringFromInterface(itemMap["title"]),
+						Link:        getStringFromInterface(itemMap["link"]),
+						ProductLink: getStringFromInterface(itemMap["product_link"]),
+						ProductID:   getStringFromInterface(itemMap["product_id"]),
+						Thumbnail:   getStringFromInterface(itemMap["thumbnail"]),
+						Price:       getStringFromInterface(itemMap["price"]),
+						Merchant:    getStringFromInterface(itemMap["source"]),
+						Rating:      getFloat32FromInterface(itemMap["rating"]),
+						Reviews:     getIntFromInterface(itemMap["reviews"]),
+						SerpAPILink: getStringFromInterface(itemMap["serpapi_product_api"]),
+						PageToken:   getStringFromInterface(itemMap["immersive_product_page_token"]),
+					}
+					shoppingItems = append(shoppingItems, shoppingItem)
+				}
+			}
+		} else {
+			fmt.Printf("   ⚠️ No shopping_results in response\n")
+		}
+
+		result := s.validateRelevance(query, shoppingItems, searchType)
+
+		if !result.IsRelevant {
+			fmt.Printf("   ⚠️ No relevant results for '%s' (score: %.2f)\n", query, result.RelevanceScore)
+			return nil, keyIndex, fmt.Errorf("no relevant products found")
+		}
+
+		cards := s.convertToProductCards(result.Products, searchType)
+
+		fmt.Printf("   ✅ Found %d relevant products (score: %.2f)\n\n", len(cards), result.RelevanceScore)
+
+		return cards, keyIndex, nil
 	}
 
-	result := s.validateRelevance(query, shoppingItems, searchType)
-
-	if !result.IsRelevant {
-		fmt.Printf("   ⚠️ No relevant results for '%s' (score: %.2f)\n", query, result.RelevanceScore)
-		return nil, keyIndex, fmt.Errorf("no relevant products found")
+	// All retries failed
+	if lastErr != nil {
+		return nil, lastKeyIndex, fmt.Errorf("SERP API failed after %d retries: %w", maxRetries+1, lastErr)
 	}
-
-	cards := s.convertToProductCards(result.Products, searchType)
-
-	fmt.Printf("   ✅ Found %d relevant products (score: %.2f)\n\n", len(cards), result.RelevanceScore)
-
-	return cards, keyIndex, nil
+	return nil, lastKeyIndex, fmt.Errorf("SERP API failed after %d retries", maxRetries+1)
 }
 
 func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem, searchType string) SearchResult {
@@ -119,95 +171,37 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 		}
 	}
 
-	queryLower := strings.ToLower(query)
-	queryWords := strings.Fields(queryLower)
+	// ✅ НОВАЯ ЛОГИКА: Берем товары по позициям 1-10 от SerpAPI (уже отсортированы)
+	// Вместо фильтрации по score, используем оригинальный порядок от Google Shopping
 
-	type scoredProduct struct {
-		item  types.ShoppingItem
-		score float32
+	maxProducts := 10 // Всегда берем до 10 товаров
+	relevantProducts := []types.ShoppingItem{}
+
+	// Берем товары в оригинальном порядке (позиции 1-10)
+	productCount := min(maxProducts, len(items))
+	for i := 0; i < productCount; i++ {
+		relevantProducts = append(relevantProducts, items[i])
 	}
 
-	scoredProducts := []scoredProduct{}
-
-	for _, item := range items {
-		score := s.calculateRelevanceScore(queryWords, item)
-		scoredProducts = append(scoredProducts, scoredProduct{
-			item:  item,
-			score: score,
-		})
-	}
-
-	// Сортировка по убыванию score
-	for i := 0; i < len(scoredProducts); i++ {
-		for j := i + 1; j < len(scoredProducts); j++ {
-			if scoredProducts[j].score > scoredProducts[i].score {
-				scoredProducts[i], scoredProducts[j] = scoredProducts[j], scoredProducts[i]
-			}
-		}
-	}
-
-	// ✅ ВСТАВЬТЕ ЛОГ ЗДЕСЬ - ПОКАЗЫВАЕМ TOP-N С ИХ SCORES
-	fmt.Printf("   📊 Top %d results:\n", s.config.SerpLogTopResultsCount)
-	topCount := min(s.config.SerpLogTopResultsCount, len(scoredProducts))
-	for i := 0; i < topCount; i++ {
-		title := scoredProducts[i].item.Title
+	// ✅ Логируем взятые товары
+	fmt.Printf("   📊 Taking products at positions 1-%d (total available: %d):\n", productCount, len(items))
+	for i := 0; i < min(5, productCount); i++ {
+		title := items[i].Title
 		if len(title) > 60 {
 			title = title[:60] + "..."
 		}
-		fmt.Printf("      %d. [%.2f] %s\n", i+1, scoredProducts[i].score, title)
+		fmt.Printf("      Position %d: %s\n", i+1, title)
+	}
+	if productCount > 5 {
+		fmt.Printf("      ... and %d more\n", productCount-5)
 	}
 
-	// ✅ THRESHOLDS из конфигурации
-	var threshold float32
-	switch searchType {
-	case "exact":
-		threshold = float32(s.config.SerpThresholdExact)
-	case "parameters":
-		threshold = float32(s.config.SerpThresholdParameters)
-	case "category":
-		threshold = float32(s.config.SerpThresholdCategory)
-	default:
-		threshold = float32(s.config.SerpThresholdParameters)
-	}
-
-	relevantProducts := []types.ShoppingItem{}
-	maxProducts := s.getMaxProducts(searchType)
-
-	// ✅ ЕСЛИ НЕТ ПРОДУКТОВ С ДОСТАТОЧНЫМ SCORE, БЕРЕМ ЛУЧШИЕ
-	if len(scoredProducts) > 0 {
-		// Сначала берем все продукты выше threshold
-		for i := 0; i < len(scoredProducts) && i < maxProducts; i++ {
-			if scoredProducts[i].score >= threshold {
-				relevantProducts = append(relevantProducts, scoredProducts[i].item)
-			}
-		}
-
-		// Если ничего не нашли, берем хотя бы топ-N результата
-		if len(relevantProducts) == 0 && len(scoredProducts) > 0 {
-			fmt.Printf("   💡 No products above threshold (%.2f), taking top results\n", threshold)
-			topCount := min(s.config.SerpFallbackMinResults, len(scoredProducts))
-			for i := 0; i < topCount; i++ {
-				relevantProducts = append(relevantProducts, scoredProducts[i].item)
-			}
-		}
-	}
-
-	var avgScore float32
-	if len(relevantProducts) > 0 {
-		topCount := min(3, len(scoredProducts))
-		for i := 0; i < topCount; i++ {
-			avgScore += scoredProducts[i].score
-		}
-		avgScore /= float32(topCount)
-	}
-
-	// ✅ СМЯГЧАЕМ УСЛОВИЕ РЕЛЕВАНТНОСТИ
-	// Теперь считаем релевантным если есть хоть какие-то продукты
+	// Считаем релевантным если есть хоть какие-то продукты
 	isRelevant := len(relevantProducts) > 0
 
 	result := SearchResult{
 		Products:       relevantProducts,
-		RelevanceScore: avgScore,
+		RelevanceScore: 1.0, // Не используется при новой логике
 		IsRelevant:     isRelevant,
 	}
 
@@ -413,7 +407,8 @@ func (s *SerpService) GetProductDetailsByToken(pageToken string) (map[string]int
 }
 
 func (s *SerpService) convertToProductCards(items []types.ShoppingItem, searchType string) []models.ProductCard {
-	maxProducts := s.getMaxProducts(searchType)
+	// ✅ НОВАЯ ЛОГИКА: Всегда берем до 10 товаров независимо от типа поиска
+	maxProducts := 10
 	cards := make([]models.ProductCard, 0, maxProducts)
 
 	for i, item := range items {
@@ -521,21 +516,28 @@ func (s *SerpService) GetProductByPageToken(pageToken string) (map[string]interf
 	return s.GetProductDetailsByToken(pageToken)
 }
 
-func (s *SerpService) SearchWithCache(query, searchType, country string, cacheService *CacheService) ([]models.ProductCard, int, error) {
+func (s *SerpService) SearchWithCache(query, searchType, country string, minPrice, maxPrice *float64, cacheService *CacheService) ([]models.ProductCard, int, error) {
+	// Build cache key including price range
+	cacheKey := fmt.Sprintf("search:%s:%s:%s", country, searchType, query)
+	if minPrice != nil {
+		cacheKey += fmt.Sprintf(":min%.0f", *minPrice)
+	}
+	if maxPrice != nil {
+		cacheKey += fmt.Sprintf(":max%.0f", *maxPrice)
+	}
+
 	if cacheService != nil {
-		cacheKey := fmt.Sprintf("search:%s:%s:%s", country, searchType, query)
 		if cached, err := cacheService.GetSearchResults(cacheKey); err == nil && cached != nil {
 			return cached, -1, nil
 		}
 	}
 
-	cards, keyIndex, err := s.SearchProducts(query, searchType, country)
+	cards, keyIndex, err := s.SearchProducts(query, searchType, country, minPrice, maxPrice)
 	if err != nil {
 		return nil, keyIndex, err
 	}
 
 	if cacheService != nil {
-		cacheKey := fmt.Sprintf("search:%s:%s:%s", country, searchType, query)
 		ttl := time.Duration(s.config.CacheSerpTTL) * time.Second
 		_ = cacheService.SetSearchResults(cacheKey, cards, ttl)
 	}

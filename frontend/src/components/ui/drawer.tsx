@@ -48,7 +48,7 @@ export function Drawer({ isOpen, onClose, children, title }: DrawerProps) {
 
       {/* Drawer */}
       <div
-        className={`ml-auto relative bg-background border-l border-border w-full max-w-2xl h-full overflow-y-auto shadow-2xl transition-transform duration-300 ease-in-out ${
+        className={`ml-auto relative bg-background border-l border-border w-full max-w-xl h-full overflow-y-auto shadow-2xl transition-transform duration-300 ease-in-out ${
           isClosing ? "translate-x-full" : "translate-x-0"
         }`}
         role="dialog"

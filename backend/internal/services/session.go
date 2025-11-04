@@ -14,30 +14,32 @@ import (
 )
 
 type SessionService struct {
-	redis       *redis.Client
-	ctx         context.Context
-	ttl         time.Duration
-	maxMsgs     int
-	maxSearches int
+	redis              *redis.Client
+	ctx                context.Context
+	ttl                time.Duration
+	maxMsgs            int
+	maxSearches        int
+	universalPromptMgr *UniversalPromptManager
 }
 
 func NewSessionService(redisClient *redis.Client, sessionTTL int, maxMessages int) *SessionService {
 	return &SessionService{
-		redis:       redisClient,
-		ctx:         context.Background(),
-		ttl:         time.Duration(sessionTTL) * time.Second,
-		maxMsgs:     maxMessages,
-		maxSearches: 999999,
+		redis:              redisClient,
+		ctx:                context.Background(),
+		ttl:                time.Duration(sessionTTL) * time.Second,
+		maxMsgs:            maxMessages,
+		maxSearches:        999999,
+		universalPromptMgr: NewUniversalPromptManager(),
 	}
 }
 
-func (s *SessionService) CreateSession(sessionID, country, language string) (*models.ChatSession, error) {
+func (s *SessionService) CreateSession(sessionID, country, language, currency string) (*models.ChatSession, error) {
 	session := &models.ChatSession{
 		ID:           uuid.New(),
 		SessionID:    sessionID,
 		CountryCode:  country,
 		LanguageCode: language,
-		Currency:     "",
+		Currency:     currency,
 		MessageCount: 0,
 		SearchState: models.SearchState{
 			Status:      models.SearchStatusIdle,
@@ -45,9 +47,10 @@ func (s *SessionService) CreateSession(sessionID, country, language string) (*mo
 			SearchCount: 0,
 			LastProduct: nil,
 		},
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(s.ttl),
+		CycleState:  s.universalPromptMgr.InitializeCycleState(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		ExpiresAt:   time.Now().Add(s.ttl),
 	}
 
 	if err := s.saveSession(session); err != nil {
@@ -279,6 +282,9 @@ func (s *SessionService) GetSessionStats(sessionID string) (map[string]interface
 		"search_count":   session.SearchState.SearchCount,
 		"search_status":  session.SearchState.Status,
 		"category":       session.SearchState.Category,
+		"cycle_id":       session.CycleState.CycleID,
+		"iteration":      session.CycleState.Iteration,
+		"prompt_id":      session.CycleState.PromptID,
 		"created_at":     session.CreatedAt,
 		"updated_at":     session.UpdatedAt,
 		"expires_at":     session.ExpiresAt,
@@ -287,4 +293,50 @@ func (s *SessionService) GetSessionStats(sessionID string) (map[string]interface
 	}
 
 	return stats, nil
+}
+
+// GetUniversalPromptManager returns the universal prompt manager
+func (s *SessionService) GetUniversalPromptManager() *UniversalPromptManager {
+	return s.universalPromptMgr
+}
+
+// IncrementCycleIteration increments the iteration and checks if we need a new cycle
+// Returns true if we should start a new cycle
+func (s *SessionService) IncrementCycleIteration(sessionID string) (bool, error) {
+	session, err := s.GetSession(sessionID)
+	if err != nil {
+		return false, err
+	}
+
+	shouldStartNew := !s.universalPromptMgr.IncrementIteration(&session.CycleState)
+
+	if err := s.UpdateSession(session); err != nil {
+		return false, err
+	}
+
+	return shouldStartNew, nil
+}
+
+// StartNewCycle starts a new cycle with context carryover
+func (s *SessionService) StartNewCycle(sessionID, lastRequest string, products []models.ProductInfo) error {
+	session, err := s.GetSession(sessionID)
+	if err != nil {
+		return err
+	}
+
+	s.universalPromptMgr.StartNewCycle(&session.CycleState, lastRequest, products)
+
+	return s.UpdateSession(session)
+}
+
+// AddToCycleHistory adds a message to the current cycle history
+func (s *SessionService) AddToCycleHistory(sessionID, role, content string) error {
+	session, err := s.GetSession(sessionID)
+	if err != nil {
+		return err
+	}
+
+	s.universalPromptMgr.AddToCycleHistory(&session.CycleState, role, content)
+
+	return s.UpdateSession(session)
 }
