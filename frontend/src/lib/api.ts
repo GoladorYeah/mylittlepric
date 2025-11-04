@@ -1,4 +1,5 @@
 import { ProductDetailsResponse, ChatMessage } from "@/types";
+import { useAuthStore } from "./auth-store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -43,13 +44,23 @@ export interface SessionMessagesResponse {
 export async function getSessionMessages(
   sessionId: string
 ): Promise<SessionMessagesResponse> {
+  // Get access token from auth store
+  const accessToken = useAuthStore.getState().accessToken;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  // Add Authorization header if token is available
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
   const response = await fetch(
     `${API_URL}/api/chat/messages?session_id=${encodeURIComponent(sessionId)}`,
     {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
     }
   );
 

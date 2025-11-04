@@ -91,7 +91,7 @@ func setupRoutes(app *fiber.App, c *container.Container) {
 	// Authentication routes (public)
 	setupAuthRoutes(api, c)
 
-	// WebSocket chat (REQUIRES authentication)
+	// WebSocket chat (optional authentication - supports both authenticated and anonymous users)
 	wsHandler := handlers.NewWSHandler(c)
 	authMiddleware := middleware.AuthMiddleware(c.JWTService)
 
@@ -112,23 +112,18 @@ func setupRoutes(app *fiber.App, c *container.Container) {
 				}
 			}
 
-			if token == "" {
-				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-					"error": "authentication required",
-				})
+			// If token is provided, validate it
+			if token != "" {
+				claims, err := c.JWTService.ValidateAccessToken(token)
+				if err == nil {
+					// Store user info in locals for WebSocket handler
+					ctx.Locals("user_id", claims.UserID)
+					ctx.Locals("user_email", claims.Email)
+				}
+				// If token validation fails, we just proceed without authentication
+				// (anonymous user)
 			}
 
-			// Validate token
-			claims, err := c.JWTService.ValidateAccessToken(token)
-			if err != nil {
-				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-					"error": "invalid or expired token",
-				})
-			}
-
-			// Store user info in locals for WebSocket handler
-			ctx.Locals("user_id", claims.UserID)
-			ctx.Locals("user_email", claims.Email)
 			ctx.Locals("allowed", true)
 			return ctx.Next()
 		}
@@ -139,10 +134,11 @@ func setupRoutes(app *fiber.App, c *container.Container) {
 		wsHandler.HandleWebSocket(conn)
 	}))
 
-	// Chat endpoints (REQUIRE authentication)
+	// Chat endpoints (optional authentication)
 	chatHandler := handlers.NewChatHandler(c)
-	api.Post("/chat", authMiddleware, chatHandler.HandleChat)
-	api.Get("/chat/messages", authMiddleware, chatHandler.GetSessionMessages)
+	optionalAuthMiddleware := middleware.OptionalAuthMiddleware(c.JWTService)
+	api.Post("/chat", optionalAuthMiddleware, chatHandler.HandleChat)
+	api.Get("/chat/messages", optionalAuthMiddleware, chatHandler.GetSessionMessages)
 
 	productHandler := handlers.NewProductHandler(c)
 	api.Post("/product-details", productHandler.HandleProductDetails)
