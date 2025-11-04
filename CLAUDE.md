@@ -164,6 +164,21 @@ Session limits:
 ### Frontend Environment Variables
 - `NEXT_PUBLIC_API_URL`: Backend API URL (default: http://localhost:8080)
 
+### CORS Configuration
+**⚠️ IMPORTANT for Production:** The `CORS_ORIGINS` environment variable must include all domains where your frontend is hosted.
+
+For production deployment:
+```bash
+CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+```
+
+**Common CORS Issues:**
+- Missing production domain in `CORS_ORIGINS` → Google OAuth and API calls fail
+- Trailing slashes in URLs → CORS mismatch
+- Using HTTP instead of HTTPS in production → Security and authentication issues
+
+See **[backend/CORS.md](backend/CORS.md)** for detailed configuration guide and troubleshooting.
+
 ## Important Implementation Details
 
 ### Prompt Management
