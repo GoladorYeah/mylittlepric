@@ -25,6 +25,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Theme color for mobile browsers - Light mode */}
+        <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+        {/* Theme color for mobile browsers - Dark mode */}
+        <meta name="theme-color" content="#1a1d26" media="(prefers-color-scheme: dark)" />
+        {/* Color scheme support for older browsers */}
+        <meta name="color-scheme" content="light dark" />
+        {/* iOS Safari specific */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

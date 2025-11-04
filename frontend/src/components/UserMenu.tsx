@@ -3,12 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
+import { useChatStore } from "@/lib/store";
 import { AuthAPI } from "@/lib/api/auth";
 import { LogOut, User as UserIcon } from "lucide-react";
 
 export default function UserMenu() {
   const router = useRouter();
   const { user, isAuthenticated, clearAuth, refreshToken } = useAuthStore();
+  const { isSidebarOpen } = useChatStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -76,7 +78,11 @@ export default function UserMenu() {
       </button>
 
       {isMenuOpen && (
-        <div className="fixed md:absolute right-4 md:right-0 bottom-20 md:bottom-auto md:bottom-full md:mb-2 w-64 rounded-lg bg-background border border-border shadow-xl z-50">
+        <div className={`fixed bottom-20 md:bottom-auto w-64 rounded-lg bg-background border border-border shadow-xl z-50 ${
+          isSidebarOpen
+            ? 'right-4 md:right-0 md:bottom-full md:mb-2'
+            : 'left-4 md:left-20 md:bottom-4'
+        }`}>
           <div className="p-4">
             <div className="flex items-center gap-3 mb-2">
               {user?.picture ? (
