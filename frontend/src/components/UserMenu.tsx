@@ -76,7 +76,7 @@ export default function UserMenu() {
       </button>
 
       {isMenuOpen && (
-        <div className="fixed md:absolute right-4 md:right-0 bottom-20 md:bottom-auto md:top-full md:mt-2 w-64 rounded-lg bg-background border border-border shadow-xl z-50">
+        <div className="fixed md:absolute right-4 md:right-0 bottom-20 md:bottom-auto md:bottom-full md:mb-2 w-64 rounded-lg bg-background border border-border shadow-xl z-50">
           <div className="p-4">
             <div className="flex items-center gap-3 mb-2">
               {user?.picture ? (
