@@ -1,32 +1,48 @@
 @import "tailwindcss";
 
 @theme {
-  /* Light theme - Modern neutral palette */
+  /* Light theme - Modern neutral palette with fallbacks */
+  --color-background: #fafafa;
   --color-background: oklch(98% 0 0);
+  --color-foreground: #262626;
   --color-foreground: oklch(15% 0 0);
+  --color-card: #ffffff;
   --color-card: oklch(100% 0 0);
+  --color-border: #e5e5e5;
   --color-border: oklch(88% 0 0);
+  --color-input: #f5f5f5;
   --color-input: oklch(92% 0 0);
 
-  /* Primary - Modern blue accent */
+  /* Primary - Modern blue accent with fallback */
+  --color-primary: #3b82f6;
   --color-primary: oklch(55% 0.18 255);
+  --color-primary-foreground: #ffffff;
   --color-primary-foreground: oklch(100% 0 0);
 
-  /* Secondary - Subtle gray tones */
+  /* Secondary - Subtle gray tones with fallback */
+  --color-secondary: #f5f5f5;
   --color-secondary: oklch(95% 0 0);
+  --color-secondary-foreground: #404040;
   --color-secondary-foreground: oklch(20% 0 0);
 
-  /* Muted - Background variations */
+  /* Muted - Background variations with fallback */
+  --color-muted: #f3f3f3;
   --color-muted: oklch(94% 0 0);
+  --color-muted-foreground: #737373;
   --color-muted-foreground: oklch(50% 0 0);
 
-  /* Accent - Highlight color */
+  /* Accent - Highlight color with fallback */
+  --color-accent: #f3f4f6;
   --color-accent: oklch(94% 0.02 260);
+  --color-accent-foreground: #404040;
   --color-accent-foreground: oklch(20% 0 0);
 
-  /* Success, warning, destructive */
+  /* Success, warning, destructive with fallbacks */
+  --color-success: #10b981;
   --color-success: oklch(65% 0.15 150);
+  --color-warning: #f59e0b;
   --color-warning: oklch(75% 0.15 85);
+  --color-destructive: #ef4444;
   --color-destructive: oklch(60% 0.18 25);
 
   /* Radius system */
@@ -45,32 +61,48 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root.dark {
-  /* Dark theme - Background lighter, cards darker */
+  /* Dark theme - Background lighter, cards darker with fallbacks */
+  --color-background: #1a1d26;
   --color-background: oklch(20% 0.008 240);
+  --color-foreground: #fafafa;
   --color-foreground: oklch(98% 0 0);
+  --color-card: #13151c;
   --color-card: oklch(14% 0.01 240);
+  --color-border: #2d3142;
   --color-border: oklch(28% 0.015 240);
+  --color-input: #181a21;
   --color-input: oklch(16% 0.01 240);
 
-  /* Primary - Cyan/Blue mix (#27BAB4 + #2E89DA) */
+  /* Primary - Cyan/Blue mix with fallback */
+  --color-primary: #3b9fd9;
   --color-primary: oklch(65% 0.14 215);
+  --color-primary-foreground: #ffffff;
   --color-primary-foreground: oklch(100% 0 0);
 
-  /* Secondary - For user messages (neutral, no accent) */
+  /* Secondary - For user messages with fallback */
+  --color-secondary: #1c1f28;
   --color-secondary: oklch(18% 0.008 240);
+  --color-secondary-foreground: #f5f5f5;
   --color-secondary-foreground: oklch(94% 0 0);
 
-  /* Muted - Subtle backgrounds */
+  /* Muted - Subtle backgrounds with fallback */
+  --color-muted: #22242d;
   --color-muted: oklch(22% 0.01 240);
+  --color-muted-foreground: #a8aab3;
   --color-muted-foreground: oklch(70% 0.01 240);
 
-  /* Accent - Lighter cyan/blue for highlights */
+  /* Accent - Lighter cyan/blue for highlights with fallback */
+  --color-accent: #293344;
   --color-accent: oklch(26% 0.04 215);
+  --color-accent-foreground: #fafafa;
   --color-accent-foreground: oklch(98% 0 0);
 
-  /* Success, warning, destructive */
+  /* Success, warning, destructive with fallbacks */
+  --color-success: #34d399;
   --color-success: oklch(72% 0.14 155);
+  --color-warning: #fbbf24;
   --color-warning: oklch(82% 0.13 80);
+  --color-destructive: #f87171;
   --color-destructive: oklch(68% 0.17 28);
 
   /* Enhanced shadows for depth in dark mode */
@@ -78,6 +110,34 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.6);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.7);
+}
+
+/* Fallback for browsers without custom properties support */
+@supports not (color: var(--color-background)) {
+  :root {
+    color: #262626;
+    background: #fafafa;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color: #fafafa;
+      background: #1a1d26;
+    }
+  }
+}
+
+/* Automatic dark mode for browsers that support prefers-color-scheme but not next-themes */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    color-scheme: light;
+  }
 }
 
 * {
