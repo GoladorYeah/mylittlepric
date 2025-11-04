@@ -174,7 +174,6 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
           <div className="border-b border-border bg-linear-to-b from-background/50 to-transparent items-center justify-between gap-2 hidden lg:flex p-4">
             {isSidebarOpen ? (
               <>
-                <Logo className="h-8" width={105.3} height={40} />
                 <button
                   onClick={toggleSidebar}
                   className="p-2 hover:bg-secondary rounded-lg transition-colors shrink-0 group"
@@ -182,6 +181,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                 >
                   <PanelLeftClose className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 </button>
+                <Logo className="h-8" width={105.3} height={40} />
               </>
             ) : (
               <button
@@ -196,7 +196,6 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
 
           {/* Mobile Header - Logo and close button */}
           <div className="p-4 border-b border-border flex items-center justify-between lg:hidden">
-            <Logo className="h-8" width={105.3} height={40} />
             <button
               onClick={toggleSidebar}
               className="p-2 hover:bg-secondary rounded-lg transition-colors"
@@ -204,6 +203,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
             >
               <PanelLeftClose className="w-5 h-5 text-muted-foreground" />
             </button>
+            <Logo className="h-8" width={105.3} height={40} />
           </div>
 
           {/* New Search Button - Right after header */}
