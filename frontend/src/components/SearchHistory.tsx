@@ -89,7 +89,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
               <button
                 onClick={onNewSearch}
                 disabled={!isConnected}
-                className="w-full px-4 py-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-primary/30"
+                className="w-full px-4 py-3 rounded-lg text-primary hover:bg-primary/10 font-medium transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="w-5 h-5" />
                 <span>New Search</span>
@@ -107,8 +107,8 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                   onClick={handleHistoryClick}
                   className={`w-full p-4 rounded-lg flex items-center gap-3 transition-colors ${
                     pathname === '/history'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-secondary/50'
+                      ? 'bg-secondary/80 text-foreground'
+                      : 'hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Clock className="w-5 h-5" />
@@ -124,7 +124,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                 <button
                   onClick={onNewSearch}
                   disabled={!isConnected}
-                  className="p-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative group"
+                  className="p-3 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative group"
                   title="New Search"
                 >
                   <Plus className="w-5 h-5" />
@@ -139,8 +139,8 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                 onClick={handleHistoryClick}
                 className={`p-3 rounded-lg transition-colors relative group ${
                   pathname === '/history'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-secondary'
+                    ? 'bg-secondary/80 text-foreground'
+                    : 'hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
                 }`}
                 title="Search History"
               >
