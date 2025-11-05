@@ -78,10 +78,10 @@ export default function UserMenu() {
       </button>
 
       {isMenuOpen && (
-        <div className={`fixed bottom-20 md:bottom-auto w-64 rounded-lg bg-background border border-border shadow-xl z-50 ${
+        <div className={`fixed w-64 rounded-lg bg-background border border-border shadow-xl z-[60] ${
           isSidebarOpen
-            ? 'right-4 md:right-0 md:bottom-full md:mb-2'
-            : 'left-4 md:left-20 md:bottom-4'
+            ? 'bottom-20 md:bottom-auto right-4 md:right-4 md:bottom-full md:mb-2'
+            : 'bottom-20 md:bottom-4 left-4 md:left-4'
         }`}>
           <div className="p-4">
             <div className="flex items-center gap-3 mb-2">
