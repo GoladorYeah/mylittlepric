@@ -83,26 +83,24 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
             <Logo className="h-8" width={105.3} height={40} />
           </div>
 
-          {/* New Search Button - Right after header */}
-          {onNewSearch && (
-            <div className={`p-4 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 p-0 overflow-hidden'}`}>
-              <button
-                onClick={onNewSearch}
-                disabled={!isConnected}
-                className="w-full px-4 py-3 rounded-lg text-primary hover:bg-primary/10 font-medium transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus className="w-5 h-5" />
-                <span>New Search</span>
-              </button>
-            </div>
-          )}
-
           {/* Main Content Area */}
           <div className="flex-1 relative">
             {/* Expanded sidebar content */}
             <div className={`absolute inset-0 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-              {/* Search History Button */}
-              <div className="p-4">
+              <div className="p-4 space-y-2">
+                {/* New Search Button */}
+                {onNewSearch && (
+                  <button
+                    onClick={onNewSearch}
+                    disabled={!isConnected}
+                    className="w-full p-4 rounded-lg flex items-center gap-3 transition-colors bg-primary/10 hover:bg-primary/20 text-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span className="text-sm font-semibold">New Search</span>
+                  </button>
+                )}
+
+                {/* Search History Button */}
                 <button
                   onClick={handleHistoryClick}
                   className={`w-full p-4 rounded-lg flex items-center gap-3 transition-colors ${
@@ -124,7 +122,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                 <button
                   onClick={onNewSearch}
                   disabled={!isConnected}
-                  className="p-3 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative group"
+                  className="p-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative group"
                   title="New Search"
                 >
                   <Plus className="w-5 h-5" />
