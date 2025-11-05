@@ -44,13 +44,14 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
 
       {/* Sidebar Panel */}
       <div
-        className={`fixed left-0 top-0 bottom-0 backdrop-blur-xl border-r border-border shadow-2xl transform transition-[width,transform,background-color] duration-300 ease-in-out z-40 overflow-hidden will-change-[width,transform] ${
+        className={`fixed left-0 top-0 bottom-0 backdrop-blur-xl border-r border-border shadow-2xl transform transition-[width,transform,background-color] duration-300 ease-in-out z-40 will-change-[width,transform] ${
           isSidebarOpen
             ? "w-80 translate-x-0 bg-card/95"
             : "w-16 -translate-x-full lg:translate-x-0 lg:bg-background"
         }`}
       >
-        <div className="flex flex-col h-full overflow-hidden relative">
+        {/* Main scrollable content area */}
+        <div className="flex flex-col h-full relative overflow-hidden pb-[73px]">
           {/* Header - Desktop only */}
           <div className="border-b border-border bg-linear-to-b from-background/50 to-transparent items-center justify-between gap-2 hidden lg:flex p-4">
             {/* Toggle button - always in the same position */}
@@ -84,7 +85,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 relative">
+          <div className="flex-1 relative overflow-hidden">
             {/* Expanded sidebar content */}
             <div className={`absolute inset-0 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
               <div className="p-4 space-y-2">
@@ -150,20 +151,21 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
             </div>
           </div>
 
-          {/* Bottom Controls */}
-          <div className="mt-auto border-t border-border bg-linear-to-t from-background/50 to-transparent relative">
-            {/* Expanded - Theme & User */}
-            <div className={`p-4 flex items-center justify-between transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+        </div>
+
+        {/* Bottom Controls - outside overflow context */}
+        <div className="absolute bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm">
+          {/* Expanded - Theme & User */}
+          <div className={`p-4 flex items-center justify-between transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+            <ThemeToggle />
+            <UserMenu />
+          </div>
+          {/* Collapsed - Icons only (desktop only) */}
+          <div className={`hidden lg:flex flex-col items-center gap-4 py-4 transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+            <div className="relative group">
               <ThemeToggle />
-              <UserMenu />
             </div>
-            {/* Collapsed - Icons only (desktop only) */}
-            <div className={`hidden lg:flex flex-col items-center gap-4 py-4 transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
-              <div className="relative group">
-                <ThemeToggle />
-              </div>
-              <UserMenu />
-            </div>
+            <UserMenu />
           </div>
         </div>
       </div>
