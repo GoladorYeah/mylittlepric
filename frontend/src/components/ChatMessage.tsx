@@ -5,6 +5,22 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ChatMessage as ChatMessageType } from "@/types";
 import { ProductCard } from "./ProductCard";
 import { AdPlaceholder } from "./AdPlaceholder";
+import { useAuthStore } from "@/lib/auth-store";
+
+// Helper function to generate initials from user's name or email
+function getInitials(user: { full_name?: string; email: string } | null): string {
+  if (!user) return "U";
+
+  if (user.full_name) {
+    const names = user.full_name.trim().split(/\s+/);
+    if (names.length >= 2) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return names[0][0].toUpperCase();
+  }
+
+  return user.email[0].toUpperCase();
+}
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -34,6 +50,7 @@ function parseQuickReply(reply: string): { text: string; price: string | null } 
 export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
   const isUser = message.role === "user";
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuthStore();
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -50,18 +67,26 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
   };
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className="flex items-start gap-3">
+      {/* Profile Avatar - only for user messages */}
+      {isUser && (
+        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
+          {getInitials(user)}
+        </div>
+      )}
+
+      {/* Spacer for agent messages to align properly */}
+      {!isUser && <div className="flex-shrink-0 w-9" />}
+
       <div
-        className={`${message.products && message.products.length > 0 ? 'w-full' : 'max-w-[80%]'} space-y-3 ${
-          isUser ? "items-end" : "items-start"
-        }`}
+        className={`${message.products && message.products.length > 0 ? 'flex-1' : 'max-w-[80%]'} space-y-3`}
       >
         {message.content && message.content.trim() !== '' && (
           <div
-            className={`rounded-2xl px-4 py-3 ${
+            className={`${
               isUser
-                ? "bg-secondary text-secondary-foreground"
-                : "bg-card text-foreground border border-border"
+                ? "rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground"
+                : "text-foreground"
             }`}
           >
             <p className="whitespace-pre-wrap">{message.content}</p>
@@ -69,7 +94,7 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
         )}
 
         {message.quick_replies && message.quick_replies.length > 0 && (
-          <div className="flex flex-wrap gap-2.5 stagger-container">
+          <div className="flex flex-wrap gap-2">
             {message.quick_replies.map((reply, index) => {
               const { text, price } = parseQuickReply(reply);
 
@@ -77,24 +102,17 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
                 <button
                   key={index}
                   onClick={() => onQuickReply(reply)}
-                  className="group relative px-4 py-2.5 rounded-xl bg-gradient-to-br from-secondary to-secondary/70 hover:from-secondary hover:to-secondary/90 text-sm transition-all duration-300 border border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 hover:scale-[1.02] flex items-center gap-2.5 overflow-hidden elevation-transition"
-                  style={{ animationDelay: `${index * 80}ms` }}
+                  className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-sm border border-border/50 hover:border-primary/30 flex items-center gap-2 cursor-pointer"
                 >
-                  {/* Animated gradient overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-shimmer transition-opacity duration-300" />
-
-                  <span className="relative font-medium text-foreground group-hover:text-primary transition-colors duration-300">
+                  <span className="font-medium text-foreground">
                     {text}
                   </span>
 
                   {price && (
-                    <span className="relative text-xs px-2.5 py-1 rounded-lg bg-gradient-to-br from-primary/15 to-primary/10 text-primary font-bold group-hover:from-primary/25 group-hover:to-primary/15 group-hover:scale-105 transition-all duration-300 shadow-sm border border-primary/20">
+                    <span className="text-xs px-2 py-0.5 rounded bg-primary/15 text-primary font-bold border border-primary/20">
                       {price}
                     </span>
                   )}
-
-                  {/* Subtle shine effect */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 </button>
               );
             })}
@@ -120,17 +138,17 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
                 <div className="hidden md:flex items-center gap-2">
                   <button
                     onClick={() => scroll('left')}
-                    className="group p-2 rounded-full bg-secondary hover:bg-primary/10 border border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+                    className="group p-2 rounded-full bg-secondary hover:bg-primary/10 border border-border hover:border-primary/30 cursor-pointer"
                     aria-label="Scroll left"
                   >
-                    <ChevronLeft className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <ChevronLeft className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
                   </button>
                   <button
                     onClick={() => scroll('right')}
-                    className="group p-2 rounded-full bg-secondary hover:bg-primary/10 border border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+                    className="group p-2 rounded-full bg-secondary hover:bg-primary/10 border border-border hover:border-primary/30 cursor-pointer"
                     aria-label="Scroll right"
                   >
-                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
                   </button>
                 </div>
               )}
