@@ -3,12 +3,12 @@ package handlers
 import (
 	"errors"
 
-	"github.com/gofiber/fiber/v2"
-
 	"mylittleprice/internal/app"
 	"mylittleprice/internal/middleware"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type AuthHandler struct {
