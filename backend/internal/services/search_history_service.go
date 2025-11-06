@@ -28,12 +28,8 @@ func (s *SearchHistoryService) SaveSearchHistory(ctx context.Context, history *m
 	var productsJSON []byte
 	var err error
 	if history.ProductsFound != nil && len(history.ProductsFound) > 0 {
-		// Limit to top 5 products to save space
-		productsToSave := history.ProductsFound
-		if len(productsToSave) > 5 {
-			productsToSave = productsToSave[:5]
-		}
-		productsJSON, err = json.Marshal(productsToSave)
+		// Save all products (no limit)
+		productsJSON, err = json.Marshal(history.ProductsFound)
 		if err != nil {
 			return fmt.Errorf("failed to marshal products: %w", err)
 		}

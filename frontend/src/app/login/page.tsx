@@ -18,12 +18,23 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
+  const [returnUrl, setReturnUrl] = useState<string | null>(null);
+
+  // Get return URL from query params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get('from');
+    if (from) {
+      setReturnUrl(from);
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/chat');
+      // Redirect to return URL if specified, otherwise to chat
+      router.push(returnUrl || '/chat');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, returnUrl]);
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     if (!credentialResponse.credential) {
@@ -42,7 +53,7 @@ export default function LoginPage() {
         expires_in: authResponse.expires_in,
       });
 
-      router.push('/chat');
+      router.push(returnUrl || '/chat');
     } catch (error) {
       console.error('Login failed:', error);
       alert(error instanceof Error ? error.message : 'Failed to login with Google');
@@ -72,7 +83,7 @@ export default function LoginPage() {
         expires_in: authResponse.expires_in,
       });
 
-      router.push('/chat');
+      router.push(returnUrl || '/chat');
     } catch (error) {
       console.error('Auth failed:', error);
       setError(error instanceof Error ? error.message : 'Authentication failed');
