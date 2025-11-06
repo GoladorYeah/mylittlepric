@@ -15,6 +15,7 @@ import (
 
 	"mylittleprice/internal/app"
 	"mylittleprice/internal/config"
+	"mylittleprice/internal/container"
 )
 
 func main() {
@@ -23,11 +24,11 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	container, err := app.NewContainer(cfg)
+	c, err := container.NewContainer(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize container: %v", err)
 	}
-	defer container.Close()
+	defer c.Close()
 
 	fiberApp := fiber.New(fiber.Config{
 		AppName:      "MyLittlePrice API",
@@ -48,7 +49,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	app.SetupRoutes(fiberApp, container)
+	app.SetupRoutes(fiberApp, c)
 
 	port := cfg.Port
 	log.Printf("🚀 Server starting on port %s", port)

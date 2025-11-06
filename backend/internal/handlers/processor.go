@@ -10,18 +10,18 @@ import (
 
 	"github.com/google/uuid"
 
-	"mylittleprice/internal/app"
+	"mylittleprice/internal/container"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
 )
 
 // ChatProcessor handles the core chat processing logic shared between REST and WebSocket handlers
 type ChatProcessor struct {
-	container *app.Container
+	container *container.Container
 }
 
 // NewChatProcessor creates a new chat processor
-func NewChatProcessor(c *app.Container) *ChatProcessor {
+func NewChatProcessor(c *container.Container) *ChatProcessor {
 	return &ChatProcessor{
 		container: c,
 	}

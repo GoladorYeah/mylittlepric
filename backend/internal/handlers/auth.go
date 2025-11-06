@@ -3,7 +3,7 @@ package handlers
 import (
 	"errors"
 
-	"mylittleprice/internal/app"
+	"mylittleprice/internal/container"
 	"mylittleprice/internal/middleware"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
@@ -12,10 +12,10 @@ import (
 )
 
 type AuthHandler struct {
-	container *app.Container
+	container *container.Container
 }
 
-func NewAuthHandler(c *app.Container) *AuthHandler {
+func NewAuthHandler(c *container.Container) *AuthHandler {
 	return &AuthHandler{container: c}
 }
 
