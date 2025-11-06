@@ -77,8 +77,8 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 		groundingStrategy:  NewGroundingStrategy(embedding, cfg),
 		tokenStats:         &TokenStats{},
 		embedding:          embedding,
-		contextOptimizer:   NewContextOptimizerService(embedding),  // NEW
-		contextExtractor:   NewContextExtractorService(client),      // NEW
+		contextOptimizer:   NewContextOptimizerService(embedding),                  // NEW
+		contextExtractor:   NewContextExtractorService(client, cfg.GeminiFallbackModel), // NEW - Use fallback model for lightweight tasks
 		ctx:                ctx,
 	}
 }

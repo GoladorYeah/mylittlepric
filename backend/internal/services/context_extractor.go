@@ -15,15 +15,17 @@ import (
 // ContextExtractorService extracts structured information from conversation history
 // Uses AI to intelligently identify user preferences, requirements, and context
 type ContextExtractorService struct {
-	client *genai.Client
-	ctx    context.Context
+	client    *genai.Client
+	ctx       context.Context
+	modelName string
 }
 
 // NewContextExtractorService creates a new context extractor
-func NewContextExtractorService(client *genai.Client) *ContextExtractorService {
+func NewContextExtractorService(client *genai.Client, modelName string) *ContextExtractorService {
 	return &ContextExtractorService{
-		client: client,
-		ctx:    context.Background(),
+		client:    client,
+		ctx:       context.Background(),
+		modelName: modelName,
 	}
 }
 
@@ -75,7 +77,7 @@ Rules:
 	temp := float32(0.2) // Low temperature for more deterministic extraction
 	resp, err := c.client.Models.GenerateContent(
 		c.ctx,
-		"gemini-1.5-flash", // Fast model for extraction
+		c.modelName, // Fast model for extraction
 		genai.Text(prompt),
 		&genai.GenerateContentConfig{
 			Temperature:      &temp,
@@ -157,7 +159,7 @@ Return a clear, concise summary in %s language. Maximum 3 sentences.`, previousS
 	temp := float32(0.3) // Low temperature for consistent summaries
 	resp, err := c.client.Models.GenerateContent(
 		c.ctx,
-		"gemini-1.5-flash",
+		c.modelName,
 		genai.Text(prompt),
 		&genai.GenerateContentConfig{
 			Temperature:     &temp,
