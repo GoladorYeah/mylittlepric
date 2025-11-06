@@ -17,10 +17,10 @@ import (
 )
 
 var (
-	ErrUserExists       = errors.New("user with this email already exists")
-	ErrUserNotFound     = errors.New("user not found")
-	ErrInvalidPassword  = errors.New("invalid password")
-	ErrInvalidToken     = errors.New("invalid or expired token")
+	ErrUserExists      = errors.New("user with this email already exists")
+	ErrUserNotFound    = errors.New("user not found")
+	ErrInvalidPassword = errors.New("invalid password")
+	ErrInvalidToken    = errors.New("invalid or expired token")
 )
 
 type AuthService struct {

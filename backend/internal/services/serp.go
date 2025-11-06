@@ -9,9 +9,9 @@ import (
 	g "github.com/serpapi/google-search-results-golang"
 
 	"mylittleprice/internal/config"
+	"mylittleprice/internal/domain"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/utils"
-	"mylittleprice/pkg/types"
 )
 
 type SerpService struct {
@@ -20,7 +20,7 @@ type SerpService struct {
 }
 
 type SearchResult struct {
-	Products        []types.ShoppingItem
+	Products        []domain.ShoppingItem
 	RelevanceScore  float32
 	IsRelevant      bool
 	AlternativeHint string
@@ -112,14 +112,14 @@ func (s *SerpService) SearchProducts(query, searchType, country string, minPrice
 		}
 		fmt.Printf("   ⏱️ Response time: %.2fs\n", elapsed.Seconds())
 
-		shoppingItems := []types.ShoppingItem{}
+		shoppingItems := []domain.ShoppingItem{}
 
 		if shoppingResults, ok := data["shopping_results"].([]interface{}); ok {
 			fmt.Printf("   📦 Raw results: %d products\n", len(shoppingResults))
 
 			for _, item := range shoppingResults {
 				if itemMap, ok := item.(map[string]interface{}); ok {
-					shoppingItem := types.ShoppingItem{
+					shoppingItem := domain.ShoppingItem{
 						Position:    getIntFromInterface(itemMap["position"]),
 						Title:       getStringFromInterface(itemMap["title"]),
 						Link:        getStringFromInterface(itemMap["link"]),
@@ -161,10 +161,10 @@ func (s *SerpService) SearchProducts(query, searchType, country string, minPrice
 	return nil, lastKeyIndex, fmt.Errorf("SERP API failed after %d retries", maxRetries+1)
 }
 
-func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem, searchType string) SearchResult {
+func (s *SerpService) validateRelevance(query string, items []domain.ShoppingItem, searchType string) SearchResult {
 	if len(items) == 0 {
 		return SearchResult{
-			Products:        []types.ShoppingItem{},
+			Products:        []domain.ShoppingItem{},
 			RelevanceScore:  0.0,
 			IsRelevant:      false,
 			AlternativeHint: "No products found",
@@ -175,7 +175,7 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 	// Вместо фильтрации по score, используем оригинальный порядок от Google Shopping
 
 	maxProducts := 10 // Всегда берем до 10 товаров
-	relevantProducts := []types.ShoppingItem{}
+	relevantProducts := []domain.ShoppingItem{}
 
 	// Берем товары в оригинальном порядке (позиции 1-10)
 	productCount := min(maxProducts, len(items))
@@ -211,7 +211,7 @@ func (s *SerpService) validateRelevance(query string, items []types.ShoppingItem
 
 	return result
 }
-func (s *SerpService) calculateRelevanceScore(queryWords []string, item types.ShoppingItem) float32 {
+func (s *SerpService) calculateRelevanceScore(queryWords []string, item domain.ShoppingItem) float32 {
 	titleLower := strings.ToLower(item.Title)
 	var score float32 = 0.0
 
@@ -406,7 +406,7 @@ func (s *SerpService) GetProductDetailsByToken(pageToken string) (map[string]int
 	return data, keyIndex, nil
 }
 
-func (s *SerpService) convertToProductCards(items []types.ShoppingItem, searchType string) []models.ProductCard {
+func (s *SerpService) convertToProductCards(items []domain.ShoppingItem, searchType string) []models.ProductCard {
 	// ✅ НОВАЯ ЛОГИКА: Всегда берем до 10 товаров независимо от типа поиска
 	maxProducts := 10
 	cards := make([]models.ProductCard, 0, maxProducts)
@@ -443,7 +443,7 @@ func (s *SerpService) convertToProductCards(items []types.ShoppingItem, searchTy
 	return cards
 }
 
-func (s *SerpService) extractPageToken(item types.ShoppingItem) string {
+func (s *SerpService) extractPageToken(item domain.ShoppingItem) string {
 	if item.PageToken != "" {
 		return item.PageToken
 	}

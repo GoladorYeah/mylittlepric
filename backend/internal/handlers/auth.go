@@ -5,17 +5,17 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"mylittleprice/internal/container"
+	"mylittleprice/internal/app"
 	"mylittleprice/internal/middleware"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
 )
 
 type AuthHandler struct {
-	container *container.Container
+	container *app.Container
 }
 
-func NewAuthHandler(c *container.Container) *AuthHandler {
+func NewAuthHandler(c *app.Container) *AuthHandler {
 	return &AuthHandler{container: c}
 }
 
@@ -258,7 +258,7 @@ func (h *AuthHandler) ClaimSessions(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"message":  "Sessions claimed successfully",
-		"claimed":  len(req.SessionIDs),
+		"message": "Sessions claimed successfully",
+		"claimed": len(req.SessionIDs),
 	})
 }

@@ -11,11 +11,11 @@ import (
 
 // KeyRotator manages API key rotation using Redis
 type KeyRotator struct {
-	keys       []string
+	keys        []string
 	serviceName string
-	redis      *redis.Client
-	mu         sync.Mutex
-	ctx        context.Context
+	redis       *redis.Client
+	mu          sync.Mutex
+	ctx         context.Context
 }
 
 // NewKeyRotator creates a new key rotator instance
@@ -44,7 +44,7 @@ func (kr *KeyRotator) GetNextKey() (string, int, error) {
 
 	// Get current index from Redis
 	counterKey := fmt.Sprintf("keyrotator:%s:counter", kr.serviceName)
-	
+
 	// Increment and get the counter (atomic operation)
 	counter, err := kr.redis.Incr(kr.ctx, counterKey).Result()
 	if err != nil {
@@ -54,7 +54,7 @@ func (kr *KeyRotator) GetNextKey() (string, int, error) {
 
 	// Calculate index using modulo
 	index := int(counter-1) % len(kr.keys)
-	
+
 	return kr.keys[index], index, nil
 }
 
@@ -69,22 +69,22 @@ func (kr *KeyRotator) GetKeyByIndex(index int) (string, error) {
 // RecordUsage records API key usage for analytics
 func (kr *KeyRotator) RecordUsage(keyIndex int, success bool, responseTime time.Duration) error {
 	usageKey := fmt.Sprintf("keyrotator:%s:usage:%d", kr.serviceName, keyIndex)
-	
+
 	// Increment usage counter
 	pipe := kr.redis.Pipeline()
 	pipe.Incr(kr.ctx, usageKey)
-	
+
 	// Record success/failure
 	if success {
 		pipe.Incr(kr.ctx, fmt.Sprintf("%s:success", usageKey))
 	} else {
 		pipe.Incr(kr.ctx, fmt.Sprintf("%s:failures", usageKey))
 	}
-	
+
 	// Record response time (milliseconds)
 	pipe.HIncrBy(kr.ctx, fmt.Sprintf("%s:response_times", usageKey), "total", responseTime.Milliseconds())
 	pipe.HIncrBy(kr.ctx, fmt.Sprintf("%s:response_times", usageKey), "count", 1)
-	
+
 	_, err := pipe.Exec(kr.ctx)
 	return err
 }
@@ -92,26 +92,26 @@ func (kr *KeyRotator) RecordUsage(keyIndex int, success bool, responseTime time.
 // GetKeyStats returns usage statistics for a specific key
 func (kr *KeyRotator) GetKeyStats(keyIndex int) (map[string]interface{}, error) {
 	usageKey := fmt.Sprintf("keyrotator:%s:usage:%d", kr.serviceName, keyIndex)
-	
+
 	// Get all stats
 	pipe := kr.redis.Pipeline()
 	totalUsage := pipe.Get(kr.ctx, usageKey)
 	successCount := pipe.Get(kr.ctx, fmt.Sprintf("%s:success", usageKey))
 	failureCount := pipe.Get(kr.ctx, fmt.Sprintf("%s:failures", usageKey))
 	responseTimes := pipe.HGetAll(kr.ctx, fmt.Sprintf("%s:response_times", usageKey))
-	
+
 	_, err := pipe.Exec(kr.ctx)
 	if err != nil && err != redis.Nil {
 		return nil, err
 	}
-	
+
 	stats := map[string]interface{}{
 		"key_index":     keyIndex,
 		"total_usage":   totalUsage.Val(),
 		"success_count": successCount.Val(),
 		"failure_count": failureCount.Val(),
 	}
-	
+
 	// Calculate average response time
 	rtMap, _ := responseTimes.Result()
 	if total, ok := rtMap["total"]; ok {
@@ -123,14 +123,14 @@ func (kr *KeyRotator) GetKeyStats(keyIndex int) (map[string]interface{}, error) 
 			}
 		}
 	}
-	
+
 	return stats, nil
 }
 
 // GetAllStats returns statistics for all keys
 func (kr *KeyRotator) GetAllStats() ([]map[string]interface{}, error) {
 	stats := make([]map[string]interface{}, len(kr.keys))
-	
+
 	for i := range kr.keys {
 		keyStats, err := kr.GetKeyStats(i)
 		if err != nil {
@@ -138,7 +138,7 @@ func (kr *KeyRotator) GetAllStats() ([]map[string]interface{}, error) {
 		}
 		stats[i] = keyStats
 	}
-	
+
 	return stats, nil
 }
 

@@ -1,4 +1,8 @@
-package types
+package domain
+
+// ═══════════════════════════════════════════════════════════
+// SERP API TYPES (Google Shopping)
+// ═══════════════════════════════════════════════════════════
 
 // GoogleShoppingResponse represents SERP API Google Shopping response
 type GoogleShoppingResponse struct {

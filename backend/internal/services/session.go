@@ -51,10 +51,10 @@ func (s *SessionService) CreateSession(sessionID, country, language, currency st
 			SearchCount: 0,
 			LastProduct: nil,
 		},
-		CycleState:  s.universalPromptMgr.InitializeCycleState(),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-		ExpiresAt:   time.Now().Add(s.ttl),
+		CycleState: s.universalPromptMgr.InitializeCycleState(),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+		ExpiresAt:  time.Now().Add(s.ttl),
 	}
 
 	if err := s.saveSession(session); err != nil {

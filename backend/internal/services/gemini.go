@@ -17,19 +17,19 @@ import (
 )
 
 type GeminiService struct {
-	client                *genai.Client
-	keyRotator            *utils.KeyRotator
-	config                *config.Config
-	promptManager         *PromptManager
-	universalPromptMgr    *UniversalPromptManager
-	groundingStats        *GroundingStats
-	groundingStrategy     *GroundingStrategy
-	tokenStats            *TokenStats
-	embedding             *EmbeddingService
-	contextOptimizer      *ContextOptimizerService  // NEW: Determines optimal context depth
-	contextExtractor      *ContextExtractorService  // NEW: Extracts preferences and summaries
-	ctx                   context.Context
-	mu                    sync.RWMutex
+	client             *genai.Client
+	keyRotator         *utils.KeyRotator
+	config             *config.Config
+	promptManager      *PromptManager
+	universalPromptMgr *UniversalPromptManager
+	groundingStats     *GroundingStats
+	groundingStrategy  *GroundingStrategy
+	tokenStats         *TokenStats
+	embedding          *EmbeddingService
+	contextOptimizer   *ContextOptimizerService // NEW: Determines optimal context depth
+	contextExtractor   *ContextExtractorService // NEW: Extracts preferences and summaries
+	ctx                context.Context
+	mu                 sync.RWMutex
 }
 
 type TokenStats struct {
@@ -77,7 +77,7 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 		groundingStrategy:  NewGroundingStrategy(embedding, cfg),
 		tokenStats:         &TokenStats{},
 		embedding:          embedding,
-		contextOptimizer:   NewContextOptimizerService(embedding),                  // NEW
+		contextOptimizer:   NewContextOptimizerService(embedding),                       // NEW
 		contextExtractor:   NewContextExtractorService(client, cfg.GeminiFallbackModel), // NEW - Use fallback model for lightweight tasks
 		ctx:                ctx,
 	}

@@ -32,8 +32,8 @@ func NewGoogleOAuthService(cfg *config.Config) *GoogleOAuthService {
 
 // tokenInfoResponse represents Google's tokeninfo response
 type tokenInfoResponse struct {
-	Aud           string `json:"aud"`             // Audience (client ID)
-	Sub           string `json:"sub"`             // User ID
+	Aud           string `json:"aud"` // Audience (client ID)
+	Sub           string `json:"sub"` // User ID
 	Email         string `json:"email"`
 	EmailVerified string `json:"email_verified"` // "true" or "false" as string
 	Name          string `json:"name"`
