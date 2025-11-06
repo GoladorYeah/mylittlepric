@@ -114,6 +114,8 @@ This is the MASTER prompt. When category is detected:
 }
 ```
 
+**CRITICAL: ALWAYS include "Other" as the last item in quick_replies array!**
+
 ## Search - WITH FULL PARAMETERS:
 ```json
 {
