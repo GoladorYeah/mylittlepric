@@ -34,7 +34,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
 
       {/* Main content area - pushed by sidebar on desktop */}
       <div
-        className={`flex flex-col h-screen bg-gradient-to-br from-background via-background to-background/95 transition-[padding] duration-300 ease-in-out will-change-[padding] ${
+        className={`flex flex-col h-screen w-full overflow-x-hidden bg-gradient-to-br from-background via-background to-background/95 transition-[padding] duration-300 ease-in-out will-change-[padding] ${
           isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
         }`}
       >

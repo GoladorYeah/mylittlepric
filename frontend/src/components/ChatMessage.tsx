@@ -79,7 +79,7 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
       {!isUser && <div className="flex-shrink-0 w-9" />}
 
       <div
-        className={`${message.products && message.products.length > 0 ? 'flex-1' : 'max-w-[80%]'} space-y-3`}
+        className={`${message.products && message.products.length > 0 ? 'flex-1 min-w-0' : 'max-w-[80%]'} space-y-3`}
       >
         {message.content && message.content.trim() !== '' && (
           <div

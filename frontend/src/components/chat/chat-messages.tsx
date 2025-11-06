@@ -30,8 +30,8 @@ export function ChatMessages({
   }, [messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="w-full max-w-4xl mx-auto px-4 py-8">
         {messages.length === 0 ? (
           <ChatEmptyState />
         ) : (
