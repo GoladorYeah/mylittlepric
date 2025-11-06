@@ -17,8 +17,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
     <>
       <div
         onClick={() => setShowModal(true)}
-        className="group bg-card rounded-lg border border-border hover:border-primary/50 transition-all duration-300 cursor-pointer overflow-hidden h-full flex flex-col hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1.5 elevation-transition animate-fade-in"
-        style={{ animationDelay: `${(index || 0) * 100}ms` }}
+        className="group bg-card rounded-lg border border-border hover:border-primary/50 transition-all duration-500 cursor-pointer overflow-hidden h-full flex flex-col hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-0.5"
       >
         {/* Image Container - Reduced aspect ratio */}
         <div className="aspect-[4/3] bg-muted relative overflow-hidden">
@@ -28,7 +27,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
           <img
             src={product.image}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
           />
 
           {/* Position Badge - Smaller */}
