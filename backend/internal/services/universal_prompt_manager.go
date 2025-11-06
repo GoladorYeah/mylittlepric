@@ -70,10 +70,19 @@ func (upm *UniversalPromptManager) GetSystemPrompt(
 	upm.mu.RLock()
 	defer upm.mu.RUnlock()
 
+	// Get current date and year
+	now := time.Now()
+	currentDate := now.Format("January 2, 2006")
+	currentYear := fmt.Sprintf("%d", now.Year())
+	previousYear := fmt.Sprintf("%d", now.Year()-1)
+
 	prompt := upm.universalPrompt
 	prompt = strings.ReplaceAll(prompt, "{fe_location}", feLocation)
 	prompt = strings.ReplaceAll(prompt, "{fe_language}", feLanguage)
 	prompt = strings.ReplaceAll(prompt, "{fe_currency}", feCurrency)
+	prompt = strings.ReplaceAll(prompt, "{current_date}", currentDate)
+	prompt = strings.ReplaceAll(prompt, "{current_year}", currentYear)
+	prompt = strings.ReplaceAll(prompt, "{previous_year}", previousYear)
 
 	return prompt
 }
@@ -87,6 +96,12 @@ func (upm *UniversalPromptManager) GetMiniKernel(
 	upm.mu.RLock()
 	defer upm.mu.RUnlock()
 
+	// Get current date and year
+	now := time.Now()
+	currentDate := now.Format("January 2, 2006")
+	currentYear := fmt.Sprintf("%d", now.Year())
+	previousYear := fmt.Sprintf("%d", now.Year()-1)
+
 	kernel := upm.miniKernel
 	kernel = strings.ReplaceAll(kernel, "{fe_location}", feLocation)
 	kernel = strings.ReplaceAll(kernel, "{fe_language}", feLanguage)
@@ -94,6 +109,9 @@ func (upm *UniversalPromptManager) GetMiniKernel(
 	kernel = strings.ReplaceAll(kernel, "{cycle_id}", fmt.Sprintf("%d", cycleState.CycleID))
 	kernel = strings.ReplaceAll(kernel, "{iteration}", fmt.Sprintf("%d", cycleState.Iteration))
 	kernel = strings.ReplaceAll(kernel, "{category}", getCategory(cycleState))
+	kernel = strings.ReplaceAll(kernel, "{current_date}", currentDate)
+	kernel = strings.ReplaceAll(kernel, "{current_year}", currentYear)
+	kernel = strings.ReplaceAll(kernel, "{previous_year}", previousYear)
 
 	return kernel
 }
