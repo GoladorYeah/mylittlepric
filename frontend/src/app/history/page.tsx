@@ -308,17 +308,23 @@ export default function HistoryPage() {
                       </div>
 
                       {/* Products Grid */}
-                      {isExpanded && hasProducts && (
-                        <div className="border-t border-border bg-muted/20 p-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {item.products_found!.map((product, idx) => (
-                              <div key={`${item.id}-product-${idx}`} className="w-full">
-                                <ProductCard product={product} index={idx + 1} />
-                              </div>
-                            ))}
+                      <div
+                        className={`border-t border-border bg-muted/20 transition-all duration-500 ease-in-out overflow-hidden ${
+                          isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'
+                        }`}
+                      >
+                        {hasProducts && (
+                          <div className="p-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                              {item.products_found!.map((product, idx) => (
+                                <div key={`${item.id}-product-${idx}`} className="w-full">
+                                  <ProductCard product={product} index={idx + 1} />
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   );
                 })}
