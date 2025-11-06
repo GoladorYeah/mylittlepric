@@ -309,3 +309,145 @@ func extractSubgroups(history []models.CycleMessage) []string {
 	}
 	return result
 }
+
+// ==================== Smart Context Management Methods ====================
+
+// BuildMinimalContext builds minimal context for simple queries (e.g., "cheaper?")
+// Only includes last product and essential state
+func (upm *UniversalPromptManager) BuildMinimalContext(
+	session *models.ChatSession,
+) string {
+	var sb strings.Builder
+
+	sb.WriteString("=== MINIMAL CONTEXT ===\n")
+	sb.WriteString(fmt.Sprintf("CYCLE: %d, ITERATION: %d\n", session.CycleState.CycleID, session.CycleState.Iteration))
+
+	// Last 1-2 messages only
+	history := session.CycleState.CycleHistory
+	if len(history) > 0 {
+		sb.WriteString("\nRecent exchange:\n")
+		startIdx := len(history) - 2
+		if startIdx < 0 {
+			startIdx = 0
+		}
+		for i := startIdx; i < len(history); i++ {
+			msg := history[i]
+			// Truncate long messages
+			content := msg.Content
+			if len(content) > 150 {
+				content = content[:147] + "..."
+			}
+			sb.WriteString(fmt.Sprintf("%s: %s\n", msg.Role, content))
+		}
+	}
+
+	// Last product shown
+	if session.SearchState.LastProduct != nil {
+		sb.WriteString(fmt.Sprintf("\nLast product: %s (%.2f %s)\n",
+			session.SearchState.LastProduct.Name,
+			session.SearchState.LastProduct.Price,
+			session.Currency))
+	}
+
+	// Conversation context if available
+	if session.ConversationContext != nil {
+		if session.ConversationContext.LastSearch != nil {
+			sb.WriteString(fmt.Sprintf("Last search: %s\n", session.ConversationContext.LastSearch.Query))
+		}
+	}
+
+	return sb.String()
+}
+
+// BuildCompactStateContext builds compact context with configurable depth
+// maxRecentMessages: how many recent messages to include (2-6)
+func (upm *UniversalPromptManager) BuildCompactStateContext(
+	session *models.ChatSession,
+	maxRecentMessages int,
+) string {
+	var sb strings.Builder
+
+	sb.WriteString("=== STATE CONTEXT ===\n")
+	sb.WriteString(fmt.Sprintf("CYCLE: %d, ITERATION: %d/%d, CATEGORY: %s\n",
+		session.CycleState.CycleID,
+		session.CycleState.Iteration,
+		MaxIterations,
+		getCategory(&session.CycleState)))
+
+	// Include conversation summary if available
+	if session.ConversationContext != nil && session.ConversationContext.Summary != "" {
+		sb.WriteString("\n=== CONVERSATION SUMMARY ===\n")
+		sb.WriteString(session.ConversationContext.Summary + "\n")
+
+		// Include structured preferences
+		prefs := session.ConversationContext.Preferences
+		if prefs.PriceRange != nil {
+			sb.WriteString(fmt.Sprintf("\nPrice range: %.0f-%.0f %s\n",
+				ptrFloat64Value(prefs.PriceRange.Min),
+				ptrFloat64Value(prefs.PriceRange.Max),
+				prefs.PriceRange.Currency))
+		}
+		if len(prefs.Brands) > 0 {
+			sb.WriteString(fmt.Sprintf("Preferred brands: %s\n", strings.Join(prefs.Brands, ", ")))
+		}
+		if len(prefs.Features) > 0 {
+			sb.WriteString(fmt.Sprintf("Required features: %s\n", strings.Join(prefs.Features, ", ")))
+		}
+		if len(session.ConversationContext.Exclusions) > 0 {
+			sb.WriteString(fmt.Sprintf("Exclusions: %s\n", strings.Join(session.ConversationContext.Exclusions, ", ")))
+		}
+	}
+
+	// Recent messages (limited)
+	sb.WriteString("\n=== RECENT MESSAGES ===\n")
+	history := session.CycleState.CycleHistory
+	if len(history) == 0 {
+		sb.WriteString("(no messages yet)\n")
+	} else {
+		startIdx := len(history) - maxRecentMessages
+		if startIdx < 0 {
+			startIdx = 0
+		}
+
+		if startIdx > 0 {
+			sb.WriteString(fmt.Sprintf("(showing last %d of %d)\n", len(history)-startIdx, len(history)))
+		}
+
+		for i := startIdx; i < len(history); i++ {
+			msg := history[i]
+			// Truncate very long messages
+			content := msg.Content
+			if len(content) > 300 {
+				content = content[:297] + "..."
+			}
+			sb.WriteString(fmt.Sprintf("%s: %s\n", msg.Role, content))
+		}
+	}
+
+	// Last product if available
+	if session.SearchState.LastProduct != nil {
+		sb.WriteString(fmt.Sprintf("\nLast product shown: %s (%.2f %s)\n",
+			session.SearchState.LastProduct.Name,
+			session.SearchState.LastProduct.Price,
+			session.Currency))
+	}
+
+	return sb.String()
+}
+
+// BuildFullContext builds complete context (original behavior)
+// This is the same as BuildStateContext but kept for clarity
+func (upm *UniversalPromptManager) BuildFullContext(
+	session *models.ChatSession,
+) string {
+	// Use the original BuildStateContext for full context
+	return upm.BuildStateContext(session)
+}
+
+// Helper function to safely get float64 value from pointer
+func ptrFloat64Value(ptr *float64) float64 {
+	if ptr == nil {
+		return 0
+	}
+	return *ptr
+}

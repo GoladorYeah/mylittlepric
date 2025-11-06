@@ -7,17 +7,18 @@ import (
 )
 
 type ChatSession struct {
-	ID           uuid.UUID   `json:"id" db:"id"`
-	SessionID    string      `json:"session_id" db:"session_id"`
-	CountryCode  string      `json:"country_code" db:"country_code"`
-	LanguageCode string      `json:"language_code" db:"language_code"`
-	Currency     string      `json:"currency" db:"currency"`
-	MessageCount int         `json:"message_count" db:"message_count"`
-	SearchState  SearchState `json:"search_state" db:"search_state"`
-	CycleState   CycleState  `json:"cycle_state" db:"cycle_state"` // NEW: Cycle tracking
-	CreatedAt    time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time   `json:"updated_at" db:"updated_at"`
-	ExpiresAt    time.Time   `json:"expires_at" db:"expires_at"`
+	ID                  uuid.UUID            `json:"id" db:"id"`
+	SessionID           string               `json:"session_id" db:"session_id"`
+	CountryCode         string               `json:"country_code" db:"country_code"`
+	LanguageCode        string               `json:"language_code" db:"language_code"`
+	Currency            string               `json:"currency" db:"currency"`
+	MessageCount        int                  `json:"message_count" db:"message_count"`
+	SearchState         SearchState          `json:"search_state" db:"search_state"`
+	CycleState          CycleState           `json:"cycle_state" db:"cycle_state"`                     // Cycle tracking
+	ConversationContext *ConversationContext `json:"conversation_context,omitempty" db:"conversation_context"` // NEW: Smart context tracking
+	CreatedAt           time.Time            `json:"created_at" db:"created_at"`
+	UpdatedAt           time.Time            `json:"updated_at" db:"updated_at"`
+	ExpiresAt           time.Time            `json:"expires_at" db:"expires_at"`
 }
 
 type SearchState struct {
@@ -65,6 +66,41 @@ type LastCycleContext struct {
 	Subgroups   []string      `json:"subgroups"`    // Product subgroups discussed
 	Products    []ProductInfo `json:"products"`     // Products identified
 	LastRequest string        `json:"last_request"` // The final user request from last cycle
+}
+
+// ==================== Smart Context Management ====================
+
+// ConversationContext stores optimized conversation context for token efficiency
+type ConversationContext struct {
+	Summary     string          `json:"summary"`               // AI-generated compact summary of conversation
+	Preferences UserPreferences `json:"preferences"`           // Structured user preferences
+	LastSearch  *SearchContext  `json:"last_search,omitempty"` // Most recent search context
+	Exclusions  []string        `json:"exclusions,omitempty"`  // User exclusions (e.g., "no Chinese brands")
+	UpdatedAt   time.Time       `json:"updated_at"`            // When context was last updated
+}
+
+// UserPreferences stores structured user preferences extracted from conversation
+type UserPreferences struct {
+	PriceRange   *PriceRange `json:"price_range,omitempty"`   // Price range preference
+	Brands       []string    `json:"brands,omitempty"`        // Preferred brands
+	Features     []string    `json:"features,omitempty"`      // Required features
+	Requirements []string    `json:"requirements,omitempty"`  // Special requirements
+}
+
+// PriceRange represents a price range with currency
+type PriceRange struct {
+	Min      *float64 `json:"min,omitempty"` // Minimum price
+	Max      *float64 `json:"max,omitempty"` // Maximum price
+	Currency string   `json:"currency"`      // Currency code
+}
+
+// SearchContext stores the most recent search for quick reference
+type SearchContext struct {
+	Query         string        `json:"query"`                     // Search query used
+	Category      string        `json:"category"`                  // Category searched
+	ProductsShown []ProductInfo `json:"products_shown,omitempty"`  // Products that were shown
+	UserFeedback  string        `json:"user_feedback,omitempty"`   // User feedback (e.g., "too expensive")
+	Timestamp     time.Time     `json:"timestamp"`                 // When search occurred
 }
 
 type Message struct {

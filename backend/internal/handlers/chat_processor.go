@@ -290,6 +290,18 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 				// Add products to assistant message BEFORE saving
 				assistantMessage.Products = products
 
+				// NEW: Update last search in conversation context
+				productInfoList := make([]models.ProductInfo, 0, len(products))
+				for _, p := range products {
+					price := parsePrice(p.Price)
+					productInfoList = append(productInfoList, models.ProductInfo{
+						Name:  p.Name,
+						Price: price,
+					})
+				}
+				contextExtractor := p.container.GeminiService.GetContextExtractor()
+				contextExtractor.UpdateLastSearch(session, translatedQuery, geminiResponse.Category, productInfoList, "")
+
 				// Save search history
 				p.saveSearchHistory(req, session, geminiResponse, translatedQuery, products)
 			}
@@ -343,6 +355,18 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 					// Add products to assistant message BEFORE saving
 					assistantMessage.Products = products
 
+					// NEW: Update last search in conversation context
+					productInfoList := make([]models.ProductInfo, 0, len(products))
+					for _, p := range products {
+						price := parsePrice(p.Price)
+						productInfoList = append(productInfoList, models.ProductInfo{
+							Name:  p.Name,
+							Price: price,
+						})
+					}
+					contextExtractor := p.container.GeminiService.GetContextExtractor()
+					contextExtractor.UpdateLastSearch(session, translatedQuery, searchResp.Category, productInfoList, "")
+
 					// Save search history
 					p.saveSearchHistory(req, session, searchResp, translatedQuery, products)
 
@@ -373,6 +397,22 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	session, err = p.container.SessionService.GetSession(req.SessionID)
 	if err != nil {
 		fmt.Printf("⚠️ Failed to re-fetch session after adding to history: %v\n", err)
+	}
+
+	// NEW: Update conversation context periodically
+	contextExtractor := p.container.GeminiService.GetContextExtractor()
+	contextOptimizer := p.container.GeminiService.GetContextOptimizer()
+
+	if contextOptimizer.ShouldUpdateContext(session) {
+		fmt.Printf("🧠 Updating conversation context...\n")
+		if err := contextExtractor.UpdateConversationContext(session, session.CycleState.CycleHistory); err != nil {
+			fmt.Printf("⚠️ Failed to update conversation context: %v\n", err)
+		} else {
+			// Save updated context
+			if err := p.container.SessionService.UpdateSession(session); err != nil {
+				fmt.Printf("⚠️ Failed to save updated context: %v\n", err)
+			}
+		}
 	}
 
 	// Check if we need to start a new cycle (iteration limit reached)
