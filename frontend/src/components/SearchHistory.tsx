@@ -34,7 +34,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
       {/* Mobile Toggle Button - Only when sidebar closed on mobile */}
       <button
         onClick={toggleSidebar}
-        className={`fixed left-4 top-4 z-50 bg-primary text-primary-foreground p-2 rounded-lg shadow-lg hover:opacity-90 transition-opacity duration-300 lg:hidden ${
+        className={`fixed left-4 top-4 z-50 bg-primary text-primary-foreground p-2 rounded-lg shadow-lg hover:opacity-90 transition-opacity duration-300 cursor-pointer lg:hidden ${
           isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
         aria-label="Open sidebar"
@@ -57,7 +57,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
             {/* Toggle button - always in the same position */}
             <button
               onClick={toggleSidebar}
-              className="p-2 hover:bg-secondary rounded-lg transition-colors shrink-0 group"
+              className="p-2 hover:bg-secondary rounded-lg transition-colors shrink-0 group cursor-pointer"
               title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
               {isSidebarOpen ? (
@@ -76,7 +76,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
           <div className="p-4 border-b border-border flex items-center justify-between lg:hidden">
             <button
               onClick={toggleSidebar}
-              className="p-2 hover:bg-secondary rounded-lg transition-colors"
+              className="p-2 hover:bg-secondary rounded-lg transition-colors cursor-pointer"
               aria-label="Close sidebar"
             >
               <PanelLeftClose className="w-5 h-5 text-muted-foreground" />
@@ -94,7 +94,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                   <button
                     onClick={onNewSearch}
                     disabled={!isConnected}
-                    className="w-full p-4 rounded-lg flex items-center gap-3 transition-colors bg-primary/10 hover:bg-primary/20 text-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full p-4 rounded-lg flex items-center gap-3 transition-colors bg-primary/10 hover:bg-primary/20 text-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <Plus className="w-5 h-5" />
                     <span className="text-sm font-semibold">New Search</span>
@@ -104,7 +104,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                 {/* Search History Button */}
                 <button
                   onClick={handleHistoryClick}
-                  className={`w-full p-4 rounded-lg flex items-center gap-3 transition-colors ${
+                  className={`w-full p-4 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${
                     pathname === '/history'
                       ? 'bg-secondary/80 text-foreground'
                       : 'hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
@@ -123,7 +123,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                 <button
                   onClick={onNewSearch}
                   disabled={!isConnected}
-                  className="p-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative group"
+                  className="p-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative group"
                   title="New Search"
                 >
                   <Plus className="w-5 h-5" />
@@ -136,7 +136,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
               {/* History Icon */}
               <button
                 onClick={handleHistoryClick}
-                className={`p-3 rounded-lg transition-colors relative group ${
+                className={`p-3 rounded-lg transition-colors relative group cursor-pointer ${
                   pathname === '/history'
                     ? 'bg-secondary/80 text-foreground'
                     : 'hover:bg-secondary/50 text-muted-foreground hover:text-foreground'

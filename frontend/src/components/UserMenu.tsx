@@ -64,7 +64,7 @@ export default function UserMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all overflow-hidden"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all overflow-hidden cursor-pointer"
       >
         {user?.picture ? (
           <img
@@ -115,7 +115,7 @@ export default function UserMenu() {
           <div className="border-t border-border">
             <button
               onClick={handleLogout}
-              className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-secondary transition-colors flex items-center gap-2"
+              className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-secondary transition-colors flex items-center gap-2 cursor-pointer"
             >
               <LogOut className="h-4 w-4" />
               Sign out

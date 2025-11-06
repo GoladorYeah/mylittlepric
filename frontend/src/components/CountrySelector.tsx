@@ -118,7 +118,7 @@ export function CountrySelector() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-background/50 transition-colors flex-shrink-0"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-background/50 transition-colors flex-shrink-0 cursor-pointer"
         title="Select country"
       >
         <Globe className="w-4 h-4 text-muted-foreground" />
@@ -146,7 +146,7 @@ export function CountrySelector() {
                 <button
                   key={c.code}
                   onClick={() => handleCountrySelect(c.code)}
-                  className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-secondary transition-colors text-left ${
+                  className={`w-full px-4 py-2.5 flex items-center justify-between hover:bg-secondary transition-colors text-left cursor-pointer ${
                     c.code === country.toLowerCase() ? "bg-secondary/50" : ""
                   }`}
                 >
