@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
 import { useChatStore } from "@/lib/store";
 import { SearchHistoryAPI, type SearchHistoryItem as APISearchHistoryItem } from "@/lib/search-history-api";
-import { Clock, Trash2, Search, Package, RefreshCw, LogIn } from "lucide-react";
+import { Clock, Trash2, Search, Package, RefreshCw, LogIn, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru, uk, enUS } from "date-fns/locale";
 import { SearchHistory as Sidebar } from "@/components/SearchHistory";
+import { ProductCard } from "@/components/ProductCard";
 
 const localeMap: Record<string, any> = {
   ru,
@@ -26,6 +27,7 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const limit = 50;
 
   const locale = localeMap[language] || enUS;
@@ -73,25 +75,16 @@ export default function HistoryPage() {
     }
   }, [isAuthenticated]);
 
-  const handleHistoryClick = async (item: APISearchHistoryItem) => {
-    if (!item.session_id) {
-      console.warn("History item has no session_id:", item);
-      setError("This search has no session data");
-      return;
-    }
-
-    const localHistoryItem = {
-      id: item.id,
-      query: item.search_query,
-      timestamp: new Date(item.created_at).getTime(),
-      category: item.category,
-      productsCount: item.result_count,
-      sessionId: item.session_id,
-    };
-
-    const { loadSearchFromHistory } = useChatStore.getState();
-    await loadSearchFromHistory(localHistoryItem);
-    router.push('/chat');
+  const toggleExpanded = (id: string) => {
+    setExpandedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
   };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -238,52 +231,97 @@ export default function HistoryPage() {
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                {history.filter(item => item.session_id).map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleHistoryClick(item)}
-                    className="w-full text-left p-4 rounded-lg bg-card hover:bg-secondary transition-colors border border-border group relative"
-                  >
-                    <div className="flex items-start gap-3">
-                      <Search className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
-                      <div className="flex-1 min-w-0 pr-12">
-                        <p className="text-base font-medium mb-1 group-hover:text-primary transition-colors">
-                          {item.search_query}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            {getTimeAgo(item.created_at)}
-                          </span>
-                          {item.result_count > 0 && (
-                            <>
-                              <span className="text-sm text-muted-foreground">•</span>
-                              <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                <Package className="w-4 h-4" />
-                                {item.result_count} product{item.result_count !== 1 ? 's' : ''}
-                              </span>
-                            </>
-                          )}
-                          {item.category && (
-                            <>
-                              <span className="text-sm text-muted-foreground">•</span>
-                              <span className="text-sm text-muted-foreground capitalize">
-                                {item.category}
-                              </span>
-                            </>
-                          )}
-                        </div>
+              <div className="space-y-4">
+                {history.filter(item => item.session_id).map((item) => {
+                  const isExpanded = expandedItems.has(item.id);
+                  const hasProducts = item.products_found && item.products_found.length > 0;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-lg bg-card border border-border overflow-hidden"
+                    >
+                      {/* Header */}
+                      <div className="relative group">
+                        <button
+                          onClick={() => hasProducts && toggleExpanded(item.id)}
+                          className={`w-full text-left p-4 transition-colors ${
+                            hasProducts ? 'hover:bg-secondary cursor-pointer' : 'cursor-default'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Search className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="flex-1 min-w-0 pr-16">
+                              <p className="text-base font-medium mb-1 group-hover:text-primary transition-colors">
+                                {item.search_query}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                  {getTimeAgo(item.created_at)}
+                                </span>
+                                {item.result_count > 0 && (
+                                  <>
+                                    <span className="text-sm text-muted-foreground">•</span>
+                                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                      <Package className="w-4 h-4" />
+                                      {item.result_count} product{item.result_count !== 1 ? 's' : ''}
+                                    </span>
+                                  </>
+                                )}
+                                {item.category && (
+                                  <>
+                                    <span className="text-sm text-muted-foreground">•</span>
+                                    <span className="text-sm text-muted-foreground capitalize">
+                                      {item.category}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className="absolute right-2 top-2 flex items-center gap-1">
+                              {hasProducts && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleExpanded(item.id);
+                                  }}
+                                  className="p-2 hover:bg-secondary/50 rounded-lg transition-all"
+                                  title={isExpanded ? "Hide products" : "Show products"}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => handleDelete(item.id, e)}
+                                className="opacity-0 group-hover:opacity-100 p-2 hover:bg-destructive/10 rounded-lg transition-all"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </button>
+                            </div>
+                          </div>
+                        </button>
                       </div>
-                      <button
-                        onClick={(e) => handleDelete(item.id, e)}
-                        className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 p-2 hover:bg-destructive/10 rounded-lg transition-all"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </button>
+
+                      {/* Products Grid */}
+                      {isExpanded && hasProducts && (
+                        <div className="border-t border-border bg-muted/20 p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {item.products_found!.map((product, idx) => (
+                              <div key={`${item.id}-product-${idx}`} className="w-full">
+                                <ProductCard product={product} index={idx + 1} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
 
               {hasMore && (
