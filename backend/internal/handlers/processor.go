@@ -10,18 +10,18 @@ import (
 
 	"github.com/google/uuid"
 
-	"mylittleprice/internal/container"
+	"mylittleprice/internal/app"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
 )
 
 // ChatProcessor handles the core chat processing logic shared between REST and WebSocket handlers
 type ChatProcessor struct {
-	container *container.Container
+	container *app.Container
 }
 
 // NewChatProcessor creates a new chat processor
-func NewChatProcessor(c *container.Container) *ChatProcessor {
+func NewChatProcessor(c *app.Container) *ChatProcessor {
 	return &ChatProcessor{
 		container: c,
 	}
@@ -41,15 +41,15 @@ type ChatRequest struct {
 
 // ChatProcessorResponse represents the standardized response from chat processing
 type ChatProcessorResponse struct {
-	Type            string
-	Output          string
-	QuickReplies    []string
-	Products        []models.ProductCard
-	SearchType      string
-	SessionID       string
-	MessageCount    int
-	SearchState     *models.SearchStateResponse
-	Error           *ErrorInfo
+	Type         string
+	Output       string
+	QuickReplies []string
+	Products     []models.ProductCard
+	SearchType   string
+	SessionID    string
+	MessageCount int
+	SearchState  *models.SearchStateResponse
+	Error        *ErrorInfo
 }
 
 // ErrorInfo contains error details

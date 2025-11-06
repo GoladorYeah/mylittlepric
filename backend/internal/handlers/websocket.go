@@ -9,18 +9,18 @@ import (
 	"github.com/gofiber/contrib/websocket"
 	"github.com/google/uuid"
 
-	"mylittleprice/internal/container"
+	"mylittleprice/internal/app"
 	"mylittleprice/internal/models"
 )
 
 type WSHandler struct {
-	container *container.Container
+	container *app.Container
 	processor *ChatProcessor
 	clients   map[string]*websocket.Conn
 	mu        sync.RWMutex
 }
 
-func NewWSHandler(c *container.Container) *WSHandler {
+func NewWSHandler(c *app.Container) *WSHandler {
 	return &WSHandler{
 		container: c,
 		processor: NewChatProcessor(c),

@@ -1,5 +1,4 @@
-// backend/internal/container/container.go
-package container
+package app
 
 import (
 	"context"

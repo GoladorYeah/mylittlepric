@@ -4,16 +4,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	"mylittleprice/internal/container"
+	"mylittleprice/internal/app"
 	"mylittleprice/internal/models"
 )
 
 type ChatHandler struct {
-	container *container.Container
+	container *app.Container
 	processor *ChatProcessor
 }
 
-func NewChatHandler(c *container.Container) *ChatHandler {
+func NewChatHandler(c *app.Container) *ChatHandler {
 	return &ChatHandler{
 		container: c,
 		processor: NewChatProcessor(c),
