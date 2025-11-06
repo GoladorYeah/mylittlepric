@@ -26,6 +26,8 @@ type GeminiService struct {
 	groundingStrategy     *GroundingStrategy
 	tokenStats            *TokenStats
 	embedding             *EmbeddingService
+	contextOptimizer      *ContextOptimizerService  // NEW: Determines optimal context depth
+	contextExtractor      *ContextExtractorService  // NEW: Extracts preferences and summaries
 	ctx                   context.Context
 	mu                    sync.RWMutex
 }
@@ -75,6 +77,8 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 		groundingStrategy:  NewGroundingStrategy(embedding, cfg),
 		tokenStats:         &TokenStats{},
 		embedding:          embedding,
+		contextOptimizer:   NewContextOptimizerService(embedding),  // NEW
+		contextExtractor:   NewContextExtractorService(client),      // NEW
 		ctx:                ctx,
 	}
 }
@@ -500,23 +504,36 @@ func (g *GeminiService) ProcessWithUniversalPrompt(
 		&session.CycleState,
 	)
 
-	// Build state context
-	stateContext := upm.BuildStateContext(session)
+	// NEW: Determine optimal context depth based on user message
+	contextDepth := g.contextOptimizer.DecideContextDepth(userMessage, session)
 
-	// On first iteration of ANY cycle, include full system prompt
-	// This ensures the AI always has the full context
+	// NEW: Build state context based on depth
+	var stateContext string
+	switch contextDepth {
+	case ContextDepthMinimal:
+		stateContext = upm.BuildMinimalContext(session)
+		fmt.Printf("💡 Using MINIMAL context (token efficient)\n")
+	case ContextDepthMedium:
+		stateContext = upm.BuildCompactStateContext(session, 3) // Last 3 messages
+		fmt.Printf("💡 Using MEDIUM context (3 messages)\n")
+	case ContextDepthFull:
+		stateContext = upm.BuildFullContext(session)
+		fmt.Printf("💡 Using FULL context (complete history)\n")
+	default:
+		stateContext = upm.BuildCompactStateContext(session, 3)
+		fmt.Printf("💡 Using MEDIUM context (default)\n")
+	}
+
+	// On first iteration of FIRST cycle only, include full system prompt
+	// For subsequent cycles, rely on mini-kernel + compact context
 	var systemPrompt string
-	if session.CycleState.Iteration == 1 {
+	if session.CycleState.CycleID == 1 && session.CycleState.Iteration == 1 {
 		systemPrompt = upm.GetSystemPrompt(
 			session.CountryCode,
 			session.LanguageCode,
 			session.Currency,
 		)
-		if session.CycleState.CycleID == 1 {
-			fmt.Printf("📝 Sending full Universal Prompt (first message in session)\n")
-		} else {
-			fmt.Printf("📝 Sending full Universal Prompt (new cycle %d)\n", session.CycleState.CycleID)
-		}
+		fmt.Printf("📝 Sending full Universal Prompt (first message in session)\n")
 	}
 
 	// Build the full prompt: (system prompt if first) + mini-kernel + state + user message
@@ -898,6 +915,16 @@ func isEnglish(text string) bool {
 	}
 
 	return true
+}
+
+// GetContextExtractor returns the context extractor service
+func (g *GeminiService) GetContextExtractor() *ContextExtractorService {
+	return g.contextExtractor
+}
+
+// GetContextOptimizer returns the context optimizer service
+func (g *GeminiService) GetContextOptimizer() *ContextOptimizerService {
+	return g.contextOptimizer
 }
 
 // removeDuplicateJSON removes duplicate JSON objects that sometimes appear with grounding
