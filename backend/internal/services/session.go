@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -10,11 +11,13 @@ import (
 	"mylittleprice/internal/models"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 )
 
 type SessionService struct {
 	redis              *redis.Client
+	db                 *sqlx.DB
 	ctx                context.Context
 	ttl                time.Duration
 	maxMsgs            int
@@ -22,9 +25,10 @@ type SessionService struct {
 	universalPromptMgr *UniversalPromptManager
 }
 
-func NewSessionService(redisClient *redis.Client, sessionTTL int, maxMessages int) *SessionService {
+func NewSessionService(redisClient *redis.Client, db *sqlx.DB, sessionTTL int, maxMessages int) *SessionService {
 	return &SessionService{
 		redis:              redisClient,
+		db:                 db,
 		ctx:                context.Background(),
 		ttl:                time.Duration(sessionTTL) * time.Second,
 		maxMsgs:            maxMessages,
@@ -61,31 +65,62 @@ func (s *SessionService) CreateSession(sessionID, country, language, currency st
 }
 
 func (s *SessionService) GetSession(sessionID string) (*models.ChatSession, error) {
+	// Try Redis first (fast cache)
 	key := fmt.Sprintf(constants.CachePrefixSession+"%s", sessionID)
 
 	data, err := s.redis.Get(s.ctx, key).Bytes()
-	if err == redis.Nil {
-		return nil, fmt.Errorf("session not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get session: %w", err)
+	if err == nil {
+		// Found in Redis - unmarshal and return
+		var session models.ChatSession
+		err = json.Unmarshal(data, &session)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal session from Redis: %w", err)
+		}
+		return &session, nil
 	}
 
-	var session models.ChatSession
-	err = json.Unmarshal(data, &session)
+	// Not in Redis - try PostgreSQL (persistent storage)
+	if err != redis.Nil {
+		// Redis error (not just "not found") - log but continue to DB
+		fmt.Printf("⚠️ Redis error when getting session: %v\n", err)
+	}
+
+	// Try to load from PostgreSQL
+	session, err := s.getSessionFromDB(sessionID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal session: %w", err)
+		return nil, fmt.Errorf("session not found in Redis or PostgreSQL")
+	}
+
+	// Found in DB - restore to Redis for future requests
+	fmt.Printf("📦 Session %s restored from PostgreSQL to Redis\n", sessionID)
+	if err := s.saveSessionToRedis(session); err != nil {
+		fmt.Printf("⚠️ Failed to restore session to Redis: %v\n", err)
+	}
+
+	return session, nil
+}
+
+// getSessionFromDB retrieves session from PostgreSQL
+func (s *SessionService) getSessionFromDB(sessionID string) (*models.ChatSession, error) {
+	var session models.ChatSession
+
+	query := `SELECT id, session_id, country_code, language_code, currency, message_count,
+	          search_state, cycle_state, conversation_context, created_at, updated_at, expires_at
+	          FROM chat_sessions WHERE session_id = $1`
+
+	err := s.db.Get(&session, query, sessionID)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("session not found in database")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session from database: %w", err)
 	}
 
 	return &session, nil
 }
 
-func (s *SessionService) UpdateSession(session *models.ChatSession) error {
-	session.UpdatedAt = time.Now()
-	return s.saveSession(session)
-}
-
-func (s *SessionService) saveSession(session *models.ChatSession) error {
+// saveSessionToRedis saves session to Redis only
+func (s *SessionService) saveSessionToRedis(session *models.ChatSession) error {
 	key := fmt.Sprintf(constants.CachePrefixSession+"%s", session.SessionID)
 
 	data, err := json.Marshal(session)
@@ -95,7 +130,86 @@ func (s *SessionService) saveSession(session *models.ChatSession) error {
 
 	err = s.redis.Set(s.ctx, key, data, s.ttl).Err()
 	if err != nil {
-		return fmt.Errorf("failed to save session: %w", err)
+		return fmt.Errorf("failed to save session to Redis: %w", err)
+	}
+
+	return nil
+}
+
+// saveSessionToDB saves or updates session in PostgreSQL
+func (s *SessionService) saveSessionToDB(session *models.ChatSession) error {
+	query := `INSERT INTO chat_sessions
+	          (id, session_id, country_code, language_code, currency, message_count,
+	           search_state, cycle_state, conversation_context, created_at, updated_at, expires_at)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	          ON CONFLICT (session_id) DO UPDATE SET
+	            country_code = EXCLUDED.country_code,
+	            language_code = EXCLUDED.language_code,
+	            currency = EXCLUDED.currency,
+	            message_count = EXCLUDED.message_count,
+	            search_state = EXCLUDED.search_state,
+	            cycle_state = EXCLUDED.cycle_state,
+	            conversation_context = EXCLUDED.conversation_context,
+	            updated_at = EXCLUDED.updated_at,
+	            expires_at = EXCLUDED.expires_at`
+
+	// Convert structs to JSONB
+	searchStateJSON, err := json.Marshal(session.SearchState)
+	if err != nil {
+		return fmt.Errorf("failed to marshal search_state: %w", err)
+	}
+
+	cycleStateJSON, err := json.Marshal(session.CycleState)
+	if err != nil {
+		return fmt.Errorf("failed to marshal cycle_state: %w", err)
+	}
+
+	var conversationContextJSON []byte
+	if session.ConversationContext != nil {
+		conversationContextJSON, err = json.Marshal(session.ConversationContext)
+		if err != nil {
+			return fmt.Errorf("failed to marshal conversation_context: %w", err)
+		}
+	}
+
+	_, err = s.db.Exec(query,
+		session.ID,
+		session.SessionID,
+		session.CountryCode,
+		session.LanguageCode,
+		session.Currency,
+		session.MessageCount,
+		searchStateJSON,
+		cycleStateJSON,
+		conversationContextJSON,
+		session.CreatedAt,
+		session.UpdatedAt,
+		session.ExpiresAt,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to save session to database: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SessionService) UpdateSession(session *models.ChatSession) error {
+	session.UpdatedAt = time.Now()
+	return s.saveSession(session)
+}
+
+func (s *SessionService) saveSession(session *models.ChatSession) error {
+	// Save to both Redis (cache) and PostgreSQL (persistent storage)
+
+	// Save to PostgreSQL first (persistent)
+	if err := s.saveSessionToDB(session); err != nil {
+		return fmt.Errorf("failed to save session to database: %w", err)
+	}
+
+	// Save to Redis (cache) - non-critical, log errors but don't fail
+	if err := s.saveSessionToRedis(session); err != nil {
+		fmt.Printf("⚠️ Failed to save session to Redis (non-critical): %v\n", err)
 	}
 
 	return nil

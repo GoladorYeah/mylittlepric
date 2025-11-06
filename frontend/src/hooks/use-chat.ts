@@ -293,7 +293,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const handleNewSearch = () => {
     processedMessageIds.current.clear();
     initialQuerySentRef.current = false;
-    useChatStore.setState({ _hasInitialized: false });
+    // Don't reset _hasInitialized - locale is already initialized
+    // Resetting it would trigger unnecessary re-initialization
     newSearch();
     const newSessionId = generateId();
     setSessionId(newSessionId);

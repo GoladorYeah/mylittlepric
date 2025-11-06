@@ -133,6 +133,7 @@ func (c *Container) initServices() error {
 
 	c.SessionService = services.NewSessionService(
 		c.Redis,
+		c.DB,
 		c.Config.SessionTTL,
 		c.Config.MaxMessagesPerSession,
 	)

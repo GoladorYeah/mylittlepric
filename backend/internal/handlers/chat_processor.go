@@ -477,12 +477,39 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 				return nil, err
 			}
 		} else {
-			// Update currency if it changed
+			// Session exists - preserve language, country, and currency from session
+			// Only update if explicitly changed by user (non-empty AND different from session)
+			updated := false
+
+			// Update language if changed and not empty
+			if req.Language != "" && req.Language != session.LanguageCode {
+				fmt.Printf("🗣️ Updating session language from %s to %s\n", session.LanguageCode, req.Language)
+				session.LanguageCode = req.Language
+				updated = true
+			}
+
+			// Update currency if changed and not empty
 			if req.Currency != "" && req.Currency != session.Currency {
 				fmt.Printf("💱 Updating session currency from %s to %s\n", session.Currency, req.Currency)
 				session.Currency = req.Currency
+				updated = true
+			}
+
+			// Update country if changed and not empty
+			if req.Country != "" && req.Country != session.CountryCode {
+				fmt.Printf("🌍 Updating session country from %s to %s\n", session.CountryCode, req.Country)
+				session.CountryCode = req.Country
+				updated = true
+			}
+
+			if updated {
 				p.container.SessionService.UpdateSession(session)
 			}
+
+			// Override request with session values to ensure consistency
+			req.Language = session.LanguageCode
+			req.Country = session.CountryCode
+			req.Currency = session.Currency
 		}
 	} else {
 		// No session ID provided - generate new one
