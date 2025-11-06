@@ -164,12 +164,16 @@ func (s *SessionService) saveSessionToDB(session *models.ChatSession) error {
 		return fmt.Errorf("failed to marshal cycle_state: %w", err)
 	}
 
-	var conversationContextJSON []byte
+	// Handle conversation_context as nullable JSONB
+	var conversationContextParam interface{}
 	if session.ConversationContext != nil {
-		conversationContextJSON, err = json.Marshal(session.ConversationContext)
+		conversationContextJSON, err := json.Marshal(session.ConversationContext)
 		if err != nil {
 			return fmt.Errorf("failed to marshal conversation_context: %w", err)
 		}
+		conversationContextParam = conversationContextJSON
+	} else {
+		conversationContextParam = nil
 	}
 
 	_, err = s.db.Exec(query,
@@ -181,7 +185,7 @@ func (s *SessionService) saveSessionToDB(session *models.ChatSession) error {
 		session.MessageCount,
 		searchStateJSON,
 		cycleStateJSON,
-		conversationContextJSON,
+		conversationContextParam,
 		session.CreatedAt,
 		session.UpdatedAt,
 		session.ExpiresAt,
