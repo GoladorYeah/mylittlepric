@@ -7,12 +7,13 @@ import (
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 
+	"mylittleprice/internal/container"
 	"mylittleprice/internal/handlers"
 	"mylittleprice/internal/middleware"
 )
 
 // SetupRoutes configures all application routes
-func SetupRoutes(app *fiber.App, c *Container) {
+func SetupRoutes(app *fiber.App, c *container.Container) {
 	// Health check
 	app.Get("/health", func(ctx *fiber.Ctx) error {
 		return ctx.JSON(fiber.Map{
@@ -43,7 +44,7 @@ func SetupRoutes(app *fiber.App, c *Container) {
 	setupStatsRoutes(api, c)
 }
 
-func setupAuthRoutes(api fiber.Router, c *Container) {
+func setupAuthRoutes(api fiber.Router, c *container.Container) {
 	auth := api.Group("/auth")
 	authHandler := handlers.NewAuthHandler(c)
 	authMiddleware := middleware.AuthMiddleware(c.JWTService)
@@ -60,7 +61,7 @@ func setupAuthRoutes(api fiber.Router, c *Container) {
 	auth.Post("/claim-sessions", authMiddleware, authHandler.ClaimSessions)
 }
 
-func setupWebSocketRoutes(app *fiber.App, c *Container) {
+func setupWebSocketRoutes(app *fiber.App, c *container.Container) {
 	wsHandler := handlers.NewWSHandler(c)
 
 	app.Use("/ws", func(ctx *fiber.Ctx) error {
@@ -102,7 +103,7 @@ func setupWebSocketRoutes(app *fiber.App, c *Container) {
 	}))
 }
 
-func setupChatRoutes(api fiber.Router, c *Container) {
+func setupChatRoutes(api fiber.Router, c *container.Container) {
 	chatHandler := handlers.NewChatHandler(c)
 	optionalAuthMiddleware := middleware.OptionalAuthMiddleware(c.JWTService)
 
@@ -110,12 +111,12 @@ func setupChatRoutes(api fiber.Router, c *Container) {
 	api.Get("/chat/messages", optionalAuthMiddleware, chatHandler.GetSessionMessages)
 }
 
-func setupProductRoutes(api fiber.Router, c *Container) {
+func setupProductRoutes(api fiber.Router, c *container.Container) {
 	productHandler := handlers.NewProductHandler(c)
 	api.Post("/product-details", productHandler.HandleProductDetails)
 }
 
-func setupSearchHistoryRoutes(api fiber.Router, c *Container) {
+func setupSearchHistoryRoutes(api fiber.Router, c *container.Container) {
 	historyHandler := handlers.NewSearchHistoryHandler(c)
 	authMiddleware := middleware.AuthMiddleware(c.JWTService)
 
@@ -126,7 +127,7 @@ func setupSearchHistoryRoutes(api fiber.Router, c *Container) {
 	api.Delete("/search-history", authMiddleware, historyHandler.DeleteAllSearchHistory)
 }
 
-func setupStatsRoutes(api fiber.Router, c *Container) {
+func setupStatsRoutes(api fiber.Router, c *container.Container) {
 	api.Get("/stats/keys", func(ctx *fiber.Ctx) error {
 		geminiStats, _ := c.GeminiRotator.GetAllStats()
 		serpStats, _ := c.SerpRotator.GetAllStats()

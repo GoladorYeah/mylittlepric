@@ -6,15 +6,15 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"mylittleprice/internal/app"
+	"mylittleprice/internal/container"
 	"mylittleprice/internal/models"
 )
 
 type SearchHistoryHandler struct {
-	container *app.Container
+	container *container.Container
 }
 
-func NewSearchHistoryHandler(container *app.Container) *SearchHistoryHandler {
+func NewSearchHistoryHandler(container *container.Container) *SearchHistoryHandler {
 	return &SearchHistoryHandler{
 		container: container,
 	}

@@ -5,15 +5,15 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"mylittleprice/internal/app"
+	"mylittleprice/internal/container"
 	"mylittleprice/internal/models"
 )
 
 type ProductHandler struct {
-	container *app.Container
+	container *container.Container
 }
 
-func NewProductHandler(c *app.Container) *ProductHandler {
+func NewProductHandler(c *container.Container) *ProductHandler {
 	return &ProductHandler{
 		container: c,
 	}
