@@ -551,8 +551,8 @@ func (g *GeminiService) ProcessWithUniversalPrompt(
 		MaxOutputTokens: int32(g.config.GeminiMaxOutputTokens),
 	}
 
-	// Use smart grounding strategy instead of always-on
-	// This saves ~400 tokens per request when grounding is not needed
+	// Grounding is ALWAYS enabled (configured in shouldUseGrounding method)
+	// This ensures AI always has access to current product data, prices, and models
 	historyMap := convertCycleHistoryToMap(session.CycleState.CycleHistory)
 	useGrounding := g.shouldUseGrounding(userMessage, historyMap, session.SearchState.Category)
 
@@ -651,7 +651,21 @@ func (g *GeminiService) ProcessWithUniversalPrompt(
 	if resp.Candidates[0].GroundingMetadata != nil {
 		hasGroundingMetadata = true
 		if resp.Candidates[0].GroundingMetadata.GroundingChunks != nil {
-			fmt.Printf("✅ Grounding metadata found (%d chunks)\n", len(resp.Candidates[0].GroundingMetadata.GroundingChunks))
+			chunks := resp.Candidates[0].GroundingMetadata.GroundingChunks
+			fmt.Printf("✅ Grounding metadata found (%d chunks)\n", len(chunks))
+
+			// Log first 3 chunks for debugging price/model accuracy
+			for i, chunk := range chunks {
+				if i >= 3 {
+					break
+				}
+				if chunk.Web != nil && chunk.Web.Title != "" {
+					fmt.Printf("   📄 Chunk %d: %s\n", i+1, chunk.Web.Title)
+					if chunk.Web.URI != "" {
+						fmt.Printf("      🔗 Source: %s\n", chunk.Web.URI)
+					}
+				}
+			}
 		} else {
 			fmt.Printf("✅ Grounding metadata present\n")
 		}
