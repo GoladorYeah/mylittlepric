@@ -34,7 +34,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push('/login?from=/history');
     }
   }, [isAuthenticated, authLoading, router]);
 
@@ -205,7 +205,7 @@ export default function HistoryPage() {
                 Access your search history across all devices
               </p>
               <button
-                onClick={() => router.push('/login')}
+                onClick={() => router.push('/login?from=/history')}
                 className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-all"
               >
                 Sign in
