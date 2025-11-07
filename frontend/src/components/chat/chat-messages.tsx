@@ -30,24 +30,22 @@ export function ChatMessages({
   }, [messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden">
-      <div className="w-full max-w-4xl mx-auto px-4 py-8">
-        {messages.length === 0 ? (
-          <ChatEmptyState />
-        ) : (
-          <div key={sessionId} className="space-y-6">
-            {messages.map((message) => (
-              <ChatMessageComponent
-                key={message.id}
-                message={message}
-                onQuickReply={onQuickReply}
-              />
-            ))}
-            {isLoading && <LoadingDots />}
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+    <div className="w-full max-w-4xl mx-auto px-4 pt-8 pb-4">
+      {messages.length === 0 ? (
+        <ChatEmptyState />
+      ) : (
+        <div key={sessionId} className="space-y-6">
+          {messages.map((message) => (
+            <ChatMessageComponent
+              key={message.id}
+              message={message}
+              onQuickReply={onQuickReply}
+            />
+          ))}
+          {isLoading && <LoadingDots />}
+        </div>
+      )}
+      <div ref={messagesEndRef} />
     </div>
   );
 }
