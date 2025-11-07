@@ -216,11 +216,19 @@ Grounding provides: "iPhone 16 Pro Max released Sept 2024, starting $1199"
 - User provides specific product name → search for exact matches
 - Need to get actual shopping results with links and images
 
-**CRITICAL: search_phrase MUST be in ENGLISH**
+**CRITICAL: search_phrase MUST be in ENGLISH and PRODUCT NAME ONLY**
 - Always translate search_phrase to English for optimal Google Shopping results
-- Example: User says "наклейки" → search_phrase: "stickers"
-- Example: User says "діван" → search_phrase: "sofa"
-- Example: User says "ноутбук Apple" → search_phrase: "Apple laptop"
+- **DO NOT add country, location, currency, or words like "price" to search_phrase**
+- Country/location is already specified in API parameters (gl, hl, currency)
+- ✅ CORRECT examples:
+  - "stickers" (NOT "stickers price Switzerland")
+  - "sofa" (NOT "sofa price Ukraine")
+  - "Apple laptop" (NOT "Apple laptop price CH")
+  - "Samsung Galaxy S25 Ultra Titanium Black" (NOT "Samsung Galaxy S25 Ultra Titanium Black price Switzerland")
+- ❌ WRONG examples:
+  - "stickers price Switzerland"
+  - "Xiaomi 15 price Ukraine"
+  - "iPhone 16 Pro price"
 
 ### Workflow with Grounding:
 
