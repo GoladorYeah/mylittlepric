@@ -21,22 +21,9 @@ type CacheService struct {
 	ctx       context.Context
 }
 
-func NewCacheService(cfg *config.Config, embedding *EmbeddingService) *CacheService {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisURL,
-		Password: cfg.RedisPassword,
-		DB:       cfg.RedisDB,
-	})
-
-	return &CacheService{
-		redis:     redisClient,
-		config:    cfg,
-		embedding: embedding,
-		ctx:       context.Background(),
-	}
-}
-
-func NewCacheServiceWithClient(redisClient *redis.Client, cfg *config.Config, embedding *EmbeddingService) *CacheService {
+// NewCacheService creates a new CacheService with injected dependencies
+// Following the Dependency Injection pattern used throughout the application
+func NewCacheService(redisClient *redis.Client, cfg *config.Config, embedding *EmbeddingService) *CacheService {
 	return &CacheService{
 		redis:     redisClient,
 		config:    cfg,

@@ -41,6 +41,14 @@ func NewAuthService(redis *redis.Client, jwtService *utils.JWTService, googleOAu
 
 // Signup creates a new user account
 func (s *AuthService) Signup(req *models.SignupRequest) (*models.AuthResponse, error) {
+	// Validate input
+	if err := validateEmail(req.Email); err != nil {
+		return nil, fmt.Errorf("invalid email: %w", err)
+	}
+	if err := validatePassword(req.Password); err != nil {
+		return nil, fmt.Errorf("invalid password: %w", err)
+	}
+
 	// Check if user already exists
 	exists, err := s.userExists(req.Email)
 	if err != nil {
@@ -122,6 +130,14 @@ func (s *AuthService) GoogleLogin(idToken string) (*models.AuthResponse, error) 
 
 // Login authenticates a user and returns tokens
 func (s *AuthService) Login(req *models.LoginRequest) (*models.AuthResponse, error) {
+	// Validate input
+	if err := validateEmail(req.Email); err != nil {
+		return nil, fmt.Errorf("invalid email: %w", err)
+	}
+	if req.Password == "" {
+		return nil, fmt.Errorf("password cannot be empty")
+	}
+
 	// Get user by email
 	user, err := s.getUserByEmail(req.Email)
 	if err != nil {
