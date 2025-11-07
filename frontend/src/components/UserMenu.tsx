@@ -1,21 +1,21 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
 import { useChatStore } from "@/lib/store";
 import { AuthAPI } from "@/lib/api/auth";
 import { LogOut, Settings } from "lucide-react";
-import SettingsDialog from "./SettingsDialog";
 
 interface UserMenuProps {
   showName?: boolean;
 }
 
 export default function UserMenu({ showName = false }: UserMenuProps) {
+  const router = useRouter();
   const { user, isAuthenticated, clearAuth, refreshToken } = useAuthStore();
   const { isSidebarOpen } = useChatStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -36,7 +36,7 @@ export default function UserMenu({ showName = false }: UserMenuProps) {
 
   const handleSettings = () => {
     setIsMenuOpen(false);
-    setIsSettingsOpen(true);
+    router.push("/settings");
   };
 
   const handleLogout = async () => {
@@ -144,11 +144,6 @@ export default function UserMenu({ showName = false }: UserMenuProps) {
           </div>
         )}
       </div>
-
-      <SettingsDialog
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
     </>
   );
 }
