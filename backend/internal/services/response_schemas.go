@@ -56,7 +56,7 @@ func GetSearchResponseSchema() *genai.Schema {
 			},
 			"search_phrase": {
 				Type:        genai.TypeString,
-				Description: "Complete detailed query with all specifications and parameters",
+				Description: "Product name with specifications ONLY. DO NOT include country, location, currency, or words like 'price'. Example: 'Samsung Galaxy S25 Ultra Titanium Black', NOT 'Samsung Galaxy S25 Ultra Titanium Black price Switzerland'",
 			},
 			"search_type": {
 				Type:        genai.TypeString,
@@ -179,7 +179,7 @@ func GetUniversalResponseSchema() *genai.Schema {
 			"search_phrase": {
 				Type:        genai.TypeString,
 				Nullable:    boolPtr(true),
-				Description: "Search query (for search type)",
+				Description: "Product name with specifications ONLY. DO NOT include country, location, currency, or words like 'price'",
 			},
 			"search_type": {
 				Type:        genai.TypeString,
