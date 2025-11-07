@@ -4,19 +4,54 @@
 
 Cross-Origin Resource Sharing (CORS) is a security feature that controls which domains can access your API. This guide helps you configure CORS correctly for MyLittlePrice.
 
-## Quick Fix for Production
+## 🚨 Quick Fix for Production Errors
 
 If you're seeing this error in production:
 ```
-Access to fetch at 'https://api.mylittleprice.com/api/auth/google' from origin 'https://mylittleprice.com'
+Access to fetch at 'https://api.mylittleprice.com/api/product-details' from origin 'https://mylittleprice.com'
 has been blocked by CORS policy: Response to preflight request doesn't pass access control check:
 No 'Access-Control-Allow-Origin' header is present on the requested resource.
 ```
+
+**Root Cause:** Your production backend server doesn't have the correct `CORS_ORIGINS` environment variable configured.
 
 **Solution:** Set the `CORS_ORIGINS` environment variable on your production server:
 
 ```bash
 CORS_ORIGINS=https://mylittleprice.com,https://www.mylittleprice.com
+```
+
+### How to Fix (Deployment-Specific)
+
+#### Docker Deployment
+1. Add to your production `.env` file:
+   ```bash
+   CORS_ORIGINS=https://mylittleprice.com,https://www.mylittleprice.com
+   ```
+
+2. Restart your backend container:
+   ```bash
+   docker-compose -f docker-compose.yml -f docker-compose.prod.yml restart backend
+   ```
+
+#### Environment Variable Deployment (Vercel, Heroku, AWS, etc.)
+1. Go to your hosting platform's environment variables section
+2. Add or update: `CORS_ORIGINS=https://mylittleprice.com,https://www.mylittleprice.com`
+3. Redeploy or restart your backend service
+
+#### Verify the Fix
+After updating, test with curl:
+```bash
+curl -X OPTIONS https://api.mylittleprice.com/api/product-details \
+  -H "Origin: https://mylittleprice.com" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: Content-Type" \
+  -v
+```
+
+Expected response should include:
+```
+Access-Control-Allow-Origin: https://mylittleprice.com
 ```
 
 ## Configuration
