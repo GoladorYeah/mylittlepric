@@ -7,20 +7,30 @@ import { t } from 'elysia';
 
 export namespace WebSocketModel {
   // ═══════════════════════════════════════════════════════════
-  // WEBSOCKET MESSAGE TYPES
+  // WEBSOCKET QUERY PARAMETERS
+  // ═══════════════════════════════════════════════════════════
+
+  // Query parameters for WebSocket connection (e.g., /ws?token=xxx)
+  export const query = t.Object({
+    token: t.Optional(t.String()),
+  });
+
+  export type query = typeof query.static;
+
+  // ═══════════════════════════════════════════════════════════
+  // WEBSOCKET MESSAGE TYPES (BODY)
   // ═══════════════════════════════════════════════════════════
 
   // Incoming chat message
   export const chatMessage = t.Object({
     type: t.Literal('chat'),
     session_id: t.String(),
-    message: t.String(),
+    message: t.String({ minLength: 1 }),
     country: t.Optional(t.String()),
     language: t.Optional(t.String()),
     currency: t.Optional(t.String()),
     new_search: t.Optional(t.Boolean()),
     current_category: t.Optional(t.String()),
-    access_token: t.Optional(t.String()),
   });
 
   export type chatMessage = typeof chatMessage.static;
@@ -29,17 +39,16 @@ export namespace WebSocketModel {
   export const productDetailsMessage = t.Object({
     type: t.Literal('product-details'),
     session_id: t.String(),
-    page_token: t.String(),
+    page_token: t.String({ minLength: 1 }),
     country: t.Optional(t.String()),
-    access_token: t.Optional(t.String()),
   });
 
   export type productDetailsMessage = typeof productDetailsMessage.static;
 
   // Union of all incoming message types
-  export const incomingMessage = t.Union([chatMessage, productDetailsMessage]);
+  export const body = t.Union([chatMessage, productDetailsMessage]);
 
-  export type incomingMessage = typeof incomingMessage.static;
+  export type body = typeof body.static;
 
   // ═══════════════════════════════════════════════════════════
   // WEBSOCKET RESPONSE TYPES
