@@ -42,11 +42,30 @@ func main() {
 		TimeFormat: "15:04:05",
 	}))
 
+	// CORS configuration with dynamic origin validation
 	fiberApp.Use(cors.New(cors.Config{
-		AllowOrigins:     strings.Join(cfg.CORSOrigins, ","),
+		AllowOriginsFunc: func(origin string) bool {
+			// Check if origin is in the allowed list
+			for _, allowedOrigin := range cfg.CORSOrigins {
+				if origin == allowedOrigin {
+					// Log successful CORS validation in development
+					if cfg.Env == "development" {
+						log.Printf("✅ CORS allowed origin: %s", origin)
+					}
+					return true
+				}
+			}
+
+			// Always log rejected origins for debugging (even in production)
+			log.Printf("❌ CORS REJECTED - Origin: '%s' not in allowed list: %v", origin, cfg.CORSOrigins)
+			log.Printf("💡 Fix: Add '%s' to CORS_ORIGINS environment variable", origin)
+
+			return false
+		},
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,
+		MaxAge:           86400, // 24 hours for preflight cache
 	}))
 
 	app.SetupRoutes(fiberApp, c)
