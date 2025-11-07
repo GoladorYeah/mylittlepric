@@ -4,7 +4,7 @@
  */
 
 import type { Config } from './config';
-import { initRedis, initPostgres } from './utils/database';
+import { initRedis, initPrisma } from './utils/database';
 import { KeyRotator } from './utils/key-rotator';
 import { JWTService } from './utils/jwt';
 import { EmbeddingService } from './services/embedding.service';
@@ -16,11 +16,12 @@ import { SessionService } from './services/session.service';
 import { GoogleOAuthService, AuthService } from './services/auth.service';
 import { SearchHistoryService } from './services/search-history.service';
 import type { Redis } from 'ioredis';
+import type { PrismaClient } from '@prisma/client';
 
 export class Container {
   public config: Config;
   public redis: Redis;
-  public db: any;
+  public prisma: PrismaClient;
 
   // Utilities
   public geminiRotator: KeyRotator;
@@ -44,7 +45,7 @@ export class Container {
     // Initialize databases
     console.log('🚀 Initializing databases...');
     this.redis = initRedis(config);
-    this.db = initPostgres(config);
+    this.prisma = initPrisma();
 
     // Initialize key rotators
     console.log('🔑 Initializing key rotators...');
@@ -112,8 +113,8 @@ export class Container {
     );
     console.log('✅ Auth Service initialized');
 
-    this.searchHistoryService = new SearchHistoryService(this.db);
-    console.log('✅ Search History Service initialized');
+    this.searchHistoryService = new SearchHistoryService(this.prisma);
+    console.log('✅ Search History Service initialized (with Prisma)');
 
     console.log('✅ All services initialized successfully');
   }
@@ -162,8 +163,8 @@ export class Container {
       await this.redis.quit();
     }
 
-    if (this.db) {
-      await this.db.end();
+    if (this.prisma) {
+      await this.prisma.$disconnect();
     }
 
     console.log('✅ Container closed gracefully');

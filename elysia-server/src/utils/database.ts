@@ -1,10 +1,41 @@
 /**
- * Database connection utilities for Redis and PostgreSQL
+ * Database connection utilities for Redis and PostgreSQL (with Prisma)
  */
 
 import Redis from 'ioredis';
-import { Pool } from 'pg'
+import { PrismaClient } from '@prisma/client';
 import type { Config } from '../config';
+
+/**
+ * Global Prisma client instance (singleton pattern for Bun)
+ */
+declare global {
+  var prisma: PrismaClient | undefined;
+}
+
+/**
+ * Initialize Prisma client with singleton pattern
+ * This prevents multiple instances in development with hot reload
+ */
+export function initPrisma(): PrismaClient {
+  if (global.prisma) {
+    return global.prisma;
+  }
+
+  const prisma = new PrismaClient({
+    log: process.env.NODE_ENV === 'development'
+      ? ['query', 'error', 'warn']
+      : ['error'],
+  });
+
+  // Store in global for hot reload
+  if (process.env.NODE_ENV === 'development') {
+    global.prisma = prisma;
+  }
+
+  console.log('✅ Connected to PostgreSQL via Prisma');
+  return prisma;
+}
 
 /**
  * Initialize Redis connection
@@ -36,21 +67,6 @@ export function initRedis(config: Config): Redis {
 }
 
 /**
- * Initialize PostgreSQL connection
- */
-export function initPostgres(config: Config) {
-  const sql = Pool(config.databaseUrl, {
-    max: 25,
-    idle_timeout: 20,
-    connect_timeout: 10,
-    onnotice: () => {}, // Suppress notices
-  });
-
-  console.log('✅ Connected to PostgreSQL');
-  return sql;
-}
-
-/**
  * Health check for Redis
  */
 export async function checkRedisHealth(redis: Redis): Promise<boolean> {
@@ -64,14 +80,14 @@ export async function checkRedisHealth(redis: Redis): Promise<boolean> {
 }
 
 /**
- * Health check for PostgreSQL
+ * Health check for PostgreSQL via Prisma
  */
-export async function checkPostgresHealth(sql: any): Promise<boolean> {
+export async function checkPrismaHealth(prisma: PrismaClient): Promise<boolean> {
   try {
-    await sql`SELECT 1`;
+    await prisma.$queryRaw`SELECT 1`;
     return true;
   } catch (error) {
-    console.error('PostgreSQL health check failed:', error);
+    console.error('Prisma health check failed:', error);
     return false;
   }
 }
