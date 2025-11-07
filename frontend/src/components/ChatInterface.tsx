@@ -33,23 +33,26 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
 
       {/* Main content area - pushed by sidebar on desktop */}
       <div
-        className={`flex flex-col min-h-screen w-full bg-gradient-to-br from-background via-background to-background/95 transition-[padding] duration-300 ease-in-out will-change-[padding] ${
+        className={`min-h-screen w-full bg-gradient-to-br from-background via-background to-background/95 transition-[padding] duration-300 ease-in-out will-change-[padding] ${
           isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
         }`}
       >
-        {/* Messages and input in single scroll area */}
+        {/* Messages - scrolls naturally with page */}
         <ChatMessages
           messages={messages}
           isLoading={isLoading}
           onQuickReply={handleQuickReply}
         />
 
-        <ChatInput
-          onSend={sendMessage}
-          isLoading={isLoading}
-          isConnected={isConnected}
-          connectionStatus={connectionStatus}
-        />
+        {/* Sticky input field - always visible */}
+        <div className="sticky bottom-0 bg-background">
+          <ChatInput
+            onSend={sendMessage}
+            isLoading={isLoading}
+            isConnected={isConnected}
+            connectionStatus={connectionStatus}
+          />
+        </div>
       </div>
     </>
   );

@@ -30,7 +30,7 @@ export function ChatMessages({
   }, [messages]);
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 pt-8 pb-4">
+    <div className="w-full max-w-4xl mx-auto px-4 pt-8 pb-24">
       {messages.length === 0 ? (
         <ChatEmptyState />
       ) : (
