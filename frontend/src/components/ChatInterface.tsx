@@ -47,7 +47,7 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
         </div>
 
         {/* Fixed input area at bottom */}
-        <div className="flex-shrink-0 bg-background border-t border-border/30">
+        <div className="flex-shrink-0">
           <ChatInput
             onSend={sendMessage}
             isLoading={isLoading}
