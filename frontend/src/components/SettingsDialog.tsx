@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Globe, Languages, Check, ChevronDown } from "lucide-react";
+import { X, Globe, Languages, Check, ChevronDown, Moon, Sun, Monitor } from "lucide-react";
 import { useChatStore } from "@/lib/store";
 import { getCurrencyForCountry } from "@/lib/locale";
+import { useTheme } from "next-themes";
 
 interface Country {
   code: string;
@@ -106,6 +107,8 @@ interface SettingsDialogProps {
 
 export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const { country, language, currency, setCountry, setLanguage, setCurrency } = useChatStore();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [countrySearchQuery, setCountrySearchQuery] = useState("");
   const [languageSearchQuery, setLanguageSearchQuery] = useState("");
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
@@ -130,6 +133,11 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
       l.nativeName.toLowerCase().includes(languageSearchQuery.toLowerCase()) ||
       l.code.toLowerCase().includes(languageSearchQuery.toLowerCase())
   );
+
+  // Set mounted state for theme
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close dialog on ESC key
   useEffect(() => {
@@ -367,6 +375,68 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Appearance Settings Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Monitor className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold text-foreground">Appearance</h3>
+            </div>
+
+            <div className="space-y-4 pl-7">
+              {/* Theme Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Theme
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Choose your preferred color scheme
+                </p>
+                {mounted && (
+                  <div className="grid grid-cols-3 gap-3 pt-2">
+                    <button
+                      onClick={() => setTheme("light")}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all cursor-pointer ${
+                        theme === "light"
+                          ? "bg-primary/10 border-primary"
+                          : "bg-secondary border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <Sun className={`w-6 h-6 ${theme === "light" ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className="text-sm font-medium">Light</span>
+                      {theme === "light" && <Check className="w-4 h-4 text-primary" />}
+                    </button>
+
+                    <button
+                      onClick={() => setTheme("dark")}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all cursor-pointer ${
+                        theme === "dark"
+                          ? "bg-primary/10 border-primary"
+                          : "bg-secondary border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <Moon className={`w-6 h-6 ${theme === "dark" ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className="text-sm font-medium">Dark</span>
+                      {theme === "dark" && <Check className="w-4 h-4 text-primary" />}
+                    </button>
+
+                    <button
+                      onClick={() => setTheme("system")}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all cursor-pointer ${
+                        theme === "system"
+                          ? "bg-primary/10 border-primary"
+                          : "bg-secondary border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <Monitor className={`w-6 h-6 ${theme === "system" ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className="text-sm font-medium">System</span>
+                      {theme === "system" && <Check className="w-4 h-4 text-primary" />}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
