@@ -4,7 +4,6 @@
  */
 
 import { Elysia } from 'elysia';
-import { ws } from '@elysiajs/ws';
 import type { Container } from '../../container';
 import { WebSocketModel } from './model';
 import { Chat } from '../chat/service';
@@ -22,7 +21,6 @@ import { Chat } from '../chat/service';
  */
 export const websocketModule = (container: Container) =>
   new Elysia()
-    .use(ws())
     .ws('/ws', {
       // ═══════════════════════════════════════════════════════════
       // SCHEMA VALIDATION
