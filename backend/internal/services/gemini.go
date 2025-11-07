@@ -113,11 +113,6 @@ func (g *GeminiService) ProcessMessageWithContext(
 	lastProduct *models.ProductInfo,
 ) (*models.GeminiResponse, int, error) {
 
-	// УБРАЛИ rotateClient() отсюда!
-	// if err := g.rotateClient(); err != nil {
-	// 	return nil, -1, err
-	// }
-
 	if currentCategory == "" {
 		detectedCategory := g.embedding.DetectCategory(userMessage)
 		if detectedCategory != "" {
@@ -276,10 +271,6 @@ func (g *GeminiService) shouldUseGrounding(userMessage string, history []map[str
 	g.groundingStats.AverageConfidence = 1.0
 
 	return true
-
-	// Smart strategy code preserved for future reference:
-	// decision := g.groundingStrategy.ShouldUseGrounding(userMessage, history, category)
-	// return decision.UseGrounding
 }
 
 func (g *GeminiService) extractJSONFromText(text string) string {

@@ -146,7 +146,7 @@ func (c *Container) initServices() error {
 	c.EmbeddingService = services.NewEmbeddingService(geminiClient, c.Redis, c.Config)
 	log.Println("🧠 Embedding Service initialized")
 
-	c.CacheService = services.NewCacheServiceWithClient(c.Redis, c.Config, c.EmbeddingService)
+	c.CacheService = services.NewCacheService(c.Redis, c.Config, c.EmbeddingService)
 
 	c.GeminiService = services.NewGeminiService(c.GeminiRotator, c.Config, c.EmbeddingService)
 	log.Printf("🎯 Smart Grounding: '%s' mode", c.Config.GeminiGroundingMode)

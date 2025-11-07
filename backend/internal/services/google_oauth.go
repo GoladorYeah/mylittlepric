@@ -46,6 +46,11 @@ type tokenInfoResponse struct {
 
 // VerifyIDToken verifies a Google ID token and returns user information
 func (s *GoogleOAuthService) VerifyIDToken(ctx context.Context, idToken string) (*models.GoogleUserInfo, error) {
+	// Validate input
+	if err := validateIDToken(idToken); err != nil {
+		return nil, fmt.Errorf("invalid ID token: %w", err)
+	}
+
 	// Call Google's tokeninfo endpoint to verify the token
 	url := googleTokenInfoURL + idToken
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

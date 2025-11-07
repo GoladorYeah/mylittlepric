@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -227,7 +228,7 @@ func (c *ContextExtractorService) ExtractExclusions(
 				}
 			}
 
-			if matched && !contains(exclusions, category) {
+			if matched && !slices.Contains(exclusions, category) {
 				exclusions = append(exclusions, category)
 			}
 		}
@@ -279,7 +280,7 @@ func (c *ContextExtractorService) UpdateConversationContext(
 	if len(exclusions) > 0 {
 		// Merge with existing exclusions
 		for _, excl := range exclusions {
-			if !contains(ctx.Exclusions, excl) {
+			if !slices.Contains(ctx.Exclusions, excl) {
 				ctx.Exclusions = append(ctx.Exclusions, excl)
 			}
 		}
@@ -336,13 +337,4 @@ func (c *ContextExtractorService) buildConversationText(messages []models.CycleM
 	}
 
 	return sb.String()
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

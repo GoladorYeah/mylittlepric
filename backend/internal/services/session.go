@@ -65,6 +65,11 @@ func (s *SessionService) CreateSession(sessionID, country, language, currency st
 }
 
 func (s *SessionService) GetSession(sessionID string) (*models.ChatSession, error) {
+	// Validate input
+	if err := validateSessionID(sessionID); err != nil {
+		return nil, fmt.Errorf("invalid session ID: %w", err)
+	}
+
 	// Try Redis first (fast cache)
 	key := fmt.Sprintf(constants.CachePrefixSession+"%s", sessionID)
 

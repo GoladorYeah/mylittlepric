@@ -34,6 +34,11 @@ func NewSerpService(keyRotator *utils.KeyRotator, cfg *config.Config) *SerpServi
 }
 
 func (s *SerpService) SearchProducts(query, searchType, country string, minPrice, maxPrice *float64) ([]models.ProductCard, int, error) {
+	// Validate input
+	if err := validateSearchQuery(query); err != nil {
+		return nil, -1, fmt.Errorf("invalid search query: %w", err)
+	}
+
 	const maxRetries = 2
 	var lastErr error
 	var lastKeyIndex int = -1
@@ -457,19 +462,6 @@ func (s *SerpService) extractPageToken(item domain.ShoppingItem) string {
 	}
 
 	return ""
-}
-
-func (s *SerpService) getMaxProducts(searchType string) int {
-	switch searchType {
-	case "exact":
-		return s.config.SerpMaxProductsExact
-	case "parameters":
-		return s.config.SerpMaxProductsParameters
-	case "category":
-		return s.config.SerpMaxProductsCategory
-	default:
-		return s.config.SerpMaxProductsDefault
-	}
 }
 
 func extractTokenFromSerpAPILink(link string) string {
