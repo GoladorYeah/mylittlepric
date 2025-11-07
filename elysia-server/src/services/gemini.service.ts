@@ -3,7 +3,7 @@
  * Includes grounding strategy, prompt management, and response parsing
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import type { Config } from '../config';
 import type { KeyRotator } from '../utils/key-rotator';
 import type { EmbeddingService } from './embedding.service';
@@ -11,7 +11,7 @@ import type { GroundingStrategy } from './grounding-strategy.service';
 import type { GeminiResponse, Message, ProductInfo } from '../types';
 
 export class GeminiService {
-  private genai: GoogleGenerativeAI;
+  private genai: GoogleGenAI;
   private keyRotator: KeyRotator;
   private config: Config;
   private embedding: EmbeddingService;
@@ -31,7 +31,7 @@ export class GeminiService {
 
     // Initialize with first key
     const { key, index } = this.keyRotator.getKeyByIndex(0);
-    this.genai = new GoogleGenerativeAI(key);
+    this.genai = new GoogleGenAI(key);
     this.currentKeyIndex = index;
   }
 
@@ -40,7 +40,7 @@ export class GeminiService {
    */
   private async rotateKey(): Promise<void> {
     const { key, index } = await this.keyRotator.getNextKey();
-    this.genai = new GoogleGenerativeAI(key);
+    this.genai = new GoogleGenAI(key);
     this.currentKeyIndex = index;
   }
 

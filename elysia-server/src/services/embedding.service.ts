@@ -3,19 +3,19 @@
  * Used for category detection and semantic similarity matching
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import type { Redis } from 'ioredis';
 import type { Config } from '../config';
 import { cosineSimilarity } from '../utils/math';
 
 export class EmbeddingService {
-  private genai: GoogleGenerativeAI;
+  private genai: GoogleGenAI;
   private redis: Redis;
   private config: Config;
   private categoryEmbeddings: Map<string, number[]> = new Map();
 
   constructor(apiKey: string, redis: Redis, config: Config) {
-    this.genai = new GoogleGenerativeAI(apiKey);
+    this.genai = new GoogleGenAI(apiKey);
     this.redis = redis;
     this.config = config;
     this.loadCategoryEmbeddings();
