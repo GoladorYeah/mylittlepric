@@ -5,7 +5,6 @@ import { useChatStore } from "@/lib/store";
 import { SearchHistory } from "./SearchHistory";
 import { ChatMessages } from "./chat/chat-messages";
 import { ChatInput } from "./chat/chat-input";
-import { AdPlaceholder } from "./AdPlaceholder";
 
 interface ChatInterfaceProps {
   initialQuery?: string;
@@ -38,21 +37,17 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
           isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
         }`}
       >
-        {/* Top Banner Ad - Only show when there are messages */}
-        {messages.length > 0 && (
-          <div className="flex-shrink-0 flex justify-center py-3 px-4 border-b border-border/30 bg-muted/20 backdrop-blur-sm">
-            <AdPlaceholder format="banner" />
-          </div>
-        )}
-
-        {/* Unified scrollable area containing both messages and input */}
+        {/* Scrollable messages area */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <ChatMessages
             messages={messages}
             isLoading={isLoading}
             onQuickReply={handleQuickReply}
           />
+        </div>
 
+        {/* Fixed input area at bottom */}
+        <div className="flex-shrink-0 bg-background border-t border-border/30">
           <ChatInput
             onSend={sendMessage}
             isLoading={isLoading}
