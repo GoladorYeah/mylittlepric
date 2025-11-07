@@ -276,7 +276,6 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         currency,
         new_search: false,
         current_category: currentCategory,
-        ...(accessToken && { access_token: accessToken }),
       });
     } catch (error) {
       console.error("Error sending message:", error);
