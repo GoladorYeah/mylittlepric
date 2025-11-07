@@ -1,74 +1,130 @@
 /**
- * Auth module - handles authentication endpoints
+ * Auth Module - Controller (HTTP routing & validation)
+ * Following Elysia Best Practices: Elysia instance = controller
  */
 
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import type { Container } from '../../container';
+import { AuthModel } from './model';
+import { Auth, GoogleOAuth } from './service';
 
+/**
+ * Auth Module
+ * Handles Google OAuth authentication, token refresh, and logout
+ */
 export const authModule = (container: Container) =>
   new Elysia({ prefix: '/api/auth' })
-    // Get Google OAuth URL
-    .get('/google/url', ({ query }) => {
-      const state = query.state || Math.random().toString(36).substring(7);
-      const url = container.googleOAuthService.getAuthUrl(state);
-
-      return { url, state };
-    })
-
-    // Google OAuth callback
-    .get('/google/callback', async ({ query }) => {
-      try {
-        const { code } = query;
-
-        if (!code) {
-          return { error: true, message: 'No authorization code provided' };
-        }
-
-        // Exchange code for tokens
-        const googleTokens = await container.googleOAuthService.exchangeCode(
-          code
-        );
-
-        // Get user info
-        const userInfo = await container.googleOAuthService.getUserInfo(
-          googleTokens.access_token
-        );
-
-        // Create or update user
-        const user = await container.authService.createOrUpdateUser(userInfo);
-
-        // Generate JWT tokens
-        const tokens = await container.authService.generateTokens(user);
-
-        return {
-          user,
-          tokens,
-        };
-      } catch (error: any) {
-        console.error('OAuth callback error:', error);
-        return {
-          error: true,
-          message: 'Failed to authenticate with Google',
-        };
+    // ═══════════════════════════════════════════════════════════
+    // GET /api/auth/google/url
+    // Get Google OAuth authorization URL
+    // ═══════════════════════════════════════════════════════════
+    .get(
+      '/google/url',
+      ({ query }) => {
+        const state = query.state || Math.random().toString(36).substring(7);
+        return GoogleOAuth.getAuthUrl(container.config, state);
+      },
+      {
+        query: AuthModel.googleUrlQuery,
+        response: {
+          200: AuthModel.googleUrlResponse,
+        },
       }
-    })
+    )
 
-    // Refresh tokens
+    // ═══════════════════════════════════════════════════════════
+    // GET /api/auth/google/callback
+    // Handle Google OAuth callback
+    // ═══════════════════════════════════════════════════════════
+    .get(
+      '/google/callback',
+      async ({ query, set }) => {
+        try {
+          const { code } = query;
+
+          if (!code) {
+            set.status = 400;
+            return {
+              error: true,
+              message: 'No authorization code provided' satisfies AuthModel.noCodeError,
+            };
+          }
+
+          // Exchange code for tokens
+          const googleTokens = await GoogleOAuth.exchangeCode(
+            container.config,
+            code
+          );
+
+          // Get user info from Google
+          const userInfo = await GoogleOAuth.getUserInfo(
+            googleTokens.access_token
+          );
+
+          // Create or update user in database
+          const user = await Auth.createOrUpdateUser(
+            container.prisma,
+            userInfo
+          );
+
+          // Generate JWT tokens
+          const tokens = await Auth.generateTokens(
+            container.jwtService,
+            container.redis,
+            container.prisma,
+            user
+          );
+
+          return {
+            user,
+            tokens,
+          };
+        } catch (error: any) {
+          console.error('OAuth callback error:', error);
+          set.status = 500;
+          return {
+            error: true,
+            message: 'Failed to authenticate with Google' satisfies AuthModel.authFailedError,
+          };
+        }
+      },
+      {
+        query: AuthModel.googleCallbackQuery,
+        response: {
+          200: AuthModel.authResponse,
+          400: AuthModel.errorResponse,
+          500: AuthModel.errorResponse,
+        },
+      }
+    )
+
+    // ═══════════════════════════════════════════════════════════
+    // POST /api/auth/refresh
+    // Refresh access token using refresh token
+    // ═══════════════════════════════════════════════════════════
     .post(
       '/refresh',
-      async ({ body }) => {
+      async ({ body, set }) => {
         try {
-          const tokens = await container.authService.refreshTokens(
+          const tokens = await Auth.refreshTokens(
+            container.jwtService,
+            container.redis,
+            container.prisma,
             body.refresh_token
           );
 
           if (!tokens) {
-            return { error: true, message: 'Invalid refresh token' };
+            set.status = 401;
+            return {
+              error: true,
+              message: 'Invalid refresh token' satisfies AuthModel.invalidTokenError,
+            };
           }
 
           return { tokens };
         } catch (error: any) {
           console.error('Token refresh error:', error);
+          set.status = 500;
           return {
             error: true,
             message: 'Failed to refresh tokens',
@@ -76,30 +132,50 @@ export const authModule = (container: Container) =>
         }
       },
       {
-        body: t.Object({
-          refresh_token: t.String(),
-        }),
+        body: AuthModel.refreshTokenBody,
+        response: {
+          200: AuthModel.refreshTokenResponse,
+          401: AuthModel.errorResponse,
+          500: AuthModel.errorResponse,
+        },
       }
     )
 
-    // Verify token
-    .get('/verify', async ({ headers }) => {
+    // ═══════════════════════════════════════════════════════════
+    // GET /api/auth/verify
+    // Verify access token and return user info
+    // ═══════════════════════════════════════════════════════════
+    .get('/verify', async ({ headers, set }) => {
       try {
         const authHeader = headers.authorization;
+
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          return { error: true, message: 'No token provided' };
+          set.status = 401;
+          return {
+            error: true,
+            message: 'No token provided' satisfies AuthModel.noTokenError,
+          };
         }
 
         const token = authHeader.substring(7);
-        const user = await container.authService.verifyAccessToken(token);
+        const user = await Auth.verifyAccessToken(
+          container.jwtService,
+          container.prisma,
+          token
+        );
 
         if (!user) {
-          return { error: true, message: 'Invalid token' };
+          set.status = 401;
+          return {
+            error: true,
+            message: 'Invalid token' satisfies AuthModel.invalidTokenError,
+          };
         }
 
         return { user };
       } catch (error: any) {
         console.error('Token verification error:', error);
+        set.status = 500;
         return {
           error: true,
           message: 'Failed to verify token',
@@ -107,24 +183,33 @@ export const authModule = (container: Container) =>
       }
     })
 
-    // Logout
-    .post('/logout', async ({ headers }) => {
+    // ═══════════════════════════════════════════════════════════
+    // POST /api/auth/logout
+    // Logout user and invalidate refresh token
+    // ═══════════════════════════════════════════════════════════
+    .post('/logout', async ({ headers, set }) => {
       try {
         const authHeader = headers.authorization;
+
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          return { error: true, message: 'No token provided' };
+          set.status = 401;
+          return {
+            error: true,
+            message: 'No token provided' satisfies AuthModel.noTokenError,
+          };
         }
 
         const token = authHeader.substring(7);
         const payload = await container.jwtService.verifyAccessToken(token);
 
         if (payload) {
-          await container.authService.logout(payload.user_id);
+          await Auth.logout(container.redis, container.prisma, payload.user_id);
         }
 
         return { success: true };
       } catch (error: any) {
         console.error('Logout error:', error);
+        set.status = 500;
         return {
           error: true,
           message: 'Failed to logout',

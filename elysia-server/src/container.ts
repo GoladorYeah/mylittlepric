@@ -1,6 +1,7 @@
 /**
  * Dependency Injection Container
  * Initializes and provides access to all services
+ * Refactored to follow Elysia Best Practices
  */
 
 import type { Config } from './config';
@@ -13,11 +14,14 @@ import { GroundingStrategy } from './services/grounding-strategy.service';
 import { GeminiService } from './services/gemini.service';
 import { SerpService } from './services/serp.service';
 import { SessionService } from './services/session.service';
-import { GoogleOAuthService, AuthService } from './services/auth.service';
 import { SearchHistoryService } from './services/search-history.service';
 import type { Redis } from 'ioredis';
 import type { PrismaClient } from '@prisma/client';
 
+/**
+ * Container for dependency injection
+ * Note: Auth services moved to modules/auth/service.ts (abstract static classes)
+ */
 export class Container {
   public config: Config;
   public redis: Redis;
@@ -35,8 +39,6 @@ export class Container {
   public geminiService: GeminiService;
   public serpService: SerpService;
   public sessionService: SessionService;
-  public googleOAuthService: GoogleOAuthService;
-  public authService: AuthService;
   public searchHistoryService: SearchHistoryService;
 
   constructor(config: Config) {
@@ -103,20 +105,11 @@ export class Container {
     );
     console.log('✅ Session Service initialized');
 
-    this.googleOAuthService = new GoogleOAuthService(config);
-    console.log('✅ Google OAuth Service initialized');
-
-    this.authService = new AuthService(
-      this.redis,
-      this.jwtService,
-      this.googleOAuthService
-    );
-    console.log('✅ Auth Service initialized');
-
     this.searchHistoryService = new SearchHistoryService(this.prisma);
     console.log('✅ Search History Service initialized (with Prisma)');
 
     console.log('✅ All services initialized successfully');
+    console.log('📝 Note: Auth services use abstract static classes (no instance allocation)');
   }
 
   /**
