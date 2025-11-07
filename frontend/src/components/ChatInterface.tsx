@@ -38,18 +38,23 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
         }`}
       >
         {/* Messages and input in single scroll area */}
-        <ChatMessages
-          messages={messages}
-          isLoading={isLoading}
-          onQuickReply={handleQuickReply}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <ChatMessages
+            messages={messages}
+            isLoading={isLoading}
+            onQuickReply={handleQuickReply}
+          />
+        </div>
 
-        <ChatInput
-          onSend={sendMessage}
-          isLoading={isLoading}
-          isConnected={isConnected}
-          connectionStatus={connectionStatus}
-        />
+        {/* Sticky input field */}
+        <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-background/80 backdrop-blur-sm">
+          <ChatInput
+            onSend={sendMessage}
+            isLoading={isLoading}
+            isConnected={isConnected}
+            connectionStatus={connectionStatus}
+          />
+        </div>
       </div>
     </>
   );
