@@ -82,7 +82,8 @@ export abstract class Chat {
       return await Chat.handleDialogueResponse(
         session,
         geminiResponse,
-        sessionService
+        sessionService,
+        config
       );
     } catch (error: any) {
       console.error('Chat processing error:', error);
@@ -179,7 +180,8 @@ export abstract class Chat {
   private static async handleDialogueResponse(
     session: ChatSession,
     geminiResponse: any,
-    sessionService: SessionService
+    sessionService: SessionService,
+    config: Config
   ): Promise<ChatModel.dialogueResponse> {
     await sessionService.updateSession(session);
 
@@ -200,9 +202,9 @@ export abstract class Chat {
         status: session.search_state.status,
         category: session.search_state.category,
         can_continue:
-          session.search_state.search_count < session.message_count,
+          session.search_state.search_count < config.maxSearchesPerSession,
         search_count: session.search_state.search_count,
-        max_searches: 3, // This should come from config
+        max_searches: config.maxSearchesPerSession,
       },
     };
   }

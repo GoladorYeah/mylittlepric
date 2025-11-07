@@ -90,7 +90,14 @@ export const websocketModule = (container: Container) =>
             return JSON.parse(message);
           } catch (error) {
             console.error('Failed to parse WebSocket message:', error);
-            return message;
+            // Send error response and return null to skip message handling
+            ws.send({
+              type: 'error',
+              error: 'INVALID_JSON',
+              message: 'Invalid JSON format',
+              session_id: '',
+            });
+            return null;
           }
         }
         return message;
@@ -105,10 +112,24 @@ export const websocketModule = (container: Container) =>
        * Message is automatically validated against body schema
        */
       message: async (ws, message) => {
-        try {
-          // Access validated data via ws.data.body
-          const msg = message as WebSocketModel.body;
+        // Skip if message is null (from transformMessage error)
+        if (message === null) {
+          return;
+        }
 
+        try {
+          // Type guard to ensure message has the expected structure
+          if (typeof message !== 'object' || !message || !('type' in message)) {
+            ws.send({
+              type: 'error',
+              error: 'INVALID_MESSAGE',
+              message: 'Invalid message structure',
+              session_id: '',
+            });
+            return;
+          }
+
+          const msg = message as WebSocketModel.body;
           console.log(`📨 WebSocket message type: ${msg.type}`);
 
           // ═══════════════════════════════════════════════════════════
@@ -128,6 +149,19 @@ export const websocketModule = (container: Container) =>
               container.serpService,
               container.config
             );
+
+            // Save assistant message to session history
+            if (response.type === 'dialogue' || response.type === 'search') {
+              const assistantMessage = {
+                role: 'assistant' as const,
+                content: response.output || '',
+                timestamp: new Date(),
+              };
+              await container.sessionService.addMessage(
+                msg.session_id,
+                assistantMessage
+              );
+            }
 
             ws.send(response);
             return;
