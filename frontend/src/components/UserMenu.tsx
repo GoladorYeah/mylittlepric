@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
 import { useChatStore } from "@/lib/store";
 import { AuthAPI } from "@/lib/api/auth";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, User as UserIcon, Settings } from "lucide-react";
+import SettingsDialog from "./SettingsDialog";
 
 export default function UserMenu() {
   const router = useRouter();
   const { user, isAuthenticated, clearAuth, refreshToken } = useAuthStore();
   const { isSidebarOpen } = useChatStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -29,6 +31,11 @@ export default function UserMenu() {
       };
     }
   }, [isMenuOpen]);
+
+  const handleSettings = () => {
+    setIsMenuOpen(false);
+    setIsSettingsOpen(true);
+  };
 
   const handleLogout = async () => {
     try {
@@ -114,6 +121,13 @@ export default function UserMenu() {
 
           <div className="border-t border-border">
             <button
+              onClick={handleSettings}
+              className="w-full px-4 py-3 text-left text-sm text-foreground hover:bg-secondary transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </button>
+            <button
               onClick={handleLogout}
               className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-secondary transition-colors flex items-center gap-2 cursor-pointer"
             >
@@ -123,6 +137,11 @@ export default function UserMenu() {
           </div>
         </div>
       )}
+
+      <SettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }
