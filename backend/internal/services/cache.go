@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -180,24 +179,4 @@ func (c *CacheService) SetGeminiResponse(cacheKey string, response *models.Gemin
 
 	ttl := time.Duration(c.config.CacheGeminiTTL) * time.Second
 	return c.redis.Set(c.ctx, cacheKey, data, ttl).Err()
-}
-
-// cosineSimilarity calculates cosine similarity between two embedding vectors
-func cosineSimilarity(a, b []float32) float32 {
-	if len(a) != len(b) {
-		return 0
-	}
-
-	var dotProduct, normA, normB float32
-	for i := range a {
-		dotProduct += a[i] * b[i]
-		normA += a[i] * a[i]
-		normB += b[i] * b[i]
-	}
-
-	if normA == 0 || normB == 0 {
-		return 0
-	}
-
-	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB))))
 }
