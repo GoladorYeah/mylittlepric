@@ -4,7 +4,6 @@ import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ChatMessage as ChatMessageType } from "@/types";
 import { ProductCard } from "./ProductCard";
-import { AdPlaceholder } from "./AdPlaceholder";
 import { useAuthStore } from "@/lib/auth-store";
 
 // Helper function to generate initials from user's name or email
@@ -166,22 +165,11 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
                 className="flex gap-3.5 overflow-x-auto overflow-y-visible pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {message.products?.map((product, index) => {
-                  const showAdAfter = (index + 1) % 5 === 0 && index < (message.products?.length || 0) - 1;
-
-                  return (
-                    <div key={`product-${index}`} className="contents">
-                      <div className="flex-none w-[210px] snap-start first:ml-1">
-                        <ProductCard product={product} index={index + 1} />
-                      </div>
-                      {showAdAfter && (
-                        <div className="flex-none w-[210px] snap-start">
-                          <AdPlaceholder format="card" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {message.products?.map((product, index) => (
+                  <div key={`product-${index}`} className="flex-none w-[210px] snap-start first:ml-1">
+                    <ProductCard product={product} index={index + 1} />
+                  </div>
+                ))}
               </div>
 
               {/* Scroll Indicator */}
