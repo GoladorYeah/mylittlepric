@@ -34,29 +34,32 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
 
       {/* Main content area - pushed by sidebar on desktop */}
       <div
-        className={`flex flex-col h-screen w-full overflow-x-hidden bg-gradient-to-br from-background via-background to-background/95 transition-[padding] duration-300 ease-in-out will-change-[padding] ${
+        className={`flex flex-col h-screen w-full bg-gradient-to-br from-background via-background to-background/95 transition-[padding] duration-300 ease-in-out will-change-[padding] ${
           isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
         }`}
       >
         {/* Top Banner Ad - Only show when there are messages */}
         {messages.length > 0 && (
-          <div className="flex justify-center py-3 px-4 border-b border-border/30 bg-muted/20 backdrop-blur-sm">
+          <div className="flex-shrink-0 flex justify-center py-3 px-4 border-b border-border/30 bg-muted/20 backdrop-blur-sm">
             <AdPlaceholder format="banner" />
           </div>
         )}
 
-        <ChatMessages
-          messages={messages}
-          isLoading={isLoading}
-          onQuickReply={handleQuickReply}
-        />
+        {/* Unified scrollable area containing both messages and input */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <ChatMessages
+            messages={messages}
+            isLoading={isLoading}
+            onQuickReply={handleQuickReply}
+          />
 
-        <ChatInput
-          onSend={sendMessage}
-          isLoading={isLoading}
-          isConnected={isConnected}
-          connectionStatus={connectionStatus}
-        />
+          <ChatInput
+            onSend={sendMessage}
+            isLoading={isLoading}
+            isConnected={isConnected}
+            connectionStatus={connectionStatus}
+          />
+        </div>
       </div>
     </>
   );
