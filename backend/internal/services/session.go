@@ -316,6 +316,7 @@ func (s *SessionService) GetMessages(sessionID string) ([]*models.Message, error
 		var msg models.Message
 		err = json.Unmarshal([]byte(msgData), &msg)
 		if err != nil {
+			fmt.Printf("⚠️ Failed to unmarshal message in session %s: %v\n", sessionID, err)
 			continue
 		}
 		messages = append(messages, &msg)
@@ -355,6 +356,7 @@ func (s *SessionService) GetRecentMessages(sessionID string, count int) ([]*mode
 		var msg models.Message
 		err = json.Unmarshal([]byte(msgData), &msg)
 		if err != nil {
+			fmt.Printf("⚠️ Failed to unmarshal recent message in session %s: %v\n", sessionID, err)
 			continue
 		}
 		messages = append(messages, &msg)

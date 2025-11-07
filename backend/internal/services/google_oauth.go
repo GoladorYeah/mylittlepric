@@ -72,7 +72,8 @@ func (s *GoogleOAuthService) VerifyIDToken(ctx context.Context, idToken string) 
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	fmt.Printf("🔍 Google tokeninfo response: %s\n", string(bodyBytes))
+	// Note: Removed sensitive token logging for security
+	// Debug logging should be done at a higher level with proper security controls
 
 	if err := json.Unmarshal(bodyBytes, &tokenInfo); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
