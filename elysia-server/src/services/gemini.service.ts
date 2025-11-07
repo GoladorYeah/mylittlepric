@@ -10,6 +10,24 @@ import type { EmbeddingService } from './embedding.service';
 import type { GroundingStrategy } from './grounding-strategy.service';
 import type { GeminiResponse, Message, ProductInfo } from '../types';
 
+export interface TokenStats {
+  totalRequests: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  requestsWithGrounding: number;
+  averageInputTokens: number;
+  averageOutputTokens: number;
+}
+
+export interface GroundingStats {
+  totalDecisions: number;
+  groundingEnabled: number;
+  groundingDisabled: number;
+  reasonCounts: Record<string, number>;
+  averageConfidence: number;
+}
+
 export class GeminiService {
   private genai: GoogleGenAI;
   private keyRotator: KeyRotator;
@@ -17,6 +35,25 @@ export class GeminiService {
   private embedding: EmbeddingService;
   private groundingStrategy: GroundingStrategy;
   private currentKeyIndex: number = 0;
+
+  // Stats tracking
+  private tokenStats: TokenStats = {
+    totalRequests: 0,
+    totalInputTokens: 0,
+    totalOutputTokens: 0,
+    totalTokens: 0,
+    requestsWithGrounding: 0,
+    averageInputTokens: 0,
+    averageOutputTokens: 0,
+  };
+
+  private groundingStats: GroundingStats = {
+    totalDecisions: 0,
+    groundingEnabled: 0,
+    groundingDisabled: 0,
+    reasonCounts: {},
+    averageConfidence: 0,
+  };
 
   constructor(
     keyRotator: KeyRotator,
@@ -82,6 +119,9 @@ export class GeminiService {
         )
       : { useGrounding: false, confidence: 0, reason: 'disabled' };
 
+    // Track grounding decision
+    this.trackGroundingDecision(useGrounding);
+
     // Prepare full prompt
     const fullPrompt = `${systemPrompt}\n\n# CONVERSATION HISTORY:\n${conversationContext}\n\nCurrent user message: ${userMessage}\n\nCRITICAL INSTRUCTIONS:\n- You MUST respond with valid JSON only\n- If using grounding/search results, incorporate the information naturally\n- ALWAYS end your response with valid JSON in this exact format:\n{"response_type":"dialogue","output":"...","quick_replies":[...],"category":"..."}\nOR\n{"response_type":"search","search_phrase":"...","search_type":"...","category":"..."}`;
 
@@ -114,7 +154,12 @@ export class GeminiService {
       const geminiResponse = this.parseGeminiResponse(text);
 
       // Calculate tokens used (approximation)
-      const tokensUsed = this.estimateTokens(fullPrompt + text);
+      const inputTokens = this.estimateTokens(fullPrompt);
+      const outputTokens = this.estimateTokens(text);
+      const tokensUsed = inputTokens + outputTokens;
+
+      // Track token usage
+      this.trackTokenUsage(inputTokens, outputTokens, useGrounding.useGrounding);
 
       return { response: geminiResponse, tokensUsed };
     } catch (error: any) {
@@ -249,5 +294,74 @@ Always be helpful, concise, and guide the conversation naturally.`;
       console.error('Translation error:', error);
       return text; // Return original if translation fails
     }
+  }
+
+  /**
+   * Track token usage
+   */
+  private trackTokenUsage(
+    inputTokens: number,
+    outputTokens: number,
+    withGrounding: boolean
+  ): void {
+    this.tokenStats.totalRequests++;
+    this.tokenStats.totalInputTokens += inputTokens;
+    this.tokenStats.totalOutputTokens += outputTokens;
+    this.tokenStats.totalTokens += inputTokens + outputTokens;
+
+    if (withGrounding) {
+      this.tokenStats.requestsWithGrounding++;
+    }
+
+    // Calculate averages
+    this.tokenStats.averageInputTokens =
+      this.tokenStats.totalInputTokens / this.tokenStats.totalRequests;
+    this.tokenStats.averageOutputTokens =
+      this.tokenStats.totalOutputTokens / this.tokenStats.totalRequests;
+  }
+
+  /**
+   * Track grounding decision
+   */
+  private trackGroundingDecision(decision: {
+    useGrounding: boolean;
+    confidence: number;
+    reason: string;
+  }): void {
+    this.groundingStats.totalDecisions++;
+
+    if (decision.useGrounding) {
+      this.groundingStats.groundingEnabled++;
+    } else {
+      this.groundingStats.groundingDisabled++;
+    }
+
+    // Track reason counts
+    if (!this.groundingStats.reasonCounts[decision.reason]) {
+      this.groundingStats.reasonCounts[decision.reason] = 0;
+    }
+    this.groundingStats.reasonCounts[decision.reason]++;
+
+    // Calculate average confidence
+    const totalConfidence =
+      this.groundingStats.averageConfidence *
+        (this.groundingStats.totalDecisions - 1) +
+      decision.confidence;
+    this.groundingStats.averageConfidence =
+      totalConfidence / this.groundingStats.totalDecisions;
+  }
+
+  /**
+   * Get token usage statistics
+   */
+  getTokenStats(): TokenStats {
+    return { ...this.tokenStats };
+  }
+
+  /**
+   * Get grounding statistics
+   */
+  getGroundingStats(): GroundingStats {
+    return { ...this.groundingStats };
   }
 }

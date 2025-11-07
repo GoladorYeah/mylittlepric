@@ -177,6 +177,45 @@ export const chatModule = (container: Container) =>
       }
     )
 
+    // Get session messages
+    .get(
+      '/chat/messages',
+      async ({ query, set }) => {
+        try {
+          const sessionId = query.session_id;
+
+          if (!sessionId) {
+            set.status = 400;
+            return {
+              error: 'invalid_request',
+              message: 'session_id is required',
+            };
+          }
+
+          // Get messages from session
+          const messages = await container.sessionService.getMessages(sessionId);
+
+          return {
+            session_id: sessionId,
+            messages,
+            count: messages.length,
+          };
+        } catch (error: any) {
+          console.error('Get messages error:', error);
+          set.status = 500;
+          return {
+            error: 'server_error',
+            message: 'Failed to retrieve messages',
+          };
+        }
+      },
+      {
+        query: t.Object({
+          session_id: t.String(),
+        }),
+      }
+    )
+
     // Product details endpoint
     .post(
       '/product-details',

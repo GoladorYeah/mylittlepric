@@ -10,6 +10,8 @@ import { Container } from './container';
 import { chatModule } from './modules/chat';
 import { authModule } from './modules/auth';
 import { statsModule } from './modules/stats';
+import { searchHistoryModule } from './modules/search-history';
+import { websocketModule } from './modules/websocket';
 
 // Load configuration
 const config = getConfig();
@@ -96,6 +98,8 @@ const app = new Elysia()
   .use(chatModule(container))
   .use(authModule(container))
   .use(statsModule(container))
+  .use(searchHistoryModule(container))
+  .use(websocketModule(container))
 
   // Root endpoint
   .get('/', () => ({
