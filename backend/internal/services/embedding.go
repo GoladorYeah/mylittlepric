@@ -42,10 +42,22 @@ func (e *EmbeddingService) loadCategoryEmbeddings() {
 
 	if err == redis.Nil {
 		e.generateCategoryEmbeddings()
-		jsonData, _ := json.Marshal(e.categoryEmbeddings)
-		e.redis.Set(e.ctx, key, jsonData, 0)
+		jsonData, err := json.Marshal(e.categoryEmbeddings)
+		if err != nil {
+			fmt.Printf("⚠️ Failed to marshal category embeddings: %v\n", err)
+			return
+		}
+		if err := e.redis.Set(e.ctx, key, jsonData, 0).Err(); err != nil {
+			fmt.Printf("⚠️ Failed to save category embeddings to Redis: %v\n", err)
+		}
+	} else if err != nil {
+		fmt.Printf("⚠️ Failed to load category embeddings from Redis: %v\n", err)
+		e.generateCategoryEmbeddings()
 	} else {
-		json.Unmarshal(data, &e.categoryEmbeddings)
+		if err := json.Unmarshal(data, &e.categoryEmbeddings); err != nil {
+			fmt.Printf("⚠️ Failed to unmarshal category embeddings, regenerating: %v\n", err)
+			e.generateCategoryEmbeddings()
+		}
 	}
 }
 
@@ -88,15 +100,24 @@ func (e *EmbeddingService) GetQueryEmbedding(query string) []float32 {
 
 	if err == nil {
 		var embedding []float32
-		json.Unmarshal(cached, &embedding)
-		return embedding
+		if err := json.Unmarshal(cached, &embedding); err != nil {
+			fmt.Printf("⚠️ Failed to unmarshal cached embedding for query '%s': %v\n", query, err)
+		} else {
+			return embedding
+		}
 	}
 
 	embedding := e.getEmbedding(query)
 	if embedding != nil {
-		jsonData, _ := json.Marshal(embedding)
+		jsonData, err := json.Marshal(embedding)
+		if err != nil {
+			fmt.Printf("⚠️ Failed to marshal embedding for query '%s': %v\n", query, err)
+			return embedding
+		}
 		ttl := time.Duration(e.config.CacheQueryEmbeddingTTL) * time.Second
-		e.redis.Set(e.ctx, cacheKey, jsonData, ttl)
+		if err := e.redis.Set(e.ctx, cacheKey, jsonData, ttl).Err(); err != nil {
+			fmt.Printf("⚠️ Failed to cache embedding for query '%s': %v\n", query, err)
+		}
 	}
 	return embedding
 }
@@ -136,9 +157,17 @@ func (e *EmbeddingService) FindSimilarCachedQuery(query string, threshold float3
 	pattern := "cache:search:*"
 	iter := e.redis.Scan(e.ctx, 0, pattern, 100).Iterator()
 
-	for iter.Next(e.ctx) {
-		cacheKey := iter.Val()
+	// Limit scan to prevent performance issues with large key sets
+	const maxKeysToCheck = 100
+	keysChecked := 0
 
+	for iter.Next(e.ctx) {
+		if keysChecked >= maxKeysToCheck {
+			fmt.Printf("⚠️ FindSimilarCachedQuery: Reached max keys limit (%d), stopping scan\n", maxKeysToCheck)
+			break
+		}
+
+		cacheKey := iter.Val()
 		cachedQuery := cacheKey[len("cache:search:"):]
 		cachedEmbedding := e.GetQueryEmbedding(cachedQuery)
 
@@ -148,6 +177,11 @@ func (e *EmbeddingService) FindSimilarCachedQuery(query string, threshold float3
 				return cacheKey
 			}
 		}
+		keysChecked++
+	}
+
+	if err := iter.Err(); err != nil {
+		fmt.Printf("⚠️ FindSimilarCachedQuery: Redis scan error: %v\n", err)
 	}
 
 	return ""

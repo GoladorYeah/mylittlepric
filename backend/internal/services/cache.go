@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -87,22 +88,53 @@ func (c *CacheService) deduplicateProducts(cards []models.ProductCard) []models.
 		return cards
 	}
 
-	unique := []models.ProductCard{cards[0]}
+	// Optimized deduplication: compute embeddings once, then compare
+	// This avoids O(n²) with expensive API calls inside the loop
+	type cardWithEmbedding struct {
+		card      models.ProductCard
+		embedding []float32
+	}
 
-	for i := 1; i < len(cards); i++ {
+	// Pre-compute embeddings for all products (O(n) API calls)
+	cardsWithEmbeddings := make([]cardWithEmbedding, 0, len(cards))
+	for _, card := range cards {
+		emb := c.embedding.GetQueryEmbedding(card.Name)
+		if emb != nil {
+			cardsWithEmbeddings = append(cardsWithEmbeddings, cardWithEmbedding{
+				card:      card,
+				embedding: emb,
+			})
+		}
+	}
+
+	if len(cardsWithEmbeddings) == 0 {
+		return cards // Fallback: return all if embeddings failed
+	}
+
+	// Now compare embeddings (O(n²) comparisons but no API calls)
+	unique := []cardWithEmbedding{cardsWithEmbeddings[0]}
+
+	for i := 1; i < len(cardsWithEmbeddings); i++ {
 		isDuplicate := false
 		for j := range unique {
-			if c.embedding.AreDuplicateProducts(cards[i].Name, unique[j].Name, 0.95) {
+			similarity := cosineSimilarity(cardsWithEmbeddings[i].embedding, unique[j].embedding)
+			if similarity >= 0.95 {
 				isDuplicate = true
 				break
 			}
 		}
 		if !isDuplicate {
-			unique = append(unique, cards[i])
+			unique = append(unique, cardsWithEmbeddings[i])
 		}
 	}
 
-	return unique
+	// Extract cards from unique list
+	result := make([]models.ProductCard, len(unique))
+	for i, item := range unique {
+		result[i] = item.card
+	}
+
+	return result
 }
 
 func (c *CacheService) GetProductByToken(pageToken string) (map[string]interface{}, error) {
@@ -161,4 +193,24 @@ func (c *CacheService) SetGeminiResponse(cacheKey string, response *models.Gemin
 
 	ttl := time.Duration(c.config.CacheGeminiTTL) * time.Second
 	return c.redis.Set(c.ctx, cacheKey, data, ttl).Err()
+}
+
+// cosineSimilarity calculates cosine similarity between two embedding vectors
+func cosineSimilarity(a, b []float32) float32 {
+	if len(a) != len(b) {
+		return 0
+	}
+
+	var dotProduct, normA, normB float32
+	for i := range a {
+		dotProduct += a[i] * b[i]
+		normA += a[i] * a[i]
+		normB += b[i] * b[i]
+	}
+
+	if normA == 0 || normB == 0 {
+		return 0
+	}
+
+	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB))))
 }
