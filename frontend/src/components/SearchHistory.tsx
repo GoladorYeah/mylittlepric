@@ -3,7 +3,6 @@
 import { useChatStore } from "@/lib/store";
 import { Clock, Plus, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import UserMenu from "./UserMenu";
 
@@ -155,16 +154,12 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
 
         {/* Bottom Controls - outside overflow context */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm">
-          {/* Expanded - Theme & User */}
-          <div className={`p-4 flex items-center justify-between transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
-            <ThemeToggle />
+          {/* Expanded - User Menu */}
+          <div className={`p-4 flex items-center justify-center transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
             <UserMenu />
           </div>
           {/* Collapsed - Icons only (desktop only) */}
           <div className={`hidden lg:flex flex-col items-center gap-4 py-4 transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
-            <div className="relative group">
-              <ThemeToggle />
-            </div>
             <UserMenu />
           </div>
         </div>

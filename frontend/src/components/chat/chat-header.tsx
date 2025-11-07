@@ -1,7 +1,6 @@
 "use client";
 
 import { RotateCcw, Wifi, WifiOff, Coins } from "lucide-react";
-import { ThemeToggle } from "../ThemeToggle";
 import { Logo } from "../Logo";
 import UserMenu from "../UserMenu";
 import { useChatStore } from "@/lib/store";
@@ -67,7 +66,6 @@ export function ChatHeader({
             <RotateCcw className="w-4 h-4" />
             <span className="hidden sm:inline">New Search</span>
           </button>
-          <ThemeToggle />
           <UserMenu />
         </div>
       </div>

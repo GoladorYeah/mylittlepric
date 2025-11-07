@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Search, Zap, Shield, TrendingUp } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
 
 export default function HomePage() {
@@ -54,8 +53,6 @@ export default function HomePage() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
           </div>
-
-          <ThemeToggle />
         </div>
       </header>
 
