@@ -31,7 +31,7 @@ export class GeminiService {
 
     // Initialize with first key
     const { key, index } = this.keyRotator.getKeyByIndex(0);
-    this.genai = new GoogleGenAI(key);
+    this.genai = new GoogleGenAI({ apiKey: key });
     this.currentKeyIndex = index;
   }
 
@@ -40,7 +40,7 @@ export class GeminiService {
    */
   private async rotateKey(): Promise<void> {
     const { key, index } = await this.keyRotator.getNextKey();
-    this.genai = new GoogleGenAI(key);
+    this.genai = new GoogleGenAI({ apiKey: key });
     this.currentKeyIndex = index;
   }
 
@@ -86,10 +86,6 @@ export class GeminiService {
     const fullPrompt = `${systemPrompt}\n\n# CONVERSATION HISTORY:\n${conversationContext}\n\nCurrent user message: ${userMessage}\n\nCRITICAL INSTRUCTIONS:\n- You MUST respond with valid JSON only\n- If using grounding/search results, incorporate the information naturally\n- ALWAYS end your response with valid JSON in this exact format:\n{"response_type":"dialogue","output":"...","quick_replies":[...],"category":"..."}\nOR\n{"response_type":"search","search_phrase":"...","search_type":"...","category":"..."}`;
 
     // Generate content
-    const model = this.genai.getGenerativeModel({
-      model: this.config.geminiModel,
-    });
-
     const generationConfig: any = {
       temperature: this.config.geminiTemperature,
       maxOutputTokens: this.config.geminiMaxOutputTokens,
@@ -106,13 +102,13 @@ export class GeminiService {
     }
 
     try {
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-        generationConfig,
+      const result = await this.genai.models.generateContent({
+        model: this.config.geminiModel,
+        contents: fullPrompt,
+        config: generationConfig,
       });
 
-      const response = result.response;
-      const text = response.text();
+      const text = result.text;
 
       // Parse JSON response
       const geminiResponse = this.parseGeminiResponse(text);
@@ -239,28 +235,16 @@ Always be helpful, concise, and guide the conversation naturally.`;
    */
   async translateToEnglish(text: string): Promise<string> {
     try {
-      const model = this.genai.getGenerativeModel({
+      const result = await this.genai.models.generateContent({
         model: this.config.geminiFallbackModel,
-      });
-
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `Translate the following product search query to English. Return ONLY the translated text, no explanations:\n\n${text}`,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
+        contents: `Translate the following product search query to English. Return ONLY the translated text, no explanations:\n\n${text}`,
+        config: {
           temperature: this.config.geminiTranslationTemperature,
           maxOutputTokens: this.config.geminiTranslationMaxTokens,
         },
       });
 
-      return result.response.text().trim();
+      return result.text.trim();
     } catch (error) {
       console.error('Translation error:', error);
       return text; // Return original if translation fails

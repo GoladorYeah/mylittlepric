@@ -15,7 +15,7 @@ export class EmbeddingService {
   private categoryEmbeddings: Map<string, number[]> = new Map();
 
   constructor(apiKey: string, redis: Redis, config: Config) {
-    this.genai = new GoogleGenAI(apiKey);
+    this.genai = new GoogleGenAI({ apiKey });
     this.redis = redis;
     this.config = config;
     this.loadCategoryEmbeddings();
@@ -77,12 +77,12 @@ export class EmbeddingService {
    */
   private async getEmbedding(text: string): Promise<number[] | null> {
     try {
-      const model = this.genai.getGenerativeModel({
+      const result = await this.genai.models.embedContent({
         model: this.config.geminiEmbeddingModel,
+        contents: [text],
       });
 
-      const result = await model.embedContent(text);
-      return result.embedding.values;
+      return result.embeddings[0].values;
     } catch (error) {
       console.error('Error getting embedding:', error);
       return null;
