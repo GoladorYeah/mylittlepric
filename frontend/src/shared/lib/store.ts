@@ -234,6 +234,11 @@ export const useChatStore = create<ChatStore>()(
         currency: state.currency,
         searchHistory: state.searchHistory,
         isSidebarOpen: state.isSidebarOpen,
+        messages: state.messages,
+        sessionId: state.sessionId,
+        currentCategory: state.currentCategory,
+        searchInProgress: state.searchInProgress,
+        savedSearch: state.savedSearch,
       }),
     }
   )
