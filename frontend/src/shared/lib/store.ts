@@ -204,21 +204,6 @@ export const useChatStore = create<ChatStore>()(
           return;
         }
 
-        // Don't overwrite existing savedSearch if current chat is worse
-        if (state.savedSearch) {
-          const currentHasProducts = state.messages.some(m => m.products && m.products.length > 0);
-          const savedHasProducts = state.savedSearch.messages.some(m => m.products && m.products.length > 0);
-
-          // Don't overwrite if:
-          // 1. Current chat has fewer messages than saved
-          // 2. Saved has products but current doesn't
-          if (state.messages.length < state.savedSearch.messages.length ||
-              (savedHasProducts && !currentHasProducts)) {
-            console.log("⏭️ Skipping save: current chat is less valuable than saved search");
-            return;
-          }
-        }
-
         const savedSearchData = {
           messages: [...state.messages],
           sessionId: state.sessionId,
