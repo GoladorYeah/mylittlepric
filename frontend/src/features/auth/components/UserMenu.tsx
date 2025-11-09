@@ -14,7 +14,7 @@ interface UserMenuProps {
 export default function UserMenu({ showName = false }: UserMenuProps) {
   const router = useRouter();
   const { user, isAuthenticated, clearAuth, refreshToken } = useAuthStore();
-  const { isSidebarOpen } = useChatStore();
+  const { isSidebarOpen, clearAll } = useChatStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -44,11 +44,18 @@ export default function UserMenu({ showName = false }: UserMenuProps) {
       if (refreshToken) {
         await AuthAPI.logout(refreshToken);
       }
+      // Clear authentication
       clearAuth();
+      // Clear all chat data (messages, session, etc.)
+      clearAll();
       setIsMenuOpen(false);
+      // Redirect to login page
+      router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
       clearAuth();
+      clearAll();
+      router.push("/login");
     }
   };
 

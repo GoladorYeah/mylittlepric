@@ -77,7 +77,6 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     newSearch,
     initializeLocale,
     loadSessionMessages,
-    addSearchToHistory,
     saveCurrentSearch,
   } = useChatStore();
 
@@ -244,20 +243,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         setSearchInProgress(data.search_state.status === "completed");
       }
 
-      // Save to local history only for authenticated users
-      // (Backend saves history for both authenticated and anonymous users)
-      if (data.products && data.products.length > 0 && accessToken) {
-        const userMessages = messages.filter((m) => m.role === "user");
-        const lastUserMessage = userMessages[userMessages.length - 1];
-
-        if (lastUserMessage) {
-          addSearchToHistory(
-            lastUserMessage.content,
-            data.search_state?.category,
-            data.products.length
-          );
-        }
-      }
+      // Note: Search history is now managed entirely by the backend
+      // History is accessible via SearchHistoryAPI.getSearchHistory()
     }
   }, [
     lastJsonMessage,
@@ -266,8 +253,6 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setSearchInProgress,
     setCurrentCategory,
     sessionId,
-    messages,
-    addSearchToHistory,
   ]);
 
   // Send initial query if provided
