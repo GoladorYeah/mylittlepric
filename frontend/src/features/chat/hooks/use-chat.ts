@@ -289,6 +289,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           role: "user" as const,
           content: data.output || "",
           timestamp: Date.now(),
+          isLocal: false, // This message is from another device
         };
 
         addMessage(userMessage);
@@ -314,6 +315,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           quick_replies: data.quick_replies,
           products: data.products,
           search_type: data.search_type,
+          isLocal: false, // Synced messages are not local
         };
 
         addMessage(assistantMessage);
@@ -348,6 +350,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           quick_replies: data.quick_replies,
           products: data.products,
           search_type: data.search_type,
+          isLocal: false, // Legacy synced messages are not local
         };
 
         addMessage(assistantMessage);
@@ -396,6 +399,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           role: "assistant",
           content: errorMessage,
           timestamp: Date.now(),
+          isLocal: true, // Error responses are local to this device
         });
         return;
       }
@@ -419,6 +423,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         quick_replies: data.quick_replies,
         products: data.products,
         search_type: data.search_type,
+        isLocal: true, // Direct response to local message
       };
 
       addMessage(assistantMessage);
@@ -467,6 +472,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       role: "user" as const,
       content: textToSend,
       timestamp: Date.now(),
+      isLocal: true, // Message sent from this device
     };
 
     addMessage(userMessage);
@@ -492,6 +498,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         role: "assistant",
         content: "Failed to send message. Please check your connection.",
         timestamp: Date.now(),
+        isLocal: true, // Error messages are local
       });
     }
   };

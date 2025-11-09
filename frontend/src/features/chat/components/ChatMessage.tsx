@@ -50,6 +50,8 @@ function parseQuickReply(reply: string): { text: string; price: string | null } 
 
 export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
   const isUser = message.role === "user";
+  // Use isLocal to determine if message was sent from this device (default to true for backwards compatibility)
+  const isLocalMessage = message.isLocal !== false; // true if isLocal is undefined or true
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
 
@@ -75,12 +77,12 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
         {message.content && message.content.trim() !== '' && (
           <div
             className={`${
-              isUser
+              isUser && isLocalMessage
                 ? "rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground flex items-start gap-3"
                 : "text-foreground"
             }`}
           >
-            {isUser && (
+            {isUser && isLocalMessage && (
               <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
                 {getInitials(user)}
               </div>
