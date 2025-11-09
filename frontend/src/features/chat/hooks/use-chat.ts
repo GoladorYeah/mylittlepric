@@ -140,17 +140,29 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return;
       }
 
+      // If store already has sessionId (restored from persist), don't reload
+      if (store.sessionId && store.messages.length > 0) {
+        console.log("✅ Session restored from localStorage:", store.sessionId);
+        localStorage.setItem("chat_session_id", store.sessionId);
+        return;
+      }
+
+      // Otherwise, check for session in localStorage or create new one
       const savedSessionId = localStorage.getItem("chat_session_id");
 
-      if (savedSessionId) {
+      if (savedSessionId && savedSessionId === store.sessionId) {
+        // Session ID exists but no messages - this is a fresh session
+        console.log("🆕 Fresh session:", savedSessionId);
+      } else if (savedSessionId) {
+        // Session ID mismatch - load from server
         setSessionId(savedSessionId);
-
         try {
           await loadSessionMessages(savedSessionId);
         } catch (error) {
           console.error("Failed to load messages:", error);
         }
       } else {
+        // No session at all - create new one
         const newSessionId = generateId();
         setSessionId(newSessionId);
         localStorage.setItem("chat_session_id", newSessionId);
