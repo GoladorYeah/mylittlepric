@@ -10,6 +10,8 @@ export interface SavedSearch {
   timestamp: number;
 }
 
+type WebSocketSender = (message: any) => void;
+
 interface ChatStore {
   messages: ChatMessage[];
   sessionId: string;
@@ -22,6 +24,7 @@ interface ChatStore {
   isSidebarOpen: boolean;
   _hasInitialized: boolean; // Internal flag to track initialization
   savedSearch: SavedSearch | null; // Last search before "New Search" was clicked
+  _wsSender: WebSocketSender | null; // Internal WebSocket sender for realtime sync
 
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;
@@ -44,6 +47,7 @@ interface ChatStore {
   clearSavedSearch: () => void;
   syncPreferencesFromServer: () => Promise<void>;
   syncPreferencesToServer: () => Promise<void>;
+  registerWebSocketSender: (sender: WebSocketSender) => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -60,6 +64,7 @@ export const useChatStore = create<ChatStore>()(
       isSidebarOpen: true, // По умолчанию развернута
       _hasInitialized: false,
       savedSearch: null,
+      _wsSender: null,
 
       addMessage: (message) =>
         set((state) => ({ messages: [...state.messages, message] })),
@@ -169,6 +174,17 @@ export const useChatStore = create<ChatStore>()(
             const newState = get().isSidebarOpen;
             await PreferencesAPI.updateUserPreferences({ sidebar_open: newState });
             console.log("✅ Synced sidebar state to server:", newState);
+
+            // Realtime sync to other devices
+            const state = get();
+            if (state._wsSender) {
+              const accessToken = useAuthStore.getState().accessToken;
+              state._wsSender({
+                type: "sync_preferences",
+                session_id: state.sessionId,
+                access_token: accessToken,
+              });
+            }
           } catch (error) {
             console.error("Failed to sync sidebar state:", error);
           }
@@ -187,13 +203,24 @@ export const useChatStore = create<ChatStore>()(
             const { PreferencesAPI } = await import("./preferences-api");
             await PreferencesAPI.updateUserPreferences({ sidebar_open: open });
             console.log("✅ Synced sidebar state to server:", open);
+
+            // Realtime sync to other devices
+            const state = get();
+            if (state._wsSender) {
+              const accessToken = useAuthStore.getState().accessToken;
+              state._wsSender({
+                type: "sync_preferences",
+                session_id: state.sessionId,
+                access_token: accessToken,
+              });
+            }
           } catch (error) {
             console.error("Failed to sync sidebar state:", error);
           }
         }
       },
 
-      saveCurrentSearch: () => {
+      saveCurrentSearch: async () => {
         const state = get();
         // Only save if there are messages (otherwise nothing to save)
         if (state.messages.length > 0) {
@@ -205,10 +232,23 @@ export const useChatStore = create<ChatStore>()(
               timestamp: Date.now(),
             },
           });
+
+          // Realtime sync to other devices
+          if (state._wsSender) {
+            const { useAuthStore } = await import("./auth-store");
+            const accessToken = useAuthStore.getState().accessToken;
+            if (accessToken) {
+              state._wsSender({
+                type: "sync_saved_search",
+                session_id: state.sessionId,
+                access_token: accessToken,
+              });
+            }
+          }
         }
       },
 
-      restoreSavedSearch: () => {
+      restoreSavedSearch: async () => {
         const state = get();
         if (state.savedSearch) {
           set({
@@ -220,10 +260,39 @@ export const useChatStore = create<ChatStore>()(
           });
           // Save session ID to localStorage
           localStorage.setItem("chat_session_id", state.savedSearch.sessionId);
+
+          // Realtime sync to other devices
+          if (state._wsSender) {
+            const { useAuthStore } = await import("./auth-store");
+            const accessToken = useAuthStore.getState().accessToken;
+            if (accessToken) {
+              state._wsSender({
+                type: "sync_session",
+                session_id: state.savedSearch.sessionId,
+                access_token: accessToken,
+              });
+            }
+          }
         }
       },
 
-      clearSavedSearch: () => set({ savedSearch: null }),
+      clearSavedSearch: async () => {
+        const state = get();
+        set({ savedSearch: null });
+
+        // Realtime sync to other devices
+        if (state._wsSender) {
+          const { useAuthStore } = await import("./auth-store");
+          const accessToken = useAuthStore.getState().accessToken;
+          if (accessToken) {
+            state._wsSender({
+              type: "sync_saved_search",
+              session_id: state.sessionId,
+              access_token: accessToken,
+            });
+          }
+        }
+      },
 
       syncPreferencesFromServer: async () => {
         try {
@@ -268,6 +337,10 @@ export const useChatStore = create<ChatStore>()(
           console.error("Failed to sync preferences to server:", error);
         }
       },
+
+      registerWebSocketSender: (sender) => {
+        set({ _wsSender: sender });
+      },
     }),
     {
       name: "chat-storage",
@@ -282,6 +355,7 @@ export const useChatStore = create<ChatStore>()(
         currentCategory: state.currentCategory,
         searchInProgress: state.searchInProgress,
         savedSearch: state.savedSearch,
+        // Exclude _wsSender from persistence
       }),
     }
   )

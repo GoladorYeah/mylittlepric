@@ -41,6 +41,9 @@ export interface UseChatOptions {
 export interface UseChatReturn {
   sendMessage: (message: string) => Promise<void>;
   handleNewSearch: () => void;
+  syncSession: (newSessionId: string) => void;
+  syncPreferences: () => void;
+  syncSavedSearch: () => void;
   connectionStatus: string;
   isConnected: boolean;
   readyState: ReadyState;
@@ -79,6 +82,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     initializeLocale,
     loadSessionMessages,
     saveCurrentSearch,
+    registerWebSocketSender,
   } = useChatStore();
 
   const { accessToken } = useAuthStore();
@@ -110,6 +114,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   }[readyState];
 
   const isConnected = readyState === ReadyState.OPEN;
+
+  // Register WebSocket sender in store for realtime sync
+  useEffect(() => {
+    if (isConnected) {
+      registerWebSocketSender(sendJsonMessage);
+    } else {
+      registerWebSocketSender(null);
+    }
+  }, [isConnected, sendJsonMessage, registerWebSocketSender]);
 
   // Initialize locale on mount
   useEffect(() => {
@@ -260,6 +273,66 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       setLoading(false);
 
+      // Handle realtime sync messages
+      if (data.type === "message_sync") {
+        // Message from another device
+        console.log("📱 Received message sync from another device");
+
+        // Ignore if session doesn't match
+        if (data.session_id && data.session_id !== sessionId) {
+          console.warn("⚠️ Ignoring sync from different session");
+          return;
+        }
+
+        const assistantMessage = {
+          id: generateId(),
+          role: "assistant" as const,
+          content: data.output || "",
+          timestamp: Date.now(),
+          quick_replies: data.quick_replies,
+          products: data.products,
+          search_type: data.search_type,
+        };
+
+        addMessage(assistantMessage);
+
+        if (data.search_state && data.search_state.category) {
+          setCurrentCategory(data.search_state.category);
+        }
+
+        if (data.search_state) {
+          setSearchInProgress(data.search_state.status === "completed");
+        }
+        return;
+      }
+
+      if (data.type === "preferences_updated") {
+        // Preferences changed on another device
+        console.log("📱 Preferences updated on another device");
+        const store = useChatStore.getState();
+        store.syncPreferencesFromServer();
+        return;
+      }
+
+      if (data.type === "saved_search_updated") {
+        // Saved search changed on another device
+        console.log("📱 Saved search updated on another device");
+        const store = useChatStore.getState();
+        store.syncPreferencesFromServer();
+        return;
+      }
+
+      if (data.type === "session_changed") {
+        // Session changed on another device (e.g., New Search)
+        console.log("📱 Session changed on another device");
+        if (data.session_id && data.session_id !== sessionId) {
+          setSessionId(data.session_id);
+          localStorage.setItem("chat_session_id", data.session_id);
+          loadSessionMessages(data.session_id);
+        }
+        return;
+      }
+
       if (data.type === "error") {
         const errorMessage = data.message || data.error || "An error occurred";
         addMessage({
@@ -312,6 +385,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setSearchInProgress,
     setCurrentCategory,
     sessionId,
+    setSessionId,
+    loadSessionMessages,
   ]);
 
   // Send initial query if provided
@@ -379,11 +454,53 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     const newSessionId = generateId();
     setSessionId(newSessionId);
     localStorage.setItem("chat_session_id", newSessionId);
+
+    // Sync new session to other devices
+    if (accessToken && isConnected) {
+      sendJsonMessage({
+        type: "sync_session",
+        session_id: newSessionId,
+        access_token: accessToken,
+      });
+    }
+  };
+
+  const syncSession = (newSessionId: string) => {
+    if (accessToken && isConnected) {
+      sendJsonMessage({
+        type: "sync_session",
+        session_id: newSessionId,
+        access_token: accessToken,
+      });
+    }
+  };
+
+  const syncPreferences = () => {
+    if (accessToken && isConnected) {
+      sendJsonMessage({
+        type: "sync_preferences",
+        session_id: sessionId,
+        access_token: accessToken,
+      });
+    }
+  };
+
+  const syncSavedSearch = () => {
+    if (accessToken && isConnected) {
+      sendJsonMessage({
+        type: "sync_saved_search",
+        session_id: sessionId,
+        access_token: accessToken,
+      });
+    }
   };
 
   return {
     sendMessage,
     handleNewSearch,
+    syncSession,
+    syncPreferences,
+    syncSavedSearch,
     connectionStatus,
     isConnected,
     readyState,
