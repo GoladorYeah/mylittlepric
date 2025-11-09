@@ -43,6 +43,9 @@ func SetupRoutes(app *fiber.App, c *container.Container) {
 	// Session routes (authenticated)
 	setupSessionRoutes(api, c)
 
+	// User preferences routes (authenticated)
+	setupPreferencesRoutes(api, c)
+
 	// Stats routes
 	setupStatsRoutes(api, c)
 }
@@ -143,6 +146,16 @@ func setupSessionRoutes(api fiber.Router, c *container.Container) {
 	sessions := api.Group("/sessions", authMiddleware)
 	sessions.Get("/active", sessionHandler.GetActiveSession)
 	sessions.Post("/link", sessionHandler.LinkSessionToUser)
+}
+
+func setupPreferencesRoutes(api fiber.Router, c *container.Container) {
+	preferencesHandler := handlers.NewPreferencesHandler(c)
+	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+
+	// User preferences - requires authentication
+	userGroup := api.Group("/user", authMiddleware)
+	userGroup.Get("/preferences", preferencesHandler.GetUserPreferences)
+	userGroup.Put("/preferences", preferencesHandler.UpdateUserPreferences)
 }
 
 func setupStatsRoutes(api fiber.Router, c *container.Container) {
