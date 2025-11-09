@@ -7,6 +7,7 @@ import (
 
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/middleware"
+	"mylittleprice/internal/models"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -24,25 +25,17 @@ func NewSessionHandler(c *container.Container) *SessionHandler {
 // GET /api/sessions/active
 func (h *SessionHandler) GetActiveSession(c *fiber.Ctx) error {
 	// Get user ID from JWT token
-	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
+	userUUID, ok := middleware.GetUserID(c)
+	if !ok {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
-		})
-	}
-
-	// Parse user ID as UUID
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid user ID format",
 		})
 	}
 
 	// Get active session from database
 	session, err := h.container.SessionService.GetActiveSessionForUser(userUUID)
 	if err != nil {
-		fmt.Printf("❌ Error getting active session for user %s: %v\n", userID, err)
+		fmt.Printf("❌ Error getting active session for user %s: %v\n", userUUID.String(), err)
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get active session",
 		})
@@ -60,7 +53,7 @@ func (h *SessionHandler) GetActiveSession(c *fiber.Ctx) error {
 	messages, err := h.container.SessionService.GetMessages(session.SessionID)
 	if err != nil {
 		fmt.Printf("⚠️ Failed to get message count for session %s: %v\n", session.SessionID, err)
-		messages = []*interface{}{} // Empty array
+		messages = []*models.Message{} // Empty array
 	}
 
 	// Return session info
@@ -84,8 +77,8 @@ func (h *SessionHandler) GetActiveSession(c *fiber.Ctx) error {
 // POST /api/sessions/link
 func (h *SessionHandler) LinkSessionToUser(c *fiber.Ctx) error {
 	// Get user ID from JWT token
-	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
+	userUUID, ok := middleware.GetUserID(c)
+	if !ok {
 		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -108,23 +101,15 @@ func (h *SessionHandler) LinkSessionToUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Parse user ID as UUID
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid user ID format",
-		})
-	}
-
 	// Link session to user
 	if err := h.container.SessionService.LinkSessionToUser(req.SessionID, userUUID); err != nil {
-		fmt.Printf("❌ Error linking session %s to user %s: %v\n", req.SessionID, userID, err)
+		fmt.Printf("❌ Error linking session %s to user %s: %v\n", req.SessionID, userUUID.String(), err)
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to link session to user",
 		})
 	}
 
-	fmt.Printf("✅ Linked session %s to user %s\n", req.SessionID, userID)
+	fmt.Printf("✅ Linked session %s to user %s\n", req.SessionID, userUUID.String())
 
 	return c.JSON(fiber.Map{
 		"success": true,
