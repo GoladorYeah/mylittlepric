@@ -165,7 +165,10 @@ export default function HistoryPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => loadHistory(true)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    loadHistory(true);
+                  }}
                   className="p-2 hover:bg-secondary rounded-lg transition-colors"
                   title="Refresh"
                   disabled={loading}
@@ -226,7 +229,7 @@ export default function HistoryPage() {
                   return (
                     <div
                       key={item.id}
-                      className="rounded-lg bg-card border border-border overflow-hidden"
+                      className="rounded-lg bg-card border border-border overflow-visible relative"
                     >
                       {/* Header */}
                       <div className="relative group">
@@ -308,7 +311,7 @@ export default function HistoryPage() {
                                       }}
                                     />
 
-                                    <div className="absolute right-0 top-full mt-1 w-48 bg-popover border border-border rounded-lg shadow-lg z-20 overflow-hidden">
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
                                       {item.session_id && (
                                         <button
                                           onClick={(e) => {
@@ -344,8 +347,8 @@ export default function HistoryPage() {
 
                       {/* Products Grid */}
                       <div
-                        className={`border-t border-border bg-muted/20 transition-all duration-500 ease-in-out overflow-hidden ${
-                          isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'
+                        className={`border-t border-border bg-muted/20 transition-all duration-500 ease-in-out ${
+                          isExpanded ? 'max-h-[10000px] opacity-100 overflow-visible' : 'max-h-0 opacity-0 overflow-hidden'
                         }`}
                       >
                         {hasProducts && (

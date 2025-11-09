@@ -12,6 +12,13 @@ export interface SearchHistoryItem {
   sessionId: string;
 }
 
+export interface SavedSearch {
+  messages: ChatMessage[];
+  sessionId: string;
+  category: string;
+  timestamp: number;
+}
+
 interface ChatStore {
   messages: ChatMessage[];
   sessionId: string;
@@ -24,6 +31,7 @@ interface ChatStore {
   searchHistory: SearchHistoryItem[];
   isSidebarOpen: boolean;
   _hasInitialized: boolean; // Internal flag to track initialization
+  savedSearch: SavedSearch | null; // Last search before "New Search" was clicked
 
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;
@@ -43,6 +51,9 @@ interface ChatStore {
   clearSearchHistory: () => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  saveCurrentSearch: () => void;
+  restoreSavedSearch: () => void;
+  clearSavedSearch: () => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -59,6 +70,7 @@ export const useChatStore = create<ChatStore>()(
       searchHistory: [],
       isSidebarOpen: true, // По умолчанию развернута
       _hasInitialized: false,
+      savedSearch: null,
 
       addMessage: (message) =>
         set((state) => ({ messages: [...state.messages, message] })),
@@ -180,6 +192,38 @@ export const useChatStore = create<ChatStore>()(
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
 
       setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+
+      saveCurrentSearch: () => {
+        const state = get();
+        // Only save if there are messages (otherwise nothing to save)
+        if (state.messages.length > 0) {
+          set({
+            savedSearch: {
+              messages: [...state.messages],
+              sessionId: state.sessionId,
+              category: state.currentCategory,
+              timestamp: Date.now(),
+            },
+          });
+        }
+      },
+
+      restoreSavedSearch: () => {
+        const state = get();
+        if (state.savedSearch) {
+          set({
+            messages: [...state.savedSearch.messages],
+            sessionId: state.savedSearch.sessionId,
+            currentCategory: state.savedSearch.category,
+            searchInProgress: false,
+            isLoading: false,
+          });
+          // Save session ID to localStorage
+          localStorage.setItem("chat_session_id", state.savedSearch.sessionId);
+        }
+      },
+
+      clearSavedSearch: () => set({ savedSearch: null }),
     }),
     {
       name: "chat-storage",

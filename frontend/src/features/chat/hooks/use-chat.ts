@@ -78,6 +78,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     initializeLocale,
     loadSessionMessages,
     addSearchToHistory,
+    saveCurrentSearch,
   } = useChatStore();
 
   const { accessToken } = useAuthStore();
@@ -308,6 +309,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   };
 
   const handleNewSearch = () => {
+    // Save current search before clearing (if there are messages)
+    if (messages.length > 0) {
+      saveCurrentSearch();
+    }
+
     processedMessageIds.current.clear();
     initialQuerySentRef.current = false;
     // Don't reset _hasInitialized - locale is already initialized
