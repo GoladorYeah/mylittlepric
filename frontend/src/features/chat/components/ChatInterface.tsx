@@ -1,7 +1,7 @@
 "use client";
 
-import { useChat } from "@/hooks";
-import { useChatStore } from "@/lib/store";
+import { useChat } from "@/shared/hooks";
+import { useChatStore } from "@/shared/lib";
 import { SearchHistory } from "./SearchHistory";
 import { ChatMessages } from "./chat/chat-messages";
 import { ChatInput } from "./chat/chat-input";

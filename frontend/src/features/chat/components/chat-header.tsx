@@ -3,7 +3,7 @@
 import { RotateCcw, Wifi, WifiOff, Coins } from "lucide-react";
 import { Logo } from "../Logo";
 import UserMenu from "../UserMenu";
-import { useChatStore } from "@/lib/store";
+import { useChatStore } from "@/shared/lib";
 
 interface ChatHeaderProps {
   isConnected: boolean;

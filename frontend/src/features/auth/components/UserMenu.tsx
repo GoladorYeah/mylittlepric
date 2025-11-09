@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/lib/auth-store";
-import { useChatStore } from "@/lib/store";
-import { AuthAPI } from "@/lib/api/auth";
+import { useAuthStore } from "@/shared/lib";
+import { useChatStore } from "@/shared/lib";
+import { AuthAPI } from "@/shared/lib";
 import { LogOut, Settings } from "lucide-react";
 
 interface UserMenuProps {

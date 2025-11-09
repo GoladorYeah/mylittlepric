@@ -1,5 +1,4 @@
-import { PolicyLayout } from "@/components/PolicyLayout";
-import { TermsOfUseContent } from "@/components/policies/TermsOfUseContent";
+import { PolicyLayout, TermsOfUseContent } from "@/features/policies";
 
 export const metadata = {
   title: "Terms of Use - MyLittlePrice",

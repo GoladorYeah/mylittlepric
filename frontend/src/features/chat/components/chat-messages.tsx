@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import { ChatMessage as ChatMessageComponent } from "../ChatMessage";
 import { LoadingDots } from "../ui/loading-dots";
-import { ChatMessage } from "@/types";
+import { ChatMessage } from "@/shared/types";
 import { ChatEmptyState } from "./chat-empty-state";
-import { useChatStore } from "@/lib/store";
+import { useChatStore } from "@/shared/lib";
 
 interface ChatMessagesProps {
   messages: ChatMessage[];

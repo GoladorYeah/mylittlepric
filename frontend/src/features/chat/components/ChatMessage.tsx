@@ -2,9 +2,9 @@
 
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ChatMessage as ChatMessageType } from "@/types";
+import { ChatMessage as ChatMessageType } from "@/shared/types";
 import { ProductCard } from "./ProductCard";
-import { useAuthStore } from "@/lib/auth-store";
+import { useAuthStore } from "@/shared/lib";
 
 // Helper function to generate initials from user's name or email
 function getInitials(user: { full_name?: string; email: string } | null): string {

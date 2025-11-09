@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Globe, Check } from "lucide-react";
-import { useChatStore } from "@/lib/store";
-import { useClickOutside } from "@/hooks";
+import { useChatStore } from "@/shared/lib";
+import { useClickOutside } from "@/shared/hooks";
 
 interface Country {
   code: string;

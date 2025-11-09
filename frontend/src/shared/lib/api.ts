@@ -1,4 +1,4 @@
-import { ProductDetailsResponse, ChatMessage } from "@/types";
+import { ProductDetailsResponse, ChatMessage } from "@/shared/types";
 import { useAuthStore } from "./auth-store";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";

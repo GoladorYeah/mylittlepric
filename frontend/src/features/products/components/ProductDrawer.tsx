@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getProductDetails } from "@/lib/api";
-import { ProductDetailsResponse } from "@/types";
-import { useChatStore } from "@/lib/store";
+import { getProductDetails } from "@/shared/lib";
+import { ProductDetailsResponse } from "@/shared/types";
+import { useChatStore } from "@/shared/lib";
 import { Drawer } from "./ui/drawer";
 import { ProductImageGallery } from "./product/product-image-gallery";
 import { ProductInfo } from "./product/product-info";

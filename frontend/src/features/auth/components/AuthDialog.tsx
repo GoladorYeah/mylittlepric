@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useAuthStore } from "@/lib/auth-store";
-import { authAPI } from "@/lib/auth-api";
+import { useAuthStore } from "@/shared/lib";
+import { authAPI } from "@/shared/lib";
 
 interface AuthDialogProps {
   isOpen: boolean;

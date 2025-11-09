@@ -1,6 +1,6 @@
 "use client";
 
-import { useChatStore } from "@/lib/store";
+import { useChatStore } from "@/shared/lib";
 import { Clock, Plus, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { Logo } from "./Logo";

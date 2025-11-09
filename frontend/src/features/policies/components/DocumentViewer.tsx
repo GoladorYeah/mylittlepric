@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
-import { Logo } from "@/components/Logo";
+import { Logo } from "@/shared/components/ui";
 
 interface DocumentViewerProps {
   title: string;
