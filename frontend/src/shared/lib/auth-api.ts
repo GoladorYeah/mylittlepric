@@ -158,14 +158,14 @@ class AuthAPI {
   }
 
   async claimSessions(): Promise<void> {
-    const { sessionId, searchHistory } = useChatStore.getState();
+    const { sessionId, savedSearch } = useChatStore.getState();
 
-    // Collect all session IDs from current session and history
+    // Collect all session IDs from current session and saved search
     const sessionIds = new Set<string>();
     if (sessionId) sessionIds.add(sessionId);
-    searchHistory.forEach(item => {
-      if (item.sessionId) sessionIds.add(item.sessionId);
-    });
+    if (savedSearch?.sessionId) {
+      sessionIds.add(savedSearch.sessionId);
+    }
 
     if (sessionIds.size === 0) return;
 
