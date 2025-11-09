@@ -47,7 +47,7 @@ interface ChatStore {
   clearSavedSearch: () => void;
   syncPreferencesFromServer: () => Promise<void>;
   syncPreferencesToServer: () => Promise<void>;
-  registerWebSocketSender: (sender: WebSocketSender) => void;
+  registerWebSocketSender: (sender: WebSocketSender | null) => void;
 }
 
 export const useChatStore = create<ChatStore>()(
