@@ -129,7 +129,19 @@ case "$1" in
     # Database commands
     db-migrate)
         echo -e "${BLUE}📊 Running migrations...${NC}"
-        docker-compose -f $COMPOSE_FILE exec postgres psql -U postgres -d mylittleprice -f /docker-entrypoint-initdb.d/002_add_users.sql
+        docker-compose -f $COMPOSE_FILE exec postgres /bin/sh -c "
+            export PGPASSWORD=postgres
+            cd /docker-entrypoint-initdb.d
+            if [ -f apply_migrations.sh ]; then
+                sh apply_migrations.sh
+            else
+                echo 'Migration script not found, applying migrations manually...'
+                for f in \$(ls -1 *.sql 2>/dev/null | sort); do
+                    echo \"Applying \$f...\"
+                    psql -U postgres -d mylittleprice -f \"\$f\"
+                done
+            fi
+        "
         echo -e "${GREEN}✅ Migrations complete${NC}"
         ;;
 
