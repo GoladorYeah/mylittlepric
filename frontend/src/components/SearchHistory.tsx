@@ -153,7 +153,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
         </div>
 
         {/* Bottom Controls - outside overflow context */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm">
+        <div className="absolute bottom-0 left-0 right-0 border-t border-border backdrop-blur-sm">
           {/* Expanded - User Menu with name */}
           <div className={`p-4 flex items-start justify-start transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
             <UserMenu showName={true} />
