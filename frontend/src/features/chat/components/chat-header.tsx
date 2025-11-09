@@ -1,18 +1,12 @@
 "use client";
 
 import { RotateCcw, Wifi, WifiOff, Coins } from "lucide-react";
-<<<<<<< HEAD
-import { Logo } from "../Logo";
-import UserMenu from "../UserMenu";
-<<<<<<< HEAD
-import { useChatStore } from "@/shared/lib";
-=======
-=======
+
 import { Logo } from "@/components/Logo";
-import UserMenu from "@/components/UserMenu";
->>>>>>> ec8453a79c722d568c40fcfe98514957a65b9eff
-import { useChatStore } from "@/lib/store";
->>>>>>> main
+import UserMenu from "../UserMenu";
+import { useChatStore } from "@/shared/lib";
+
+
 
 interface ChatHeaderProps {
   isConnected: boolean;
