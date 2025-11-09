@@ -162,7 +162,7 @@ func (c *Container) initServices() error {
 	c.SearchHistoryService = services.NewSearchHistoryService(c.DB)
 	log.Println("📜 Search History Service initialized")
 
-	c.PreferencesService = services.NewPreferencesService(c.DB)
+	c.PreferencesService = services.NewPreferencesService(c.DB, c.AuthService)
 	log.Println("⚙️ Preferences Service initialized")
 
 	log.Println("✅ All services initialized")

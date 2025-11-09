@@ -16,12 +16,14 @@ var (
 )
 
 type PreferencesService struct {
-	db *sqlx.DB
+	db          *sqlx.DB
+	authService *AuthService
 }
 
-func NewPreferencesService(db *sqlx.DB) *PreferencesService {
+func NewPreferencesService(db *sqlx.DB, authService *AuthService) *PreferencesService {
 	return &PreferencesService{
-		db: db,
+		db:          db,
+		authService: authService,
 	}
 }
 
@@ -86,6 +88,35 @@ func (s *PreferencesService) createPreferences(userID uuid.UUID, update *models.
 	).StructScan(&prefs)
 
 	if err != nil {
+		// Check if it's a foreign key constraint error (user doesn't exist in PostgreSQL)
+		// This can happen if Redis has the user data but PostgreSQL doesn't (e.g., after DB reset)
+		if isForeignKeyError(err) {
+			fmt.Printf("⚠️ User %s not found in PostgreSQL, attempting to sync from Redis...\n", userID.String())
+
+			// Ensure user exists in PostgreSQL by fetching from Redis and saving
+			if syncErr := s.ensureUserExistsInPostgres(userID); syncErr != nil {
+				return nil, fmt.Errorf("failed to sync user to PostgreSQL: %w", syncErr)
+			}
+
+			// Retry the insert
+			err = s.db.QueryRowx(query,
+				userID,
+				update.Country,
+				update.Currency,
+				update.Language,
+				update.Theme,
+				update.SidebarOpen,
+				update.LastActiveSessionID,
+			).StructScan(&prefs)
+
+			if err != nil {
+				return nil, fmt.Errorf("failed to create user preferences after sync: %w", err)
+			}
+
+			fmt.Printf("✅ Created preferences for user %s (after sync)\n", userID.String())
+			return &prefs, nil
+		}
+
 		return nil, fmt.Errorf("failed to create user preferences: %w", err)
 	}
 
@@ -224,4 +255,50 @@ func (s *PreferencesService) GetLastActiveSession(userID uuid.UUID) (string, err
 	}
 
 	return *prefs.LastActiveSessionID, nil
+}
+
+// ==================== Helper Methods ====================
+
+// isForeignKeyError checks if an error is a PostgreSQL foreign key constraint violation
+func isForeignKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// PostgreSQL foreign key constraint error code is 23503
+	// Error message contains: "violates foreign key constraint"
+	errMsg := err.Error()
+	return contains(errMsg, "violates foreign key constraint") || contains(errMsg, "23503")
+}
+
+// contains checks if a string contains a substring (case-insensitive)
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && stringContains(s, substr)))
+}
+
+func stringContains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// ensureUserExistsInPostgres fetches user from Redis and saves to PostgreSQL if missing
+// This handles the case where Redis has user data but PostgreSQL doesn't
+func (s *PreferencesService) ensureUserExistsInPostgres(userID uuid.UUID) error {
+	// Get user from Redis (via AuthService)
+	user, err := s.authService.GetUserByID(userID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch user from Redis: %w", err)
+	}
+
+	// Save user to PostgreSQL (this uses ON CONFLICT to handle race conditions)
+	if err := s.authService.SaveUserToPostgres(user); err != nil {
+		return fmt.Errorf("failed to save user to PostgreSQL: %w", err)
+	}
+
+	fmt.Printf("✅ Synced user %s to PostgreSQL\n", userID.String())
+	return nil
 }
