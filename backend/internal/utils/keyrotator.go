@@ -28,7 +28,7 @@ func NewKeyRotator(ctx context.Context, serviceName string, keys []string, redis
 	}
 }
 
-// GetNextKey returns the next API key in rotation
+// GetNextKey returns the next API key in rotation, skipping exhausted keys
 func (kr *KeyRotator) GetNextKey() (string, int, error) {
 	kr.mu.Lock()
 	defer kr.mu.Unlock()
@@ -37,25 +37,67 @@ func (kr *KeyRotator) GetNextKey() (string, int, error) {
 		return "", -1, fmt.Errorf("no API keys available for %s", kr.serviceName)
 	}
 
-	// Single key - no rotation needed
-	if len(kr.keys) == 1 {
-		return kr.keys[0], 0, nil
+	// Try to find an available key
+	maxAttempts := len(kr.keys)
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		// Get current index from Redis
+		counterKey := fmt.Sprintf("keyrotator:%s:counter", kr.serviceName)
+
+		// Increment and get the counter (atomic operation)
+		counter, err := kr.redis.Incr(kr.ctx, counterKey).Result()
+		if err != nil {
+			// Fallback to first key if Redis fails
+			return kr.keys[0], 0, fmt.Errorf("redis error, using first key: %w", err)
+		}
+
+		// Calculate index using modulo
+		index := int(counter-1) % len(kr.keys)
+
+		// Check if this key is exhausted
+		if !kr.isKeyExhausted(index) {
+			return kr.keys[index], index, nil
+		}
+
+		// Key is exhausted, try next one
+		fmt.Printf("   ⏭️  Key %d is exhausted, trying next key...\n", index)
 	}
 
-	// Get current index from Redis
-	counterKey := fmt.Sprintf("keyrotator:%s:counter", kr.serviceName)
+	// All keys are exhausted
+	return "", -1, fmt.Errorf("all API keys are exhausted for %s", kr.serviceName)
+}
 
-	// Increment and get the counter (atomic operation)
-	counter, err := kr.redis.Incr(kr.ctx, counterKey).Result()
+// isKeyExhausted checks if a key has been marked as exhausted (quota exceeded)
+func (kr *KeyRotator) isKeyExhausted(keyIndex int) bool {
+	exhaustedKey := fmt.Sprintf("keyrotator:%s:exhausted:%d", kr.serviceName, keyIndex)
+	exists, err := kr.redis.Exists(kr.ctx, exhaustedKey).Result()
 	if err != nil {
-		// Fallback to first key if Redis fails
-		return kr.keys[0], 0, fmt.Errorf("redis error, using first key: %w", err)
+		// If Redis fails, assume key is available
+		return false
+	}
+	return exists > 0
+}
+
+// MarkKeyAsExhausted marks a key as exhausted (quota exceeded) until end of day
+func (kr *KeyRotator) MarkKeyAsExhausted(keyIndex int) error {
+	exhaustedKey := fmt.Sprintf("keyrotator:%s:exhausted:%d", kr.serviceName, keyIndex)
+
+	// Calculate TTL until end of day (UTC)
+	now := time.Now().UTC()
+	endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.UTC)
+	ttl := endOfDay.Sub(now)
+
+	// If less than 1 minute left, set for 24 hours
+	if ttl < time.Minute {
+		ttl = 24 * time.Hour
 	}
 
-	// Calculate index using modulo
-	index := int(counter-1) % len(kr.keys)
+	err := kr.redis.Set(kr.ctx, exhaustedKey, "1", ttl).Err()
+	if err != nil {
+		return fmt.Errorf("failed to mark key as exhausted: %w", err)
+	}
 
-	return kr.keys[index], index, nil
+	fmt.Printf("   🚫 Key %d marked as exhausted (will reset in %v)\n", keyIndex, ttl.Round(time.Minute))
+	return nil
 }
 
 // GetKeyByIndex returns a specific key by index

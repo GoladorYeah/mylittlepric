@@ -29,6 +29,7 @@ type GeminiService struct {
 	contextOptimizer   *ContextOptimizerService // NEW: Determines optimal context depth
 	contextExtractor   *ContextExtractorService // NEW: Extracts preferences and summaries
 	ctx                context.Context
+	currentKeyIndex    int // Track current API key index
 	mu                 sync.RWMutex
 }
 
@@ -54,7 +55,7 @@ type GroundingStats struct {
 func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embedding *EmbeddingService) *GeminiService {
 	ctx := context.Background()
 
-	apiKey, _, err := keyRotator.GetNextKey()
+	apiKey, keyIndex, err := keyRotator.GetNextKey()
 	if err != nil {
 		panic(fmt.Errorf("failed to get initial API key: %w", err))
 	}
@@ -80,14 +81,23 @@ func NewGeminiService(keyRotator *utils.KeyRotator, cfg *config.Config, embeddin
 		contextOptimizer:   NewContextOptimizerService(embedding),                       // NEW
 		contextExtractor:   NewContextExtractorService(client, cfg.GeminiFallbackModel), // NEW - Use fallback model for lightweight tasks
 		ctx:                ctx,
+		currentKeyIndex:    keyIndex,
 	}
 }
 
-func (g *GeminiService) rotateClient() error {
+func (g *GeminiService) rotateClient(markCurrentAsExhausted bool) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	apiKey, _, err := g.keyRotator.GetNextKey()
+	// Mark current key as exhausted if requested
+	if markCurrentAsExhausted {
+		fmt.Printf("   ⚠️ Marking Gemini key %d as exhausted\n", g.currentKeyIndex)
+		if err := g.keyRotator.MarkKeyAsExhausted(g.currentKeyIndex); err != nil {
+			fmt.Printf("   ⚠️ Failed to mark key as exhausted: %v\n", err)
+		}
+	}
+
+	apiKey, keyIndex, err := g.keyRotator.GetNextKey()
 	if err != nil {
 		return fmt.Errorf("failed to get API key: %w", err)
 	}
@@ -101,6 +111,8 @@ func (g *GeminiService) rotateClient() error {
 	}
 
 	g.client = client
+	g.currentKeyIndex = keyIndex
+	fmt.Printf("   🔄 Gemini API key rotated to key %d\n", keyIndex)
 	return nil
 }
 
@@ -168,8 +180,8 @@ func (g *GeminiService) ProcessMessageWithContext(
 			strings.Contains(err.Error(), "429") ||
 			strings.Contains(err.Error(), "RESOURCE_EXHAUSTED") {
 
-			// Ротируем клиент
-			if rotateErr := g.rotateClient(); rotateErr != nil {
+			// Ротируем клиент (помечаем текущий ключ как exhausted)
+			if rotateErr := g.rotateClient(true); rotateErr != nil {
 				return nil, 0, fmt.Errorf("Gemini API error: %w, rotation failed: %v", err, rotateErr)
 			}
 
@@ -437,11 +449,9 @@ func (g *GeminiService) executeWithRetryAndModel(
 				strings.Contains(errMsg, "RESOURCE_EXHAUSTED") {
 
 				fmt.Printf("⚠️ Quota exceeded, rotating API key...\n")
-				if rotateErr := g.rotateClient(); rotateErr != nil {
+				if rotateErr := g.rotateClient(true); rotateErr != nil {
 					fmt.Printf("❌ Key rotation failed: %v\n", rotateErr)
 					// Continue to next retry anyway
-				} else {
-					fmt.Printf("🔄 Key rotated successfully\n")
 				}
 				continue
 			}
