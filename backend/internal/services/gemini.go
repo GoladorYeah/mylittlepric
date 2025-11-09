@@ -579,10 +579,10 @@ func (g *GeminiService) ProcessWithUniversalPrompt(
 		generateConfig.Tools = []*genai.Tool{
 			{GoogleSearch: &genai.GoogleSearch{}},
 		}
-		// When using grounding/tools, we can't use ResponseMIMEType
-		// but we CAN use ResponseSchema for structured output
-		generateConfig.ResponseSchema = GetUniversalResponseSchema()
-		fmt.Printf("📋 Using structured ResponseSchema\n")
+		// When using grounding/tools, we CANNOT use ResponseSchema or ResponseMIMEType
+		// The API returns error: "Unsupported response mime type when response schema is set"
+		// We rely on the prompt to request JSON format instead
+		fmt.Printf("📋 Relying on prompt for JSON structure (Tools mode)\n")
 	} else {
 		fmt.Printf("📝 Grounding disabled (not needed for this query)\n")
 		// Without grounding, we can use both MIME type and schema
