@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Home, MessageCircle } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { ReactNode } from "react";
 
@@ -12,20 +12,27 @@ interface PolicyLayoutProps {
 }
 
 export function PolicyLayout({ title, lastUpdated, children }: PolicyLayoutProps) {
-  const router = useRouter();
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="hidden sm:inline">Back</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/"
+                className="flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+              >
+                <Home className="w-5 h-5" />
+                <span className="hidden sm:inline">Home</span>
+              </Link>
+              <Link
+                href="/chat"
+                className="flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span className="hidden sm:inline">Chat</span>
+              </Link>
+            </div>
             <div className="h-6 w-px bg-border hidden sm:block" />
             <Logo width={84.24} height={32} />
           </div>
