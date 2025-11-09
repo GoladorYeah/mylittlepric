@@ -274,9 +274,65 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       setLoading(false);
 
       // Handle realtime sync messages
+      if (data.type === "user_message_sync") {
+        // User message from another device
+        console.log("📱 Received user message sync from another device");
+
+        // Ignore if session doesn't match
+        if (data.session_id && data.session_id !== sessionId) {
+          console.warn("⚠️ Ignoring sync from different session");
+          return;
+        }
+
+        const userMessage = {
+          id: generateId(),
+          role: "user" as const,
+          content: data.output || "",
+          timestamp: Date.now(),
+        };
+
+        addMessage(userMessage);
+        setLoading(true);
+        return;
+      }
+
+      if (data.type === "assistant_message_sync") {
+        // Assistant message from another device
+        console.log("📱 Received assistant message sync from another device");
+
+        // Ignore if session doesn't match
+        if (data.session_id && data.session_id !== sessionId) {
+          console.warn("⚠️ Ignoring sync from different session");
+          return;
+        }
+
+        const assistantMessage = {
+          id: generateId(),
+          role: "assistant" as const,
+          content: data.output || "",
+          timestamp: Date.now(),
+          quick_replies: data.quick_replies,
+          products: data.products,
+          search_type: data.search_type,
+        };
+
+        addMessage(assistantMessage);
+        setLoading(false);
+
+        if (data.search_state && data.search_state.category) {
+          setCurrentCategory(data.search_state.category);
+        }
+
+        if (data.search_state) {
+          setSearchInProgress(data.search_state.status === "completed");
+        }
+        return;
+      }
+
+      // Support old message_sync type for backwards compatibility
       if (data.type === "message_sync") {
-        // Message from another device
-        console.log("📱 Received message sync from another device");
+        // Message from another device (legacy format - assistant only)
+        console.log("📱 Received message sync from another device (legacy)");
 
         // Ignore if session doesn't match
         if (data.session_id && data.session_id !== sessionId) {
