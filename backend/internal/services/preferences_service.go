@@ -31,7 +31,7 @@ func (s *PreferencesService) GetUserPreferences(userID uuid.UUID) (*models.UserP
 	var prefs models.UserPreferences
 
 	query := `
-		SELECT user_id, country, currency, language, theme, sidebar_open, created_at, updated_at
+		SELECT user_id, country, currency, language, theme, sidebar_open, last_active_session_id, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -69,9 +69,9 @@ func (s *PreferencesService) UpsertUserPreferences(userID uuid.UUID, update *mod
 // createPreferences inserts new preferences row
 func (s *PreferencesService) createPreferences(userID uuid.UUID, update *models.UserPreferencesUpdate) (*models.UserPreferences, error) {
 	query := `
-		INSERT INTO user_preferences (user_id, country, currency, language, theme, sidebar_open)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING user_id, country, currency, language, theme, sidebar_open, created_at, updated_at
+		INSERT INTO user_preferences (user_id, country, currency, language, theme, sidebar_open, last_active_session_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING user_id, country, currency, language, theme, sidebar_open, last_active_session_id, created_at, updated_at
 	`
 
 	var prefs models.UserPreferences
@@ -82,6 +82,7 @@ func (s *PreferencesService) createPreferences(userID uuid.UUID, update *models.
 		update.Language,
 		update.Theme,
 		update.SidebarOpen,
+		update.LastActiveSessionID,
 	).StructScan(&prefs)
 
 	if err != nil {
@@ -130,6 +131,12 @@ func (s *PreferencesService) updatePreferences(userID uuid.UUID, update *models.
 		argCounter++
 	}
 
+	if update.LastActiveSessionID != nil {
+		updates = append(updates, fmt.Sprintf("last_active_session_id = $%d", argCounter))
+		args = append(args, update.LastActiveSessionID)
+		argCounter++
+	}
+
 	// No fields to update
 	if len(updates) == 0 {
 		return s.GetUserPreferences(userID)
@@ -142,7 +149,7 @@ func (s *PreferencesService) updatePreferences(userID uuid.UUID, update *models.
 		}
 		query += update
 	}
-	query += fmt.Sprintf(" WHERE user_id = $%d RETURNING user_id, country, currency, language, theme, sidebar_open, created_at, updated_at", argCounter)
+	query += fmt.Sprintf(" WHERE user_id = $%d RETURNING user_id, country, currency, language, theme, sidebar_open, last_active_session_id, created_at, updated_at", argCounter)
 	args = append(args, userID)
 
 	// Execute update
@@ -172,4 +179,49 @@ func (s *PreferencesService) DeleteUserPreferences(userID uuid.UUID) error {
 
 	fmt.Printf("✅ Deleted preferences for user %s\n", userID.String())
 	return nil
+}
+
+// ==================== Search Synchronization ====================
+
+// UpdateLastActiveSession updates the last active session ID for cross-device search continuity
+// This should be called when:
+// - A user starts a search (status: in_progress)
+// - A user completes a search (status: completed)
+// Pass empty string to clear the active session (when search is completed/abandoned)
+func (s *PreferencesService) UpdateLastActiveSession(userID uuid.UUID, sessionID string) error {
+	var sessionIDPtr *string
+	if sessionID != "" {
+		sessionIDPtr = &sessionID
+	}
+
+	update := &models.UserPreferencesUpdate{
+		LastActiveSessionID: sessionIDPtr,
+	}
+
+	_, err := s.UpsertUserPreferences(userID, update)
+	if err != nil {
+		return fmt.Errorf("failed to update last active session: %w", err)
+	}
+
+	if sessionID == "" {
+		fmt.Printf("✅ Cleared active session for user %s\n", userID.String())
+	} else {
+		fmt.Printf("✅ Updated active session to %s for user %s\n", sessionID, userID.String())
+	}
+	return nil
+}
+
+// GetLastActiveSession retrieves the session ID with an ongoing search
+// Returns empty string if no active session exists
+func (s *PreferencesService) GetLastActiveSession(userID uuid.UUID) (string, error) {
+	prefs, err := s.GetUserPreferences(userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user preferences: %w", err)
+	}
+
+	if prefs == nil || prefs.LastActiveSessionID == nil {
+		return "", nil
+	}
+
+	return *prefs.LastActiveSessionID, nil
 }

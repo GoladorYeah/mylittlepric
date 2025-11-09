@@ -1,6 +1,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,6 +37,26 @@ type SearchState struct {
 	LastProduct    *ProductInfo `json:"last_product,omitempty"`
 }
 
+// Scan implements sql.Scanner for JSONB scanning
+func (s *SearchState) Scan(value interface{}) error {
+	if value == nil {
+		*s = SearchState{Status: SearchStatusIdle}
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("failed to scan SearchState: expected []byte")
+	}
+
+	return json.Unmarshal(bytes, s)
+}
+
+// Value implements driver.Valuer for JSONB storage
+func (s SearchState) Value() (driver.Value, error) {
+	return json.Marshal(s)
+}
+
 type SearchStatus string
 
 const (
@@ -51,6 +74,26 @@ type CycleState struct {
 	LastDefined      []string          `json:"last_defined"`       // Last confirmed product names
 	PromptID         string            `json:"prompt_id"`          // Prompt version identifier
 	PromptHash       string            `json:"prompt_hash"`        // SHA-256 hash for drift detection
+}
+
+// Scan implements sql.Scanner for JSONB scanning
+func (c *CycleState) Scan(value interface{}) error {
+	if value == nil {
+		*c = CycleState{CycleID: 1, Iteration: 1}
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("failed to scan CycleState: expected []byte")
+	}
+
+	return json.Unmarshal(bytes, c)
+}
+
+// Value implements driver.Valuer for JSONB storage
+func (c CycleState) Value() (driver.Value, error) {
+	return json.Marshal(c)
 }
 
 // CycleMessage represents a single message in a cycle
@@ -79,6 +122,28 @@ type ConversationContext struct {
 	LastSearch  *SearchContext          `json:"last_search,omitempty"` // Most recent search context
 	Exclusions  []string                `json:"exclusions,omitempty"`  // User exclusions
 	UpdatedAt   time.Time               `json:"updated_at"`            // Last update timestamp
+}
+
+// Scan implements sql.Scanner for JSONB scanning
+func (c *ConversationContext) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("failed to scan ConversationContext: expected []byte")
+	}
+
+	return json.Unmarshal(bytes, c)
+}
+
+// Value implements driver.Valuer for JSONB storage
+func (c *ConversationContext) Value() (driver.Value, error) {
+	if c == nil {
+		return nil, nil
+	}
+	return json.Marshal(c)
 }
 
 // ConversationPreferences stores structured user preferences extracted from conversation

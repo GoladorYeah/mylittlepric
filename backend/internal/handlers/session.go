@@ -72,6 +72,80 @@ func (h *SessionHandler) GetActiveSession(c *fiber.Ctx) error {
 	})
 }
 
+// GetActiveSearchSession returns the session with an ongoing search for cross-device continuity
+// GET /api/sessions/active-search
+func (h *SessionHandler) GetActiveSearchSession(c *fiber.Ctx) error {
+	// Get user ID from JWT token
+	userUUID, ok := middleware.GetUserID(c)
+	if !ok {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
+	// Get the last active session ID from user preferences
+	lastActiveSessionID, err := h.container.PreferencesService.GetLastActiveSession(userUUID)
+	if err != nil {
+		fmt.Printf("❌ Error getting last active session for user %s: %v\n", userUUID.String(), err)
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get active search session",
+		})
+	}
+
+	// No active search session
+	if lastActiveSessionID == "" {
+		return c.JSON(fiber.Map{
+			"session":              nil,
+			"has_active_search":    false,
+		})
+	}
+
+	// Get the session with ongoing search
+	session, err := h.container.SessionService.GetSessionWithOngoingSearch(lastActiveSessionID)
+	if err != nil {
+		fmt.Printf("❌ Error getting session with ongoing search %s: %v\n", lastActiveSessionID, err)
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get active search session",
+		})
+	}
+
+	// Session not found or search not in progress
+	if session == nil {
+		// Clear the stale active session reference
+		_ = h.container.PreferencesService.UpdateLastActiveSession(userUUID, "")
+		return c.JSON(fiber.Map{
+			"session":           nil,
+			"has_active_search": false,
+		})
+	}
+
+	// Get messages for context
+	messages, err := h.container.SessionService.GetMessages(session.SessionID)
+	if err != nil {
+		fmt.Printf("⚠️ Failed to get messages for session %s: %v\n", session.SessionID, err)
+		messages = []*models.Message{}
+	}
+
+	// Return session with ongoing search
+	return c.JSON(fiber.Map{
+		"session": fiber.Map{
+			"session_id":    session.SessionID,
+			"message_count": len(messages),
+			"search_state": fiber.Map{
+				"status":          session.SearchState.Status,
+				"category":        session.SearchState.Category,
+				"search_count":    session.SearchState.SearchCount,
+				"last_search_time": session.SearchState.LastSearchTime,
+			},
+			"created_at": session.CreatedAt,
+			"updated_at": session.UpdatedAt,
+			"expires_at": session.ExpiresAt,
+		},
+		"has_active_search": true,
+		"messages":          messages,
+	})
+}
+
 // LinkSessionToUser links current anonymous session to authenticated user
 // POST /api/sessions/link
 func (h *SessionHandler) LinkSessionToUser(c *fiber.Ctx) error {

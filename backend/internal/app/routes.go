@@ -145,6 +145,7 @@ func setupSessionRoutes(api fiber.Router, c *container.Container) {
 	// Session management - requires authentication
 	sessions := api.Group("/sessions", authMiddleware)
 	sessions.Get("/active", sessionHandler.GetActiveSession)
+	sessions.Get("/active-search", sessionHandler.GetActiveSearchSession)
 	sessions.Post("/link", sessionHandler.LinkSessionToUser)
 }
 
