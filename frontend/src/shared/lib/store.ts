@@ -42,6 +42,8 @@ interface ChatStore {
   saveCurrentSearch: () => void;
   restoreSavedSearch: () => void;
   clearSavedSearch: () => void;
+  syncPreferencesFromServer: () => Promise<void>;
+  syncPreferencesToServer: () => Promise<void>;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -189,6 +191,50 @@ export const useChatStore = create<ChatStore>()(
       },
 
       clearSavedSearch: () => set({ savedSearch: null }),
+
+      syncPreferencesFromServer: async () => {
+        try {
+          const { PreferencesAPI } = await import("./preferences-api");
+          const response = await PreferencesAPI.getUserPreferences();
+
+          if (response.has_preferences && response.preferences) {
+            const prefs = response.preferences;
+            const updates: Partial<ChatStore> = {};
+
+            // Only update if server has value (don't override local with null)
+            if (prefs.country) updates.country = prefs.country;
+            if (prefs.currency) updates.currency = prefs.currency;
+            if (prefs.language) updates.language = prefs.language;
+            if (prefs.sidebar_open !== undefined) updates.isSidebarOpen = prefs.sidebar_open;
+
+            if (Object.keys(updates).length > 0) {
+              set(updates);
+              console.log("✅ Synced preferences from server:", updates);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to sync preferences from server:", error);
+        }
+      },
+
+      syncPreferencesToServer: async () => {
+        try {
+          const state = get();
+          const { PreferencesAPI } = await import("./preferences-api");
+
+          const update = {
+            country: state.country || undefined,
+            currency: state.currency || undefined,
+            language: state.language || undefined,
+            sidebar_open: state.isSidebarOpen,
+          };
+
+          await PreferencesAPI.updateUserPreferences(update);
+          console.log("✅ Synced preferences to server:", update);
+        } catch (error) {
+          console.error("Failed to sync preferences to server:", error);
+        }
+      },
     }),
     {
       name: "chat-storage",

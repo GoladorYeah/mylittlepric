@@ -142,6 +142,13 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       // For authenticated users, check for active session on server
       if (accessToken) {
+        // Load user preferences from server
+        try {
+          await store.syncPreferencesFromServer();
+        } catch (error) {
+          console.error("Failed to sync preferences from server:", error);
+        }
+
         try {
           const activeSessionResponse = await SessionAPI.getActiveSession();
 

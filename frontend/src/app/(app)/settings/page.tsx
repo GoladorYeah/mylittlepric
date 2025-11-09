@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Globe, Languages, Check, ChevronDown, Moon, Sun, Monitor } from "lucide-react";
-import { useChatStore, getCurrencyForCountry } from "@/shared/lib";
+import { useChatStore, getCurrencyForCountry, useAuthStore } from "@/shared/lib";
 import { useTheme } from "next-themes";
 
 interface Country {
@@ -102,7 +102,8 @@ const LANGUAGES: Language[] = [
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { country, language, currency, setCountry, setLanguage, setCurrency } = useChatStore();
+  const { country, language, currency, setCountry, setLanguage, setCurrency, syncPreferencesToServer } = useChatStore();
+  const { accessToken } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [countrySearchQuery, setCountrySearchQuery] = useState("");
@@ -147,18 +148,51 @@ export default function SettingsPage() {
     }
   }, [isLanguageDropdownOpen]);
 
-  const handleCountrySelect = (countryCode: string) => {
+  const handleCountrySelect = async (countryCode: string) => {
     setCountry(countryCode);
     const newCurrency = getCurrencyForCountry(countryCode.toUpperCase());
     setCurrency(newCurrency);
     setIsCountryDropdownOpen(false);
     setCountrySearchQuery("");
+
+    // Sync to server if user is authenticated
+    if (accessToken) {
+      try {
+        await syncPreferencesToServer();
+      } catch (error) {
+        console.error("Failed to sync country preference:", error);
+      }
+    }
   };
 
-  const handleLanguageSelect = (languageCode: string) => {
+  const handleLanguageSelect = async (languageCode: string) => {
     setLanguage(languageCode);
     setIsLanguageDropdownOpen(false);
     setLanguageSearchQuery("");
+
+    // Sync to server if user is authenticated
+    if (accessToken) {
+      try {
+        await syncPreferencesToServer();
+      } catch (error) {
+        console.error("Failed to sync language preference:", error);
+      }
+    }
+  };
+
+  const handleThemeChange = async (newTheme: string) => {
+    setTheme(newTheme);
+
+    // Sync theme to server if user is authenticated
+    if (accessToken) {
+      try {
+        const { PreferencesAPI } = await import("@/shared/lib/preferences-api");
+        await PreferencesAPI.updateUserPreferences({ theme: newTheme });
+        console.log("✅ Synced theme to server:", newTheme);
+      } catch (error) {
+        console.error("Failed to sync theme preference:", error);
+      }
+    }
   };
 
   const handleBack = () => {
@@ -358,7 +392,7 @@ export default function SettingsPage() {
                 {mounted && (
                   <div className="grid grid-cols-3 gap-3 pt-2">
                     <button
-                      onClick={() => setTheme("light")}
+                      onClick={() => handleThemeChange("light")}
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all cursor-pointer ${
                         theme === "light"
                           ? "bg-primary/10 border-primary"
@@ -371,7 +405,7 @@ export default function SettingsPage() {
                     </button>
 
                     <button
-                      onClick={() => setTheme("dark")}
+                      onClick={() => handleThemeChange("dark")}
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all cursor-pointer ${
                         theme === "dark"
                           ? "bg-primary/10 border-primary"
@@ -384,7 +418,7 @@ export default function SettingsPage() {
                     </button>
 
                     <button
-                      onClick={() => setTheme("system")}
+                      onClick={() => handleThemeChange("system")}
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all cursor-pointer ${
                         theme === "system"
                           ? "bg-primary/10 border-primary"

@@ -33,6 +33,7 @@ type Container struct {
 	GoogleOAuthService   *services.GoogleOAuthService
 	AuthService          *services.AuthService
 	SearchHistoryService *services.SearchHistoryService
+	PreferencesService   *services.PreferencesService
 }
 
 func NewContainer(cfg *config.Config) (*Container, error) {
@@ -160,6 +161,9 @@ func (c *Container) initServices() error {
 
 	c.SearchHistoryService = services.NewSearchHistoryService(c.DB)
 	log.Println("📜 Search History Service initialized")
+
+	c.PreferencesService = services.NewPreferencesService(c.DB)
+	log.Println("⚙️ Preferences Service initialized")
 
 	log.Println("✅ All services initialized")
 	return nil
