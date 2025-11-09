@@ -10,7 +10,6 @@ import (
 	"mylittleprice/internal/models"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 )
 
 type SessionHandler struct {
@@ -44,7 +43,7 @@ func (h *SessionHandler) GetActiveSession(c *fiber.Ctx) error {
 	// No active session found - return null (this is OK, user can start new session)
 	if session == nil {
 		return c.JSON(fiber.Map{
-			"session": nil,
+			"session":            nil,
 			"has_active_session": false,
 		})
 	}
