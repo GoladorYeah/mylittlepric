@@ -472,7 +472,7 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 		if err != nil {
 			// Session not found - create new one with the SAME ID
 			fmt.Printf("⚠️ Session %s not found in Redis, creating new session with same ID\n", req.SessionID)
-			session, err = p.container.SessionService.CreateSession(req.SessionID, req.Country, req.Language, req.Currency)
+			session, err = p.container.SessionService.CreateSessionWithUser(req.SessionID, req.Country, req.Language, req.Currency, req.UserID)
 			if err != nil {
 				return nil, err
 			}
@@ -480,6 +480,13 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 			// Session exists - preserve language, country, and currency from session
 			// Only update if explicitly changed by user (non-empty AND different from session)
 			updated := false
+
+			// Update user_id if provided and different (user logged in)
+			if req.UserID != nil && (session.UserID == nil || *session.UserID != *req.UserID) {
+				fmt.Printf("👤 Linking session to user: %s\n", req.UserID.String())
+				session.UserID = req.UserID
+				updated = true
+			}
 
 			// Update language if changed and not empty
 			if req.Language != "" && req.Language != session.LanguageCode {
@@ -514,7 +521,7 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 	} else {
 		// No session ID provided - generate new one
 		req.SessionID = uuid.New().String()
-		session, err = p.container.SessionService.CreateSession(req.SessionID, req.Country, req.Language, req.Currency)
+		session, err = p.container.SessionService.CreateSessionWithUser(req.SessionID, req.Country, req.Language, req.Currency, req.UserID)
 		if err != nil {
 			return nil, err
 		}

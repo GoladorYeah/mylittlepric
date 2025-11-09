@@ -38,9 +38,14 @@ func NewSessionService(redisClient *redis.Client, db *sqlx.DB, sessionTTL int, m
 }
 
 func (s *SessionService) CreateSession(sessionID, country, language, currency string) (*models.ChatSession, error) {
+	return s.CreateSessionWithUser(sessionID, country, language, currency, nil)
+}
+
+func (s *SessionService) CreateSessionWithUser(sessionID, country, language, currency string, userID *uuid.UUID) (*models.ChatSession, error) {
 	session := &models.ChatSession{
 		ID:           uuid.New(),
 		SessionID:    sessionID,
+		UserID:       userID,
 		CountryCode:  country,
 		LanguageCode: language,
 		Currency:     currency,
@@ -109,7 +114,7 @@ func (s *SessionService) GetSession(sessionID string) (*models.ChatSession, erro
 func (s *SessionService) getSessionFromDB(sessionID string) (*models.ChatSession, error) {
 	var session models.ChatSession
 
-	query := `SELECT id, session_id, country_code, language_code, currency, message_count,
+	query := `SELECT id, session_id, user_id, country_code, language_code, currency, message_count,
 	          search_state, cycle_state, conversation_context, created_at, updated_at, expires_at
 	          FROM chat_sessions WHERE session_id = $1`
 
@@ -144,10 +149,11 @@ func (s *SessionService) saveSessionToRedis(session *models.ChatSession) error {
 // saveSessionToDB saves or updates session in PostgreSQL
 func (s *SessionService) saveSessionToDB(session *models.ChatSession) error {
 	query := `INSERT INTO chat_sessions
-	          (id, session_id, country_code, language_code, currency, message_count,
+	          (id, session_id, user_id, country_code, language_code, currency, message_count,
 	           search_state, cycle_state, conversation_context, created_at, updated_at, expires_at)
-	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	          ON CONFLICT (session_id) DO UPDATE SET
+	            user_id = EXCLUDED.user_id,
 	            country_code = EXCLUDED.country_code,
 	            language_code = EXCLUDED.language_code,
 	            currency = EXCLUDED.currency,
@@ -184,6 +190,7 @@ func (s *SessionService) saveSessionToDB(session *models.ChatSession) error {
 	_, err = s.db.Exec(query,
 		session.ID,
 		session.SessionID,
+		session.UserID,
 		session.CountryCode,
 		session.LanguageCode,
 		session.Currency,
@@ -463,5 +470,47 @@ func (s *SessionService) AddToCycleHistory(sessionID, role, content string) erro
 
 	s.universalPromptMgr.AddToCycleHistory(&session.CycleState, role, content)
 
+	return s.UpdateSession(session)
+}
+
+// GetActiveSessionForUser returns the most recent active session for a user
+// Returns nil if no active session found (not an error - user can start a new session)
+func (s *SessionService) GetActiveSessionForUser(userID uuid.UUID) (*models.ChatSession, error) {
+	var session models.ChatSession
+
+	// Get most recent session for this user that hasn't expired
+	// Order by updated_at DESC to get the latest active session
+	query := `SELECT id, session_id, user_id, country_code, language_code, currency, message_count,
+	          search_state, cycle_state, conversation_context, created_at, updated_at, expires_at
+	          FROM chat_sessions
+	          WHERE user_id = $1 AND expires_at > NOW()
+	          ORDER BY updated_at DESC
+	          LIMIT 1`
+
+	err := s.db.Get(&session, query, userID)
+	if err == sql.ErrNoRows {
+		// No active session found - this is OK, user can start fresh
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active session for user: %w", err)
+	}
+
+	// Update Redis cache for faster subsequent access
+	if err := s.saveSessionToRedis(&session); err != nil {
+		fmt.Printf("⚠️ Failed to cache active session to Redis: %v\n", err)
+	}
+
+	return &session, nil
+}
+
+// LinkSessionToUser links an existing session to a user (for when anonymous user logs in)
+func (s *SessionService) LinkSessionToUser(sessionID string, userID uuid.UUID) error {
+	session, err := s.GetSession(sessionID)
+	if err != nil {
+		return err
+	}
+
+	session.UserID = &userID
 	return s.UpdateSession(session)
 }

@@ -40,6 +40,9 @@ func SetupRoutes(app *fiber.App, c *container.Container) {
 	// Search history routes (optional authentication)
 	setupSearchHistoryRoutes(api, c)
 
+	// Session routes (authenticated)
+	setupSessionRoutes(api, c)
+
 	// Stats routes
 	setupStatsRoutes(api, c)
 }
@@ -130,6 +133,16 @@ func setupSearchHistoryRoutes(api fiber.Router, c *container.Container) {
 
 	// Delete all - requires authentication
 	api.Delete("/search-history", authMiddleware, historyHandler.DeleteAllSearchHistory)
+}
+
+func setupSessionRoutes(api fiber.Router, c *container.Container) {
+	sessionHandler := handlers.NewSessionHandler(c)
+	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+
+	// Session management - requires authentication
+	sessions := api.Group("/sessions", authMiddleware)
+	sessions.Get("/active", sessionHandler.GetActiveSession)
+	sessions.Post("/link", sessionHandler.LinkSessionToUser)
 }
 
 func setupStatsRoutes(api fiber.Router, c *container.Container) {

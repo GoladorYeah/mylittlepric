@@ -2,6 +2,7 @@
 export * from "./api";
 export * from "./auth-api";
 export * from "./search-history-api";
+export * from "./session-api";
 
 // Stores
 export * from "./store";
