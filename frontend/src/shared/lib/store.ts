@@ -99,7 +99,6 @@ export const useChatStore = create<ChatStore>()(
           searchInProgress: false,
           isLoading: false,
           currentCategory: "",
-          savedSearch: null,
         }),
 
       initializeLocale: async () => {
