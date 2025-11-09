@@ -156,8 +156,24 @@ export default function HomePage() {
       </main>
 
       <footer className="border-t border-border py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 MyLittlePrice. All rights reserved.</p>
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+            <p>&copy; 2025 MyLittlePrice. All rights reserved.</p>
+            <div className="flex gap-6">
+              <a href="/privacy-policy" className="hover:text-foreground transition-colors">
+                Privacy Policy
+              </a>
+              <a href="/terms-of-use" className="hover:text-foreground transition-colors">
+                Terms of Use
+              </a>
+              <a href="/cookie-policy" className="hover:text-foreground transition-colors">
+                Cookie Policy
+              </a>
+              <a href="/advertising-policy" className="hover:text-foreground transition-colors">
+                Advertising Policy
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
