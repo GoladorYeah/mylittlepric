@@ -1,4 +1,5 @@
-import { DocumentViewer } from "@/components/DocumentViewer";
+import { PolicyLayout } from "@/components/PolicyLayout";
+import { PrivacyPolicyContent } from "@/components/policies/PrivacyPolicyContent";
 
 export const metadata = {
   title: "Privacy Policy - MyLittlePrice",
@@ -7,10 +8,8 @@ export const metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <DocumentViewer
-      title="Privacy Policy"
-      pdfPath="/documents/privacy-policy.pdf"
-      lastUpdated="November 7, 2025"
-    />
+    <PolicyLayout title="Privacy Policy" lastUpdated="November 7, 2025">
+      <PrivacyPolicyContent />
+    </PolicyLayout>
   );
 }
