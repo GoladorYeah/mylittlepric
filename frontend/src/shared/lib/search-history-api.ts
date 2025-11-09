@@ -15,7 +15,7 @@ export interface ProductCard {
   page_token: string;
 }
 
-export interface SearchHistoryItem {
+export interface SearchHistoryRecord {
   id: string;
   user_id?: string;
   session_id?: string;
@@ -34,7 +34,7 @@ export interface SearchHistoryItem {
 }
 
 export interface SearchHistoryListResponse {
-  items: SearchHistoryItem[];
+  items: SearchHistoryRecord[];
   total: number;
   limit: number;
   offset: number;

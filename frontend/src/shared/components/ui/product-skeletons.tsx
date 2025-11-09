@@ -1,6 +1,6 @@
 import { Skeleton, SkeletonImage, SkeletonText } from "./skeleton"
 
-export function ProductCardSkeleton({ delay = 0 }: { delay?: number }) {
+export default function ProductCardSkeleton({ delay = 0 }: { delay?: number }) {
   return (
     <div
       className="w-[300px] shrink-0 snap-start rounded-xl border border-border bg-card overflow-hidden"

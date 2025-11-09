@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ChatMessage as ChatMessageComponent } from "../ChatMessage";
-import { LoadingDots } from "../ui/loading-dots";
+import { ChatMessage as ChatMessageComponent } from "@/components/ChatMessage";
+import { LoadingDots } from "@/components/ui/loading-dots";
 import { ChatMessage } from "@/types";
 import { ChatEmptyState } from "./chat-empty-state";
 import { useChatStore } from "@/lib/store";

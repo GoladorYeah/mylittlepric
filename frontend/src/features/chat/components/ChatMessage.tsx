@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ChatMessage as ChatMessageType } from "@/types";
-import { ProductCard } from "./ProductCard";
+import { ProductCard } from "@/components/ProductCard";
 import { useAuthStore } from "@/lib/auth-store";
 
 // Helper function to generate initials from user's name or email

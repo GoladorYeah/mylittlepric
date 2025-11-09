@@ -1,8 +1,8 @@
 "use client";
 
 import { RotateCcw, Wifi, WifiOff, Coins } from "lucide-react";
-import { Logo } from "../Logo";
-import UserMenu from "../UserMenu";
+import { Logo } from "@/components/Logo";
+import UserMenu from "@/components/UserMenu";
 import { useChatStore } from "@/lib/store";
 
 interface ChatHeaderProps {

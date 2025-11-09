@@ -3,8 +3,8 @@
 import { useChatStore } from "@/lib/store";
 import { Clock, Plus, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { Logo } from "./Logo";
-import UserMenu from "./UserMenu";
+import { Logo } from "@/components/Logo";
+import UserMenu from "@/components/UserMenu";
 
 interface SearchHistoryProps {
   isConnected?: boolean;

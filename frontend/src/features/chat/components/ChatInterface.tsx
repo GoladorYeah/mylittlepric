@@ -2,9 +2,9 @@
 
 import { useChat } from "@/hooks";
 import { useChatStore } from "@/lib/store";
-import { SearchHistory } from "./SearchHistory";
-import { ChatMessages } from "./chat/chat-messages";
-import { ChatInput } from "./chat/chat-input";
+import { SearchHistory } from "@/components/SearchHistory";
+import { ChatMessages } from "./chat-messages";
+import { ChatInput } from "./chat-input";
 
 interface ChatInterfaceProps {
   initialQuery?: string;
