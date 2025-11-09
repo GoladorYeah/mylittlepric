@@ -1,6 +1,9 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,20 +23,63 @@ type UserPreferences struct {
 	SidebarOpen *bool   `json:"sidebar_open,omitempty" db:"sidebar_open"` // UI state
 
 	// Search synchronization
-	LastActiveSessionID *string `json:"last_active_session_id,omitempty" db:"last_active_session_id"` // Most recent session with unfinished search
+	LastActiveSessionID *string      `json:"last_active_session_id,omitempty" db:"last_active_session_id"` // Most recent session with unfinished search
+	SavedSearch         *SavedSearch `json:"saved_search,omitempty" db:"saved_search"`                      // Last search saved (before "New Search")
 
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
+// SavedSearch represents a saved search state that can be restored
+type SavedSearch struct {
+	SessionID string          `json:"session_id"`
+	Category  string          `json:"category"`
+	Timestamp int64           `json:"timestamp"`
+	Messages  []SavedMessage  `json:"messages"`
+}
+
+// SavedMessage represents a simplified message for saved search
+type SavedMessage struct {
+	ID           string          `json:"id"`
+	Role         string          `json:"role"`
+	Content      string          `json:"content"`
+	Timestamp    int64           `json:"timestamp"`
+	QuickReplies []string        `json:"quick_replies,omitempty"`
+	Products     []ProductCard   `json:"products,omitempty"`
+	SearchType   string          `json:"search_type,omitempty"`
+}
+
+// Scan implements sql.Scanner for JSONB scanning
+func (s *SavedSearch) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("failed to scan SavedSearch: expected []byte")
+	}
+
+	return json.Unmarshal(bytes, s)
+}
+
+// Value implements driver.Valuer for JSONB storage
+func (s *SavedSearch) Value() (driver.Value, error) {
+	if s == nil {
+		return nil, nil
+	}
+	return json.Marshal(s)
+}
+
 // UserPreferencesUpdate represents fields that can be updated
 // All fields are pointers to distinguish between "not set" and "set to empty/default"
 type UserPreferencesUpdate struct {
-	Country             *string `json:"country,omitempty"`
-	Currency            *string `json:"currency,omitempty"`
-	Language            *string `json:"language,omitempty"`
-	Theme               *string `json:"theme,omitempty"`
-	SidebarOpen         *bool   `json:"sidebar_open,omitempty"`
-	LastActiveSessionID *string `json:"last_active_session_id,omitempty"`
+	Country             *string      `json:"country,omitempty"`
+	Currency            *string      `json:"currency,omitempty"`
+	Language            *string      `json:"language,omitempty"`
+	Theme               *string      `json:"theme,omitempty"`
+	SidebarOpen         *bool        `json:"sidebar_open,omitempty"`
+	LastActiveSessionID *string      `json:"last_active_session_id,omitempty"`
+	SavedSearch         *SavedSearch `json:"saved_search,omitempty"`
 }

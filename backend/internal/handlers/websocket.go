@@ -40,14 +40,14 @@ type WSMessage struct {
 	SessionID       string                 `json:"session_id"`
 	Message         string                 `json:"message"`
 	Country         string                 `json:"country"`
-	Language        string `json:"language"`
+	Language        string                 `json:"language"`
 	Currency        string                 `json:"currency"`
 	NewSearch       bool                   `json:"new_search"`
 	PageToken       string                 `json:"page_token"`
 	CurrentCategory string                 `json:"current_category"`
 	AccessToken     string                 `json:"access_token,omitempty"` // Optional JWT token for authentication
 	Preferences     map[string]interface{} `json:"preferences,omitempty"`  // For preferences sync
-	SavedSearch     map[string]interface{} `json:"saved_search,omitempty"` // For saved search sync
+	SavedSearch     *models.SavedSearch    `json:"saved_search,omitempty"` // For saved search sync
 }
 
 type WSResponse struct {
@@ -370,11 +370,21 @@ func (h *WSHandler) handleSyncSavedSearch(c *websocket.Conn, msg *WSMessage, cli
 	// Extract user ID from access token
 	if msg.AccessToken == "" {
 		// Anonymous users can't sync across devices
+		h.sendError(c, "auth_required", "Authentication required for saved search sync")
 		return
 	}
 
 	claims, err := h.container.JWTService.ValidateAccessToken(msg.AccessToken)
 	if err != nil {
+		h.sendError(c, "invalid_token", "Invalid access token")
+		return
+	}
+
+	// Save the saved_search to server
+	err = h.container.PreferencesService.UpdateSavedSearch(claims.UserID, msg.SavedSearch)
+	if err != nil {
+		log.Printf("❌ Failed to update saved search for user %s: %v", claims.UserID.String(), err)
+		h.sendError(c, "update_failed", "Failed to save search")
 		return
 	}
 
