@@ -504,6 +504,28 @@ func (s *SessionService) GetActiveSessionForUser(userID uuid.UUID) (*models.Chat
 	return &session, nil
 }
 
+// GetSessionWithOngoingSearch returns a specific session if it has an ongoing search
+// This is used for cross-device search continuity
+// Returns nil if session not found or search is not in progress
+func (s *SessionService) GetSessionWithOngoingSearch(sessionID string) (*models.ChatSession, error) {
+	session, err := s.GetSession(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %w", err)
+	}
+
+	if session == nil {
+		return nil, nil
+	}
+
+	// Check if this session has an ongoing search
+	if session.SearchState.Status == models.SearchStatusInProgress {
+		return session, nil
+	}
+
+	// Session exists but no ongoing search
+	return nil, nil
+}
+
 // LinkSessionToUser links an existing session to a user (for when anonymous user logs in)
 func (s *SessionService) LinkSessionToUser(sessionID string, userID uuid.UUID) error {
 	session, err := s.GetSession(sessionID)

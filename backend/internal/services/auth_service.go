@@ -317,7 +317,12 @@ func (s *AuthService) userExists(email string) (bool, error) {
 }
 
 func (s *AuthService) saveUser(user *models.User) error {
-	// Save user data by ID
+	// 1. Save to PostgreSQL (source of truth for foreign key constraints)
+	if err := s.saveUserToPostgres(user); err != nil {
+		return fmt.Errorf("failed to save user to postgres: %w", err)
+	}
+
+	// 2. Save to Redis (for fast access)
 	userKey := fmt.Sprintf("user:id:%s", user.ID.String())
 	userData := map[string]interface{}{
 		"id":            user.ID.String(),
@@ -354,6 +359,37 @@ func (s *AuthService) saveUser(user *models.User) error {
 	}
 
 	return nil
+}
+
+func (s *AuthService) saveUserToPostgres(user *models.User) error {
+	query := `
+		INSERT INTO users (id, email, password_hash, full_name, picture, provider, provider_id, created_at, updated_at, last_login_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		ON CONFLICT (id) DO UPDATE SET
+			email = EXCLUDED.email,
+			password_hash = EXCLUDED.password_hash,
+			full_name = EXCLUDED.full_name,
+			picture = EXCLUDED.picture,
+			provider = EXCLUDED.provider,
+			provider_id = EXCLUDED.provider_id,
+			updated_at = EXCLUDED.updated_at,
+			last_login_at = EXCLUDED.last_login_at
+	`
+
+	_, err := s.db.ExecContext(s.ctx, query,
+		user.ID,
+		user.Email,
+		user.PasswordHash,
+		user.FullName,
+		user.Picture,
+		user.Provider,
+		user.ProviderID,
+		user.CreatedAt,
+		user.UpdatedAt,
+		user.LastLoginAt,
+	)
+
+	return err
 }
 
 func (s *AuthService) getUserByEmail(email string) (*models.User, error) {

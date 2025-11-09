@@ -16,8 +16,11 @@ type UserPreferences struct {
 	Language *string `json:"language,omitempty" db:"language"` // ISO 639-1 (e.g., "en", "es")
 
 	// UI settings
-	Theme       *string `json:"theme,omitempty" db:"theme"`             // "light", "dark", "system"
+	Theme       *string `json:"theme,omitempty" db:"theme"`               // "light", "dark", "system"
 	SidebarOpen *bool   `json:"sidebar_open,omitempty" db:"sidebar_open"` // UI state
+
+	// Search synchronization
+	LastActiveSessionID *string `json:"last_active_session_id,omitempty" db:"last_active_session_id"` // Most recent session with unfinished search
 
 	// Timestamps
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
@@ -27,9 +30,10 @@ type UserPreferences struct {
 // UserPreferencesUpdate represents fields that can be updated
 // All fields are pointers to distinguish between "not set" and "set to empty/default"
 type UserPreferencesUpdate struct {
-	Country     *string `json:"country,omitempty"`
-	Currency    *string `json:"currency,omitempty"`
-	Language    *string `json:"language,omitempty"`
-	Theme       *string `json:"theme,omitempty"`
-	SidebarOpen *bool   `json:"sidebar_open,omitempty"`
+	Country             *string `json:"country,omitempty"`
+	Currency            *string `json:"currency,omitempty"`
+	Language            *string `json:"language,omitempty"`
+	Theme               *string `json:"theme,omitempty"`
+	SidebarOpen         *bool   `json:"sidebar_open,omitempty"`
+	LastActiveSessionID *string `json:"last_active_session_id,omitempty"`
 }
