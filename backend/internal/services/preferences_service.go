@@ -33,7 +33,7 @@ func (s *PreferencesService) GetUserPreferences(userID uuid.UUID) (*models.UserP
 	var prefs models.UserPreferences
 
 	query := `
-		SELECT user_id, country, currency, language, theme, sidebar_open, last_active_session_id, created_at, updated_at
+		SELECT user_id, country, currency, language, theme, sidebar_open, last_active_session_id, saved_search, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -71,9 +71,9 @@ func (s *PreferencesService) UpsertUserPreferences(userID uuid.UUID, update *mod
 // createPreferences inserts new preferences row
 func (s *PreferencesService) createPreferences(userID uuid.UUID, update *models.UserPreferencesUpdate) (*models.UserPreferences, error) {
 	query := `
-		INSERT INTO user_preferences (user_id, country, currency, language, theme, sidebar_open, last_active_session_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING user_id, country, currency, language, theme, sidebar_open, last_active_session_id, created_at, updated_at
+		INSERT INTO user_preferences (user_id, country, currency, language, theme, sidebar_open, last_active_session_id, saved_search)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING user_id, country, currency, language, theme, sidebar_open, last_active_session_id, saved_search, created_at, updated_at
 	`
 
 	var prefs models.UserPreferences
@@ -85,6 +85,7 @@ func (s *PreferencesService) createPreferences(userID uuid.UUID, update *models.
 		update.Theme,
 		update.SidebarOpen,
 		update.LastActiveSessionID,
+		update.SavedSearch,
 	).StructScan(&prefs)
 
 	if err != nil {
@@ -107,6 +108,7 @@ func (s *PreferencesService) createPreferences(userID uuid.UUID, update *models.
 				update.Theme,
 				update.SidebarOpen,
 				update.LastActiveSessionID,
+				update.SavedSearch,
 			).StructScan(&prefs)
 
 			if err != nil {
@@ -168,6 +170,12 @@ func (s *PreferencesService) updatePreferences(userID uuid.UUID, update *models.
 		argCounter++
 	}
 
+	if update.SavedSearch != nil {
+		updates = append(updates, fmt.Sprintf("saved_search = $%d", argCounter))
+		args = append(args, update.SavedSearch)
+		argCounter++
+	}
+
 	// No fields to update
 	if len(updates) == 0 {
 		return s.GetUserPreferences(userID)
@@ -180,7 +188,7 @@ func (s *PreferencesService) updatePreferences(userID uuid.UUID, update *models.
 		}
 		query += update
 	}
-	query += fmt.Sprintf(" WHERE user_id = $%d RETURNING user_id, country, currency, language, theme, sidebar_open, last_active_session_id, created_at, updated_at", argCounter)
+	query += fmt.Sprintf(" WHERE user_id = $%d RETURNING user_id, country, currency, language, theme, sidebar_open, last_active_session_id, saved_search, created_at, updated_at", argCounter)
 	args = append(args, userID)
 
 	// Execute update
@@ -255,6 +263,47 @@ func (s *PreferencesService) GetLastActiveSession(userID uuid.UUID) (string, err
 	}
 
 	return *prefs.LastActiveSessionID, nil
+}
+
+// ==================== Saved Search Synchronization ====================
+
+// UpdateSavedSearch updates the saved search for cross-device synchronization
+// This should be called when:
+// - A user clicks "New Search" (to save current search)
+// - A user clears saved search
+// Pass nil to clear the saved search
+func (s *PreferencesService) UpdateSavedSearch(userID uuid.UUID, savedSearch *models.SavedSearch) error {
+	update := &models.UserPreferencesUpdate{
+		SavedSearch: savedSearch,
+	}
+
+	_, err := s.UpsertUserPreferences(userID, update)
+	if err != nil {
+		return fmt.Errorf("failed to update saved search: %w", err)
+	}
+
+	if savedSearch == nil {
+		fmt.Printf("✅ Cleared saved search for user %s\n", userID.String())
+	} else {
+		fmt.Printf("✅ Updated saved search for user %s (session: %s, %d messages)\n",
+			userID.String(), savedSearch.SessionID, len(savedSearch.Messages))
+	}
+	return nil
+}
+
+// GetSavedSearch retrieves the saved search
+// Returns nil if no saved search exists
+func (s *PreferencesService) GetSavedSearch(userID uuid.UUID) (*models.SavedSearch, error) {
+	prefs, err := s.GetUserPreferences(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user preferences: %w", err)
+	}
+
+	if prefs == nil || prefs.SavedSearch == nil {
+		return nil, nil
+	}
+
+	return prefs.SavedSearch, nil
 }
 
 // ==================== Helper Methods ====================

@@ -3,6 +3,23 @@ import { fetchWithAuth } from './auth-api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
+export interface SavedSearchMessage {
+  id: string;
+  role: string;
+  content: string;
+  timestamp: number;
+  quick_replies?: string[];
+  products?: any[];
+  search_type?: string;
+}
+
+export interface SavedSearchData {
+  session_id: string;
+  category: string;
+  timestamp: number;
+  messages: SavedSearchMessage[];
+}
+
 export interface UserPreferences {
   user_id: string;
   country?: string;
@@ -10,6 +27,7 @@ export interface UserPreferences {
   language?: string;
   theme?: string;
   sidebar_open?: boolean;
+  saved_search?: SavedSearchData;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +38,7 @@ export interface UserPreferencesUpdate {
   language?: string;
   theme?: string;
   sidebar_open?: boolean;
+  saved_search?: SavedSearchData | null;
 }
 
 export interface GetPreferencesResponse {

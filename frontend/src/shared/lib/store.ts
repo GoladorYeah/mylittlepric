@@ -251,24 +251,41 @@ export const useChatStore = create<ChatStore>()(
         const state = get();
         // Only save if there are messages (otherwise nothing to save)
         if (state.messages.length > 0) {
-          set({
-            savedSearch: {
-              messages: [...state.messages],
-              sessionId: state.sessionId,
-              category: state.currentCategory,
-              timestamp: Date.now(),
-            },
-          });
+          const savedSearchData = {
+            messages: [...state.messages],
+            sessionId: state.sessionId,
+            category: state.currentCategory,
+            timestamp: Date.now(),
+          };
 
-          // Realtime sync to other devices
+          set({ savedSearch: savedSearchData });
+
+          // Realtime sync to other devices via WebSocket
           if (state._wsSender) {
             const { useAuthStore } = await import("./auth-store");
             const accessToken = useAuthStore.getState().accessToken;
             if (accessToken) {
+              // Convert to backend format
+              const backendFormat = {
+                session_id: savedSearchData.sessionId,
+                category: savedSearchData.category,
+                timestamp: savedSearchData.timestamp,
+                messages: savedSearchData.messages.map(msg => ({
+                  id: msg.id,
+                  role: msg.role,
+                  content: msg.content,
+                  timestamp: msg.timestamp,
+                  quick_replies: msg.quick_replies,
+                  products: msg.products,
+                  search_type: msg.search_type,
+                })),
+              };
+
               state._wsSender({
                 type: "sync_saved_search",
                 session_id: state.sessionId,
                 access_token: accessToken,
+                saved_search: backendFormat,
               });
             }
           }
@@ -307,7 +324,7 @@ export const useChatStore = create<ChatStore>()(
         const state = get();
         set({ savedSearch: null });
 
-        // Realtime sync to other devices
+        // Realtime sync to other devices (send null to clear)
         if (state._wsSender) {
           const { useAuthStore } = await import("./auth-store");
           const accessToken = useAuthStore.getState().accessToken;
@@ -316,6 +333,7 @@ export const useChatStore = create<ChatStore>()(
               type: "sync_saved_search",
               session_id: state.sessionId,
               access_token: accessToken,
+              saved_search: null, // Clear saved search on server
             });
           }
         }
@@ -335,6 +353,29 @@ export const useChatStore = create<ChatStore>()(
             if (prefs.currency) updates.currency = prefs.currency;
             if (prefs.language) updates.language = prefs.language;
             if (prefs.sidebar_open !== undefined) updates.isSidebarOpen = prefs.sidebar_open;
+
+            // Sync saved_search from server
+            if (prefs.saved_search !== undefined) {
+              if (prefs.saved_search === null) {
+                updates.savedSearch = null;
+              } else {
+                // Convert from server format to local format
+                updates.savedSearch = {
+                  sessionId: prefs.saved_search.session_id,
+                  category: prefs.saved_search.category,
+                  timestamp: prefs.saved_search.timestamp,
+                  messages: prefs.saved_search.messages.map((msg: any) => ({
+                    id: msg.id,
+                    role: msg.role as "user" | "assistant",
+                    content: msg.content,
+                    timestamp: msg.timestamp,
+                    quick_replies: msg.quick_replies,
+                    products: msg.products,
+                    search_type: msg.search_type,
+                  })),
+                };
+              }
+            }
 
             if (Object.keys(updates).length > 0) {
               set(updates);
