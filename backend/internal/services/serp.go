@@ -39,16 +39,24 @@ func (s *SerpService) SearchProducts(query, searchType, country string, minPrice
 		return nil, -1, fmt.Errorf("invalid search query: %w", err)
 	}
 
-	const maxRetries = 2
+	// Try up to total number of keys + 2 (for network retries)
+	maxRetries := s.keyRotator.GetTotalKeys() + 1
 	var lastErr error
 	var lastKeyIndex int = -1
+	var lastWasQuotaError bool = false
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		if attempt > 0 {
-			// Exponential backoff: 500ms, 1s
+		// Only apply backoff for network errors, not quota errors
+		if attempt > 0 && !lastWasQuotaError {
+			// Exponential backoff: 500ms, 1s, 2s
 			backoffDuration := time.Duration(500*(1<<uint(attempt-1))) * time.Millisecond
+			if backoffDuration > 2*time.Second {
+				backoffDuration = 2 * time.Second
+			}
 			fmt.Printf("   ⏳ SERP retry attempt %d/%d after %v...\n", attempt+1, maxRetries+1, backoffDuration)
 			time.Sleep(backoffDuration)
+		} else if attempt > 0 && lastWasQuotaError {
+			fmt.Printf("   🔄 Trying next key (attempt %d/%d)...\n", attempt+1, maxRetries+1)
 		}
 
 		apiKey, keyIndex, err := s.keyRotator.GetNextKey()
@@ -56,6 +64,7 @@ func (s *SerpService) SearchProducts(query, searchType, country string, minPrice
 			return nil, -1, fmt.Errorf("failed to get API key: %w", err)
 		}
 		lastKeyIndex = keyIndex
+		lastWasQuotaError = false
 
 		// ✅ ЛОГИРУЕМ ОРИГИНАЛЬНЫЙ ЗАПРОС
 		if attempt == 0 {
@@ -97,11 +106,29 @@ func (s *SerpService) SearchProducts(query, searchType, country string, minPrice
 
 			// Check if error is retryable
 			errMsg := err.Error()
-			if strings.Contains(errMsg, "timeout") ||
+			isQuotaError := strings.Contains(errMsg, "run out of searches") ||
+				strings.Contains(errMsg, "quota exceeded") ||
+				strings.Contains(errMsg, "limit exceeded") ||
+				strings.Contains(errMsg, "rate limit")
+
+			isNetworkError := strings.Contains(errMsg, "timeout") ||
 				strings.Contains(errMsg, "503") ||
 				strings.Contains(errMsg, "502") ||
-				strings.Contains(errMsg, "500") {
-				// Retryable error - continue to next attempt
+				strings.Contains(errMsg, "500")
+
+			if isQuotaError {
+				// Mark this key as exhausted
+				fmt.Printf("   ⚠️ Quota error detected for key %d\n", keyIndex)
+				if markErr := s.keyRotator.MarkKeyAsExhausted(keyIndex); markErr != nil {
+					fmt.Printf("   ⚠️ Failed to mark key as exhausted: %v\n", markErr)
+				}
+				// Try next key immediately (don't wait for backoff)
+				lastWasQuotaError = true
+				if attempt < maxRetries {
+					continue
+				}
+			} else if isNetworkError {
+				// Retryable network error - continue to next attempt
 				if attempt < maxRetries {
 					continue
 				}
@@ -391,24 +418,85 @@ func isCommonWord(word string) bool {
 }
 
 func (s *SerpService) GetProductDetailsByToken(pageToken string) (map[string]interface{}, int, error) {
-	apiKey, keyIndex, err := s.keyRotator.GetNextKey()
-	if err != nil {
-		return nil, -1, fmt.Errorf("failed to get API key: %w", err)
+	maxRetries := s.keyRotator.GetTotalKeys() + 1
+	var lastErr error
+	var lastKeyIndex int = -1
+	var lastWasQuotaError bool = false
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 && !lastWasQuotaError {
+			backoffDuration := time.Duration(500*(1<<uint(attempt-1))) * time.Millisecond
+			if backoffDuration > 2*time.Second {
+				backoffDuration = 2 * time.Second
+			}
+			fmt.Printf("   ⏳ Product details retry attempt %d/%d after %v...\n", attempt+1, maxRetries+1, backoffDuration)
+			time.Sleep(backoffDuration)
+		} else if attempt > 0 && lastWasQuotaError {
+			fmt.Printf("   🔄 Trying next key for product details (attempt %d/%d)...\n", attempt+1, maxRetries+1)
+		}
+
+		apiKey, keyIndex, err := s.keyRotator.GetNextKey()
+		if err != nil {
+			return nil, -1, fmt.Errorf("failed to get API key: %w", err)
+		}
+		lastKeyIndex = keyIndex
+		lastWasQuotaError = false
+
+		parameter := map[string]string{
+			"engine":      "google_immersive_product",
+			"page_token":  pageToken,
+			"more_stores": "true",
+		}
+
+		search := g.NewGoogleSearch(parameter, apiKey)
+		startTime := time.Now()
+		data, err := search.GetJSON()
+		elapsed := time.Since(startTime)
+
+		if err != nil {
+			lastErr = err
+			fmt.Printf("   ❌ Product details error (%.2fs, attempt %d/%d): %v\n", elapsed.Seconds(), attempt+1, maxRetries+1, err)
+
+			errMsg := err.Error()
+			isQuotaError := strings.Contains(errMsg, "run out of searches") ||
+				strings.Contains(errMsg, "quota exceeded") ||
+				strings.Contains(errMsg, "limit exceeded") ||
+				strings.Contains(errMsg, "rate limit")
+
+			isNetworkError := strings.Contains(errMsg, "timeout") ||
+				strings.Contains(errMsg, "503") ||
+				strings.Contains(errMsg, "502") ||
+				strings.Contains(errMsg, "500")
+
+			if isQuotaError {
+				fmt.Printf("   ⚠️ Quota error detected for key %d\n", keyIndex)
+				if markErr := s.keyRotator.MarkKeyAsExhausted(keyIndex); markErr != nil {
+					fmt.Printf("   ⚠️ Failed to mark key as exhausted: %v\n", markErr)
+				}
+				lastWasQuotaError = true
+				if attempt < maxRetries {
+					continue
+				}
+			} else if isNetworkError {
+				if attempt < maxRetries {
+					continue
+				}
+			}
+
+			return nil, keyIndex, fmt.Errorf("SERP API error: %w", err)
+		}
+
+		// Success!
+		if attempt > 0 {
+			fmt.Printf("   ✅ Product details request succeeded on attempt %d\n", attempt+1)
+		}
+		return data, keyIndex, nil
 	}
 
-	parameter := map[string]string{
-		"engine":      "google_immersive_product",
-		"page_token":  pageToken,
-		"more_stores": "true",
+	if lastErr != nil {
+		return nil, lastKeyIndex, fmt.Errorf("product details failed after %d retries: %w", maxRetries+1, lastErr)
 	}
-
-	search := g.NewGoogleSearch(parameter, apiKey)
-	data, err := search.GetJSON()
-	if err != nil {
-		return nil, keyIndex, fmt.Errorf("SERP API error: %w", err)
-	}
-
-	return data, keyIndex, nil
+	return nil, lastKeyIndex, fmt.Errorf("product details failed after %d retries", maxRetries+1)
 }
 
 func (s *SerpService) convertToProductCards(items []domain.ShoppingItem, searchType string) []models.ProductCard {
