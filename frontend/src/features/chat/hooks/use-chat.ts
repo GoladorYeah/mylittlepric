@@ -263,20 +263,32 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return;
       }
 
-      const messageHash = JSON.stringify(data);
+      // Use message_id for deduplication if available, otherwise fall back to hash
+      const messageId = data.message_id || JSON.stringify(data);
 
-      if (processedMessageIds.current.has(messageHash)) {
+      if (processedMessageIds.current.has(messageId)) {
+        console.log("🔄 Skipping duplicate message:", data.type, messageId);
         return;
       }
 
-      processedMessageIds.current.add(messageHash);
+      processedMessageIds.current.add(messageId);
+
+      // Clean up old message IDs to prevent memory leak (keep last 100)
+      if (processedMessageIds.current.size > 100) {
+        const idsArray = Array.from(processedMessageIds.current);
+        processedMessageIds.current = new Set(idsArray.slice(-100));
+      }
 
       setLoading(false);
 
       // Handle realtime sync messages
       if (data.type === "user_message_sync") {
         // User message from another device
-        console.log("📱 Received user message sync from another device");
+        console.log("📱 Received user message sync from another device", {
+          message_id: data.message_id,
+          content: data.output?.substring(0, 50),
+          session: data.session_id
+        });
 
         // Ignore if session doesn't match
         if (data.session_id && data.session_id !== sessionId) {
@@ -289,6 +301,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           role: "user" as const,
           content: data.output || "",
           timestamp: Date.now(),
+          isLocal: false, // This message is from another device
         };
 
         addMessage(userMessage);
@@ -298,7 +311,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       if (data.type === "assistant_message_sync") {
         // Assistant message from another device
-        console.log("📱 Received assistant message sync from another device");
+        console.log("📱 Received assistant message sync from another device", {
+          message_id: data.message_id,
+          content: data.output?.substring(0, 50),
+          has_products: !!data.products,
+          session: data.session_id
+        });
 
         // Ignore if session doesn't match
         if (data.session_id && data.session_id !== sessionId) {
@@ -314,6 +332,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           quick_replies: data.quick_replies,
           products: data.products,
           search_type: data.search_type,
+          isLocal: false, // Synced messages are not local
         };
 
         addMessage(assistantMessage);
@@ -348,6 +367,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           quick_replies: data.quick_replies,
           products: data.products,
           search_type: data.search_type,
+          isLocal: false, // Legacy synced messages are not local
         };
 
         addMessage(assistantMessage);
@@ -396,6 +416,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           role: "assistant",
           content: errorMessage,
           timestamp: Date.now(),
+          isLocal: true, // Error responses are local to this device
         });
         return;
       }
@@ -419,6 +440,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         quick_replies: data.quick_replies,
         products: data.products,
         search_type: data.search_type,
+        isLocal: true, // Direct response to local message
       };
 
       addMessage(assistantMessage);
@@ -467,6 +489,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       role: "user" as const,
       content: textToSend,
       timestamp: Date.now(),
+      isLocal: true, // Message sent from this device
     };
 
     addMessage(userMessage);
@@ -492,6 +515,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         role: "assistant",
         content: "Failed to send message. Please check your connection.",
         timestamp: Date.now(),
+        isLocal: true, // Error messages are local
       });
     }
   };

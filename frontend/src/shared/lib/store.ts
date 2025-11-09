@@ -145,6 +145,7 @@ export const useChatStore = create<ChatStore>()(
               quick_replies: msg.quick_replies,
               products: msg.products,
               search_type: msg.search_type,
+              isLocal: true, // Messages loaded from session are considered local (already sent)
             }));
 
             set({ messages: chatMessages });

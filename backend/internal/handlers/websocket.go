@@ -52,6 +52,7 @@ type WSMessage struct {
 
 type WSResponse struct {
 	Type           string                         `json:"type"`
+	MessageID      string                         `json:"message_id,omitempty"` // Unique message ID for deduplication
 	Output         string                         `json:"output,omitempty"`
 	QuickReplies   []string                       `json:"quick_replies,omitempty"`
 	Products       []models.ProductCard           `json:"products,omitempty"`
@@ -142,6 +143,7 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 	if userID != nil {
 		userMsgSync := &WSResponse{
 			Type:      "user_message_sync",
+			MessageID: uuid.New().String(), // Unique ID for deduplication
 			Output:    msg.Message,
 			SessionID: msg.SessionID,
 		}
@@ -168,9 +170,13 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 		return
 	}
 
+	// Generate unique message ID for both responses
+	messageID := uuid.New().String()
+
 	// Build response
 	response := &WSResponse{
 		Type:         result.Type,
+		MessageID:    messageID, // Same ID for sender and sync
 		Output:       result.Output,
 		QuickReplies: result.QuickReplies,
 		Products:     result.Products,
@@ -185,9 +191,10 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 
 	// Broadcast assistant message to other devices of the same user
 	if userID != nil {
-		// Create sync message for other devices
+		// Create sync message for other devices (same message_id for deduplication)
 		syncMsg := &WSResponse{
 			Type:         "assistant_message_sync",
+			MessageID:    messageID, // Same ID as sent to sender
 			Output:       result.Output,
 			QuickReplies: result.QuickReplies,
 			Products:     result.Products,

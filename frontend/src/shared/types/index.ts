@@ -28,6 +28,7 @@ export interface ChatMessage {
   quick_replies?: string[];
   products?: Product[];
   search_type?: string;
+  isLocal?: boolean; // true if message was sent from this device, false if synced from another device
 }
 
 export interface SessionMessage {
