@@ -156,9 +156,42 @@ export const useChatStore = create<ChatStore>()(
         }
       },
 
-      toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+      toggleSidebar: async () => {
+        set((state) => ({ isSidebarOpen: !state.isSidebarOpen }));
 
-      setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+        // Sync to server if user is authenticated
+        const { useAuthStore } = await import("./auth-store");
+        const isAuthenticated = useAuthStore.getState().isAuthenticated;
+
+        if (isAuthenticated) {
+          try {
+            const { PreferencesAPI } = await import("./preferences-api");
+            const newState = get().isSidebarOpen;
+            await PreferencesAPI.updateUserPreferences({ sidebar_open: newState });
+            console.log("✅ Synced sidebar state to server:", newState);
+          } catch (error) {
+            console.error("Failed to sync sidebar state:", error);
+          }
+        }
+      },
+
+      setSidebarOpen: async (open) => {
+        set({ isSidebarOpen: open });
+
+        // Sync to server if user is authenticated
+        const { useAuthStore } = await import("./auth-store");
+        const isAuthenticated = useAuthStore.getState().isAuthenticated;
+
+        if (isAuthenticated) {
+          try {
+            const { PreferencesAPI } = await import("./preferences-api");
+            await PreferencesAPI.updateUserPreferences({ sidebar_open: open });
+            console.log("✅ Synced sidebar state to server:", open);
+          } catch (error) {
+            console.error("Failed to sync sidebar state:", error);
+          }
+        }
+      },
 
       saveCurrentSearch: () => {
         const state = get();
