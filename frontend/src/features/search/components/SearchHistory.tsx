@@ -42,11 +42,25 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
     }
   };
 
+  const handleNewSearchClick = () => {
+    if (onNewSearch) {
+      onNewSearch();
+    }
+    // Close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      toggleSidebar();
+    }
+  };
+
   const handleRestoreSearch = () => {
     restoreSavedSearch();
     // Navigate to chat if we're not already there
     if (pathname !== '/chat') {
       router.push('/chat');
+    }
+    // Close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      toggleSidebar();
     }
   };
 
@@ -124,7 +138,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                 {/* New Search Button */}
                 {onNewSearch && (
                   <button
-                    onClick={onNewSearch}
+                    onClick={handleNewSearchClick}
                     disabled={!isConnected}
                     className="w-full p-4 rounded-lg flex items-center gap-3 transition-colors bg-primary/10 hover:bg-primary/20 text-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
@@ -189,7 +203,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
               {/* New Search Icon */}
               {onNewSearch && (
                 <button
-                  onClick={onNewSearch}
+                  onClick={handleNewSearchClick}
                   disabled={!isConnected}
                   className="p-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative group"
                   title="New Search"
