@@ -318,7 +318,7 @@ func (s *AuthService) userExists(email string) (bool, error) {
 
 func (s *AuthService) saveUser(user *models.User) error {
 	// 1. Save to PostgreSQL (source of truth for foreign key constraints)
-	if err := s.saveUserToPostgres(user); err != nil {
+	if err := s.SaveUserToPostgres(user); err != nil {
 		return fmt.Errorf("failed to save user to postgres: %w", err)
 	}
 
@@ -361,7 +361,8 @@ func (s *AuthService) saveUser(user *models.User) error {
 	return nil
 }
 
-func (s *AuthService) saveUserToPostgres(user *models.User) error {
+// SaveUserToPostgres saves a user to PostgreSQL (exported for use by other services)
+func (s *AuthService) SaveUserToPostgres(user *models.User) error {
 	query := `
 		INSERT INTO users (id, email, password_hash, full_name, picture, provider, provider_id, created_at, updated_at, last_login_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
