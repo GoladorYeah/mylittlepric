@@ -533,8 +533,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   };
 
   const handleNewSearch = () => {
-    // Save current search before clearing (if there are messages)
-    if (messages.length > 0) {
+    // Save current search before clearing (only if user has sent messages)
+    const hasUserMessages = messages.some(msg => msg.role === "user");
+    if (hasUserMessages) {
       saveCurrentSearch();
     }
 

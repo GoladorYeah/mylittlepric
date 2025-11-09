@@ -203,8 +203,13 @@ export const useChatStore = create<ChatStore>()(
       saveCurrentSearch: async () => {
         const state = get();
 
-        // Don't save if there are no messages
+        // Don't save if there are no messages or no user messages
         if (state.messages.length === 0) {
+          return;
+        }
+
+        const hasUserMessages = state.messages.some(msg => msg.role === "user");
+        if (!hasUserMessages) {
           return;
         }
 
