@@ -67,6 +67,13 @@ class AuthAPI {
       expires_in: authData.expires_in,
     });
 
+    // Sync preferences from server after signup
+    try {
+      await useChatStore.getState().syncPreferencesFromServer();
+    } catch (error) {
+      console.error("Failed to sync preferences after signup:", error);
+    }
+
     return authData;
   }
 
@@ -89,6 +96,13 @@ class AuthAPI {
       refresh_token: authData.refresh_token,
       expires_in: authData.expires_in,
     });
+
+    // Sync preferences from server after login
+    try {
+      await useChatStore.getState().syncPreferencesFromServer();
+    } catch (error) {
+      console.error("Failed to sync preferences after login:", error);
+    }
 
     return authData;
   }
