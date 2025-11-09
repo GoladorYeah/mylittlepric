@@ -24,6 +24,7 @@ interface ChatStore {
   isSidebarOpen: boolean;
   _hasInitialized: boolean; // Internal flag to track initialization
   savedSearch: SavedSearch | null; // Last search before "New Search" was clicked
+  showSavedSearchPrompt: boolean; // Show dialog to continue or start new search
   _wsSender: WebSocketSender | null; // Internal WebSocket sender for realtime sync
 
   addMessage: (message: ChatMessage) => void;
@@ -48,6 +49,8 @@ interface ChatStore {
   syncPreferencesFromServer: () => Promise<void>;
   syncPreferencesToServer: () => Promise<void>;
   registerWebSocketSender: (sender: WebSocketSender | null) => void;
+  setShowSavedSearchPrompt: (show: boolean) => void;
+  checkSavedSearchPrompt: () => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -64,6 +67,7 @@ export const useChatStore = create<ChatStore>()(
       isSidebarOpen: true, // По умолчанию развернута
       _hasInitialized: false,
       savedSearch: null,
+      showSavedSearchPrompt: false,
       _wsSender: null,
 
       addMessage: (message) =>
@@ -188,106 +192,58 @@ export const useChatStore = create<ChatStore>()(
         }
       },
 
-      toggleSidebar: async () => {
+      toggleSidebar: () => {
         set((state) => ({ isSidebarOpen: !state.isSidebarOpen }));
-
-        // Sync to server if user is authenticated
-        const { useAuthStore } = await import("./auth-store");
-        const isAuthenticated = useAuthStore.getState().isAuthenticated;
-
-        if (isAuthenticated) {
-          try {
-            const { PreferencesAPI } = await import("./preferences-api");
-            const newState = get().isSidebarOpen;
-            await PreferencesAPI.updateUserPreferences({ sidebar_open: newState });
-            console.log("✅ Synced sidebar state to server:", newState);
-
-            // Realtime sync to other devices
-            const state = get();
-            if (state._wsSender) {
-              const accessToken = useAuthStore.getState().accessToken;
-              state._wsSender({
-                type: "sync_preferences",
-                session_id: state.sessionId,
-                access_token: accessToken,
-              });
-            }
-          } catch (error) {
-            console.error("Failed to sync sidebar state:", error);
-          }
-        }
       },
 
-      setSidebarOpen: async (open) => {
+      setSidebarOpen: (open) => {
         set({ isSidebarOpen: open });
-
-        // Sync to server if user is authenticated
-        const { useAuthStore } = await import("./auth-store");
-        const isAuthenticated = useAuthStore.getState().isAuthenticated;
-
-        if (isAuthenticated) {
-          try {
-            const { PreferencesAPI } = await import("./preferences-api");
-            await PreferencesAPI.updateUserPreferences({ sidebar_open: open });
-            console.log("✅ Synced sidebar state to server:", open);
-
-            // Realtime sync to other devices
-            const state = get();
-            if (state._wsSender) {
-              const accessToken = useAuthStore.getState().accessToken;
-              state._wsSender({
-                type: "sync_preferences",
-                session_id: state.sessionId,
-                access_token: accessToken,
-              });
-            }
-          } catch (error) {
-            console.error("Failed to sync sidebar state:", error);
-          }
-        }
       },
 
       saveCurrentSearch: async () => {
         const state = get();
-        // Only save if there are messages (otherwise nothing to save)
-        if (state.messages.length > 0) {
-          const savedSearchData = {
-            messages: [...state.messages],
-            sessionId: state.sessionId,
-            category: state.currentCategory,
-            timestamp: Date.now(),
-          };
 
-          set({ savedSearch: savedSearchData });
+        // Don't save if there are no messages
+        if (state.messages.length === 0) {
+          return;
+        }
 
-          // Realtime sync to other devices via WebSocket
-          if (state._wsSender) {
-            const { useAuthStore } = await import("./auth-store");
-            const accessToken = useAuthStore.getState().accessToken;
-            if (accessToken) {
-              // Convert to backend format
-              const backendFormat = {
-                session_id: savedSearchData.sessionId,
-                category: savedSearchData.category,
-                timestamp: savedSearchData.timestamp,
-                messages: savedSearchData.messages.map(msg => ({
-                  id: msg.id,
-                  role: msg.role,
-                  content: msg.content,
-                  timestamp: msg.timestamp,
-                  quick_replies: msg.quick_replies,
-                  products: msg.products,
-                  search_type: msg.search_type,
-                })),
-              };
+        const savedSearchData = {
+          messages: [...state.messages],
+          sessionId: state.sessionId,
+          category: state.currentCategory,
+          timestamp: Date.now(),
+        };
 
-              state._wsSender({
-                type: "sync_saved_search",
-                session_id: state.sessionId,
-                access_token: accessToken,
-                saved_search: backendFormat,
-              });
-            }
+        set({ savedSearch: savedSearchData });
+
+        // Realtime sync to other devices via WebSocket
+        if (state._wsSender) {
+          const { useAuthStore } = await import("./auth-store");
+          const accessToken = useAuthStore.getState().accessToken;
+          if (accessToken) {
+            // Convert to backend format
+            const backendFormat = {
+              session_id: savedSearchData.sessionId,
+              category: savedSearchData.category,
+              timestamp: savedSearchData.timestamp,
+              messages: savedSearchData.messages.map(msg => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                timestamp: msg.timestamp,
+                quick_replies: msg.quick_replies,
+                products: msg.products,
+                search_type: msg.search_type,
+              })),
+            };
+
+            state._wsSender({
+              type: "sync_saved_search",
+              session_id: state.sessionId,
+              access_token: accessToken,
+              saved_search: backendFormat,
+            });
           }
         }
       },
@@ -352,7 +308,6 @@ export const useChatStore = create<ChatStore>()(
             if (prefs.country) updates.country = prefs.country;
             if (prefs.currency) updates.currency = prefs.currency;
             if (prefs.language) updates.language = prefs.language;
-            if (prefs.sidebar_open !== undefined) updates.isSidebarOpen = prefs.sidebar_open;
 
             // Sync saved_search from server
             if (prefs.saved_search !== undefined) {
@@ -396,7 +351,6 @@ export const useChatStore = create<ChatStore>()(
             country: state.country || undefined,
             currency: state.currency || undefined,
             language: state.language || undefined,
-            sidebar_open: state.isSidebarOpen,
           };
 
           await PreferencesAPI.updateUserPreferences(update);
@@ -408,6 +362,32 @@ export const useChatStore = create<ChatStore>()(
 
       registerWebSocketSender: (sender) => {
         set({ _wsSender: sender });
+      },
+
+      setShowSavedSearchPrompt: (show) => {
+        set({ showSavedSearchPrompt: show });
+      },
+
+      checkSavedSearchPrompt: () => {
+        const state = get();
+
+        // Only show prompt if:
+        // 1. There is a savedSearch
+        // 2. Current chat is empty (no messages)
+        // 3. SavedSearch has messages but no products
+        if (state.savedSearch &&
+            state.messages.length === 0 &&
+            state.savedSearch.messages.length > 0) {
+
+          const hasProducts = state.savedSearch.messages.some(
+            m => m.products && m.products.length > 0
+          );
+
+          // Show prompt only if savedSearch has NO products
+          if (!hasProducts) {
+            set({ showSavedSearchPrompt: true });
+          }
+        }
       },
     }),
     {

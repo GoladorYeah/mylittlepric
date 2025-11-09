@@ -83,6 +83,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     loadSessionMessages,
     saveCurrentSearch,
     registerWebSocketSender,
+    checkSavedSearchPrompt,
   } = useChatStore();
 
   const { accessToken } = useAuthStore();
@@ -243,6 +244,17 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     initializeSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSessionId, accessToken]);
+
+  // Check if we should show savedSearch prompt after initialization
+  useEffect(() => {
+    if (_hasInitialized && !initialSessionId) {
+      // Small delay to let state settle
+      const timer = setTimeout(() => {
+        checkSavedSearchPrompt();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [_hasInitialized, initialSessionId, checkSavedSearchPrompt]);
 
   // Sync sessionId to localStorage when it changes
   useEffect(() => {
