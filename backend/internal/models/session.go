@@ -74,15 +74,16 @@ type LastCycleContext struct {
 
 // ConversationContext stores optimized conversation context
 type ConversationContext struct {
-	Summary     string          `json:"summary"`               // AI-generated compact summary
-	Preferences UserPreferences `json:"preferences"`           // Structured user preferences
-	LastSearch  *SearchContext  `json:"last_search,omitempty"` // Most recent search context
-	Exclusions  []string        `json:"exclusions,omitempty"`  // User exclusions
-	UpdatedAt   time.Time       `json:"updated_at"`            // Last update timestamp
+	Summary     string                  `json:"summary"`               // AI-generated compact summary
+	Preferences ConversationPreferences `json:"preferences"`           // Structured user preferences from conversation
+	LastSearch  *SearchContext          `json:"last_search,omitempty"` // Most recent search context
+	Exclusions  []string                `json:"exclusions,omitempty"`  // User exclusions
+	UpdatedAt   time.Time               `json:"updated_at"`            // Last update timestamp
 }
 
-// UserPreferences stores structured user preferences
-type UserPreferences struct {
+// ConversationPreferences stores structured user preferences extracted from conversation
+// This is different from global UserPreferences (country, language, theme, etc.)
+type ConversationPreferences struct {
 	PriceRange   *PriceRange `json:"price_range,omitempty"`  // Price range preference
 	Brands       []string    `json:"brands,omitempty"`       // Preferred brands
 	Features     []string    `json:"features,omitempty"`     // Required features

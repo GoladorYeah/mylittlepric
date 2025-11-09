@@ -128,7 +128,7 @@ func (c *Container) initServices() error {
 	log.Println("🔑 Google OAuth Service initialized")
 
 	// Initialize Auth Service
-	c.AuthService = services.NewAuthService(c.Redis, c.JWTService, c.GoogleOAuthService)
+	c.AuthService = services.NewAuthService(c.DB, c.Redis, c.JWTService, c.GoogleOAuthService)
 	log.Println("🔑 Auth Service initialized")
 
 	c.SessionService = services.NewSessionService(

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
@@ -24,14 +25,16 @@ var (
 )
 
 type AuthService struct {
+	db          *sqlx.DB
 	redis       *redis.Client
 	jwtService  *utils.JWTService
 	googleOAuth *GoogleOAuthService
 	ctx         context.Context
 }
 
-func NewAuthService(redis *redis.Client, jwtService *utils.JWTService, googleOAuth *GoogleOAuthService) *AuthService {
+func NewAuthService(db *sqlx.DB, redis *redis.Client, jwtService *utils.JWTService, googleOAuth *GoogleOAuthService) *AuthService {
 	return &AuthService{
+		db:          db,
 		redis:       redis,
 		jwtService:  jwtService,
 		googleOAuth: googleOAuth,
@@ -216,15 +219,57 @@ func (s *AuthService) GetUserByID(userID uuid.UUID) (*models.User, error) {
 }
 
 // ClaimSessions links anonymous sessions to a user account
+// Updates chat sessions, search history in PostgreSQL, and Redis cache
+// This ensures cross-device synchronization after login
 func (s *AuthService) ClaimSessions(userID uuid.UUID, sessionIDs []string) error {
-	for _, sessionID := range sessionIDs {
-		key := fmt.Sprintf("session:%s", sessionID)
+	sessionCount := 0
+	historyCount := 0
 
-		// Add user_id to session data
+	for _, sessionID := range sessionIDs {
+		// 1. Update Redis cache (for fast access)
+		key := fmt.Sprintf("session:%s", sessionID)
 		if err := s.redis.HSet(s.ctx, key, "user_id", userID.String()).Err(); err != nil {
-			return fmt.Errorf("failed to claim session %s: %w", sessionID, err)
+			fmt.Printf("⚠️ Failed to claim session %s in Redis: %v\n", sessionID, err)
+			// Continue to PostgreSQL even if Redis fails
+		}
+
+		// 2. Update chat_sessions in PostgreSQL (primary source of truth)
+		// This enables cross-device session synchronization
+		sessionQuery := `UPDATE chat_sessions SET user_id = $1, updated_at = NOW() WHERE session_id = $2`
+		sessionResult, err := s.db.ExecContext(s.ctx, sessionQuery, userID, sessionID)
+		if err != nil {
+			fmt.Printf("⚠️ Failed to claim session %s in PostgreSQL: %v\n", sessionID, err)
+			continue
+		}
+
+		// Check if session was updated
+		if rows, _ := sessionResult.RowsAffected(); rows > 0 {
+			sessionCount++
+			fmt.Printf("✅ Claimed session %s for user %s\n", sessionID, userID.String())
+		}
+
+		// 3. Update search_history in PostgreSQL
+		// Link all anonymous search history from this session to the user
+		historyQuery := `UPDATE search_history SET user_id = $1 WHERE session_id = $2 AND user_id IS NULL`
+		historyResult, err := s.db.ExecContext(s.ctx, historyQuery, userID, sessionID)
+		if err != nil {
+			fmt.Printf("⚠️ Failed to claim search history for session %s: %v\n", sessionID, err)
+			continue
+		}
+
+		// Check how many history records were updated
+		if rows, _ := historyResult.RowsAffected(); rows > 0 {
+			historyCount += int(rows)
+			fmt.Printf("✅ Claimed %d search history records for session %s\n", rows, sessionID)
 		}
 	}
+
+	if sessionCount == 0 && len(sessionIDs) > 0 {
+		return fmt.Errorf("failed to claim any sessions")
+	}
+
+	fmt.Printf("✅ Successfully claimed %d sessions and %d search history records for user %s\n",
+		sessionCount, historyCount, userID.String())
 	return nil
 }
 

@@ -33,9 +33,9 @@ func NewContextExtractorService(client *genai.Client, modelName string) *Context
 // ExtractUserPreferences analyzes conversation and extracts structured preferences
 func (c *ContextExtractorService) ExtractUserPreferences(
 	messages []models.CycleMessage,
-	currentPreferences *models.UserPreferences,
+	currentPreferences *models.ConversationPreferences,
 	currency string,
-) (*models.UserPreferences, error) {
+) (*models.ConversationPreferences, error) {
 
 	if len(messages) == 0 {
 		return currentPreferences, nil
@@ -107,7 +107,7 @@ Rules:
 	responseText = strings.TrimSpace(responseText)
 
 	// Parse JSON response
-	var extracted models.UserPreferences
+	var extracted models.ConversationPreferences
 	if err := json.Unmarshal([]byte(responseText), &extracted); err != nil {
 		fmt.Printf("⚠️ Failed to parse extracted preferences: %v\nResponse: %s\n", err, responseText)
 		return currentPreferences, err
@@ -247,7 +247,7 @@ func (c *ContextExtractorService) UpdateConversationContext(
 	if session.ConversationContext == nil {
 		session.ConversationContext = &models.ConversationContext{
 			Summary:     "",
-			Preferences: models.UserPreferences{},
+			Preferences: models.ConversationPreferences{},
 			Exclusions:  []string{},
 			UpdatedAt:   time.Now(),
 		}
