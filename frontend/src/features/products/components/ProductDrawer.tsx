@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getProductDetails } from "@/lib/api";
 import { ProductDetailsResponse } from "@/types";
 import { useChatStore } from "@/lib/store";
+<<<<<<< HEAD
 import { Drawer } from "./ui/drawer";
 import { ProductImageGallery } from "./product/product-image-gallery";
 import { ProductInfo } from "./product/product-info";
@@ -11,6 +12,15 @@ import { ProductOffers } from "./product/product-offers";
 import { ProductRatingBreakdown } from "./product/product-rating-breakdown";
 import { ProductSimilarItems } from "./product/product-similar-items";
 import { ProductDrawerSkeleton } from "./ui/product-skeletons";
+=======
+import { Drawer } from "@/components/ui/drawer";
+import { ProductImageGallery } from "./product-image-gallery";
+import { ProductInfo } from "./product-info";
+import { ProductOffers } from "./product-offers";
+import { ProductRatingBreakdown } from "./product-rating-breakdown";
+import { ProductSimilarItems } from "./product-similar-items";
+import { ProductDrawerSkeleton } from "@/components/ui/product-skeletons";
+>>>>>>> ec8453a79c722d568c40fcfe98514957a65b9eff
 
 interface ProductDrawerProps {
   pageToken: string;

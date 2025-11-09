@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { Send } from "lucide-react";
+<<<<<<< HEAD
 import { CountrySelector } from "../CountrySelector";
+=======
+import { CountrySelector } from "@/components/CountrySelector";
+>>>>>>> ec8453a79c722d568c40fcfe98514957a65b9eff
 
 interface ChatInputProps {
   onSend: (message: string) => void;
