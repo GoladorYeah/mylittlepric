@@ -15,11 +15,7 @@ export interface ProductCard {
   page_token: string;
 }
 
-<<<<<<< HEAD
-export interface SearchHistoryItem {
-=======
 export interface SearchHistoryRecord {
->>>>>>> ec8453a79c722d568c40fcfe98514957a65b9eff
   id: string;
   user_id?: string;
   session_id?: string;
@@ -38,11 +34,7 @@ export interface SearchHistoryRecord {
 }
 
 export interface SearchHistoryListResponse {
-<<<<<<< HEAD
-  items: SearchHistoryItem[];
-=======
   items: SearchHistoryRecord[];
->>>>>>> ec8453a79c722d568c40fcfe98514957a65b9eff
   total: number;
   limit: number;
   offset: number;
