@@ -23,6 +23,7 @@ interface AuthStore {
   tokenExpiresAt: number | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  _hasHydrated: boolean;
 
   // Actions
   setAuth: (user: User, tokens: AuthTokens) => void;
@@ -31,6 +32,7 @@ interface AuthStore {
   setLoading: (loading: boolean) => void;
   updateTokens: (tokens: AuthTokens) => void;
   isTokenExpired: () => boolean;
+  setHasHydrated: (hydrated: boolean) => void;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -42,6 +44,7 @@ export const useAuthStore = create<AuthStore>()(
       tokenExpiresAt: null,
       isAuthenticated: false,
       isLoading: false,
+      _hasHydrated: false,
 
       setAuth: (user, tokens) => {
         const expiresAt = Date.now() + tokens.expires_in * 1000;
@@ -83,6 +86,8 @@ export const useAuthStore = create<AuthStore>()(
         // Consider token expired 1 minute before actual expiration
         return Date.now() >= tokenExpiresAt - 60000;
       },
+
+      setHasHydrated: (hydrated) => set({ _hasHydrated: hydrated }),
     }),
     {
       name: "auth-storage",
@@ -94,6 +99,9 @@ export const useAuthStore = create<AuthStore>()(
         tokenExpiresAt: state.tokenExpiresAt,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

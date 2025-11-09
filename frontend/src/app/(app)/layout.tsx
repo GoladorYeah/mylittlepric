@@ -10,15 +10,17 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    // Only redirect after hydration is complete to avoid false negatives
+    if (_hasHydrated && !isLoading && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, _hasHydrated, router]);
 
-  if (isLoading) {
+  // Show loading while hydrating or during auth check
+  if (!_hasHydrated || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
