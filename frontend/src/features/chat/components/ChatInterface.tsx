@@ -4,7 +4,7 @@ import { useChat } from "@/shared/hooks";
 import { useChatStore } from "@/shared/lib";
 
 
-import { SearchHistory } from "@/components/SearchHistory";
+import { SearchHistory } from "@/features/search";
 import { ChatMessages } from "./chat-messages";
 import { ChatInput } from "./chat-input";
 

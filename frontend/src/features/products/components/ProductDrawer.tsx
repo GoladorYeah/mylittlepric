@@ -6,13 +6,13 @@ import { getProductDetails } from "@/shared/lib";
 import { ProductDetailsResponse } from "@/shared/types";
 import { useChatStore } from "@/shared/lib";
 
-import { Drawer } from "@/components/ui/drawer";
+import { Drawer } from "@/shared/components/ui";
 import { ProductImageGallery } from "./product-image-gallery";
 import { ProductInfo } from "./product-info";
 import { ProductOffers } from "./product-offers";
 import { ProductRatingBreakdown } from "./product-rating-breakdown";
 import { ProductSimilarItems } from "./product-similar-items";
-import { ProductDrawerSkeleton } from "@/components/ui/product-skeletons";
+import { ProductDrawerSkeleton } from "@/shared/components/ui";
 
 
 interface ProductDrawerProps {

@@ -2,8 +2,8 @@
 
 import { RotateCcw, Wifi, WifiOff, Coins } from "lucide-react";
 
-import { Logo } from "@/components/Logo";
-import UserMenu from "../UserMenu";
+import { Logo } from "@/shared/components/ui";
+import { UserMenu } from "@/features/auth";
 import { useChatStore } from "@/shared/lib";
 
 
