@@ -138,6 +138,16 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 		}
 	}
 
+	// Broadcast user message to other devices BEFORE processing
+	if userID != nil {
+		userMsgSync := &WSResponse{
+			Type:      "user_message_sync",
+			Output:    msg.Message,
+			SessionID: msg.SessionID,
+		}
+		h.broadcastToUser(*userID, userMsgSync, clientID)
+	}
+
 	// Process chat using shared processor
 	processorReq := &ChatRequest{
 		SessionID:       msg.SessionID,
@@ -173,11 +183,11 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 	// Send response to the sender
 	h.sendResponse(c, response)
 
-	// Broadcast message to other devices of the same user
+	// Broadcast assistant message to other devices of the same user
 	if userID != nil {
 		// Create sync message for other devices
 		syncMsg := &WSResponse{
-			Type:         "message_sync",
+			Type:         "assistant_message_sync",
 			Output:       result.Output,
 			QuickReplies: result.QuickReplies,
 			Products:     result.Products,

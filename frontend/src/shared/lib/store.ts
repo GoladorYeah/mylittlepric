@@ -149,12 +149,38 @@ export const useChatStore = create<ChatStore>()(
 
             set({ messages: chatMessages });
 
+            // Restore search state from server response
+            let hasActiveSearch = false;
+            let category = "";
+
             if (response.search_state) {
-              set({
-                currentCategory: response.search_state.category || "",
-                searchInProgress: response.search_state.status === "completed",
-              });
+              category = response.search_state.category || "";
+              hasActiveSearch = response.search_state.status === "completed";
             }
+
+            // Also check if the last message has products - if so, consider it an active search
+            // This ensures products are displayed when reopening a chat with search results
+            if (!hasActiveSearch) {
+              for (let i = chatMessages.length - 1; i >= 0; i--) {
+                const msg = chatMessages[i];
+                if (msg.products && msg.products.length > 0) {
+                  hasActiveSearch = true;
+                  // If we don't have a category from search_state, try to get it from message
+                  if (!category && msg.search_type) {
+                    category = msg.search_type;
+                  }
+                  break;
+                }
+              }
+            }
+
+            set({
+              currentCategory: category,
+              searchInProgress: hasActiveSearch,
+            });
+
+            console.log("✅ Session restored with", chatMessages.length, "messages",
+                       hasActiveSearch ? "(with active search)" : "(no active search)");
           }
         } catch (error) {
           console.error("Failed to load session messages:", error);
