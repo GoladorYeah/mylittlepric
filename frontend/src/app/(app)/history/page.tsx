@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-<<<<<<< HEAD
-import { useAuthStore, useChatStore, SearchHistoryAPI, type SearchHistoryItem as APISearchHistoryItem } from "@/shared/lib";
-=======
-import { useAuthStore } from "@/lib/auth-store";
-import { useChatStore } from "@/lib/store";
-import { SearchHistoryAPI, type SearchHistoryRecord as APISearchHistoryItem } from "@/lib/search-history-api";
->>>>>>> main
+import { useAuthStore, useChatStore, SearchHistoryAPI, type SearchHistoryRecord } from "@/shared/lib";
 import { Clock, Trash2, Search, Package, RefreshCw, LogIn, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru, uk, enUS } from "date-fns/locale";
@@ -26,7 +20,7 @@ export default function HistoryPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuthStore();
   const { language, isSidebarOpen } = useChatStore();
 
-  const [history, setHistory] = useState<APISearchHistoryItem[]>([]);
+  const [history, setHistory] = useState<SearchHistoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);

@@ -4,8 +4,8 @@ import { useChatStore } from "@/shared/lib";
 import { Clock, Plus, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
-import { Logo } from "@/components/Logo";
-import UserMenu from "@/components/UserMenu";
+import { Logo } from "@/shared/components/ui";
+import { UserMenu } from "@/features/auth";
 
 interface SearchHistoryProps {
   isConnected?: boolean;

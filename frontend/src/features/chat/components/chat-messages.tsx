@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 
 import { ChatMessage } from "@/shared/types";
 
-import { ChatMessage as ChatMessageComponent } from "@/components/ChatMessage";
-import { LoadingDots } from "@/components/ui/loading-dots";
+import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
+import { LoadingDots } from "@/shared/components/ui";
 
 import { ChatEmptyState } from "./chat-empty-state";
 import { useChatStore } from "@/shared/lib";

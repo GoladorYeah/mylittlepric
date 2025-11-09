@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ChatMessage as ChatMessageType } from "@/shared/types";
 import { useAuthStore } from "@/shared/lib";
-import { ProductCard } from "@/components/ProductCard";
+import { ProductCard } from "@/features/products";
 
 
 

@@ -2,16 +2,26 @@
 
 import { useState } from "react";
 import { ExternalLink, Star } from "lucide-react";
-import { ProductCard as ProductCardType } from "@/shared/types";
+import { Product, ProductCard as ProductCardType } from "@/shared/types";
 import { ProductDrawer } from "./ProductDrawer";
 
 interface ProductCardProps {
-  product: ProductCardType;
+  product: Product | ProductCardType;
   index?: number;
 }
 
 export function ProductCard({ product, index }: ProductCardProps) {
   const [showModal, setShowModal] = useState(false);
+
+  // Helper to check if product is of type Product
+  const isProduct = (p: Product | ProductCardType): p is Product => 'thumbnail' in p;
+
+  // Normalize properties based on type
+  const image = isProduct(product) ? product.thumbnail : product.image;
+  const name = isProduct(product) ? product.title : product.name;
+  const description = isProduct(product) ? product.source : product.description;
+  const badge = isProduct(product) ? (product.rating ? `${product.rating}` : undefined) : product.badge;
+  const oldPrice = isProduct(product) ? undefined : product.old_price;
 
   return (
     <>
@@ -25,8 +35,8 @@ export function ProductCard({ product, index }: ProductCardProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
 
           <img
-            src={product.image}
-            alt={product.name}
+            src={image}
+            alt={name}
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700 ease-out"
           />
 
@@ -38,10 +48,10 @@ export function ProductCard({ product, index }: ProductCardProps) {
           )}
 
           {/* Rating Badge - Smaller */}
-          {product.badge && (
+          {badge && (
             <div className="absolute top-1.5 right-1.5 bg-background/95 backdrop-blur-sm px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 shadow-md border border-border/50 group-hover:border-primary/30 transition-all duration-300 z-20">
               <Star className="w-2.5 h-2.5 fill-yellow-500 text-yellow-500" />
-              <span className="text-foreground">{product.badge.replace("⭐ ", "")}</span>
+              <span className="text-foreground">{badge.replace("⭐ ", "")}</span>
             </div>
           )}
         </div>
@@ -50,14 +60,14 @@ export function ProductCard({ product, index }: ProductCardProps) {
         <div className="p-3 space-y-2 flex flex-col flex-grow bg-gradient-to-b from-card to-card/50">
           {/* Title - Smaller */}
           <h3 className="font-semibold text-xs leading-snug line-clamp-2 group-hover:text-primary transition-colors duration-300 min-h-[2rem]">
-            {product.name}
+            {name}
           </h3>
 
           {/* Merchant - Smaller */}
-          {product.description && (
+          {description && (
             <p className="text-[10px] text-muted-foreground line-clamp-1 flex items-center gap-1 group-hover:text-foreground/70 transition-colors duration-300">
               <span className="w-1 h-1 rounded-full bg-primary/40 group-hover:bg-primary/60 transition-colors" />
-              {product.description}
+              {description}
             </p>
           )}
 
@@ -69,9 +79,9 @@ export function ProductCard({ product, index }: ProductCardProps) {
             <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary transition-all duration-300">
               {product.price}
             </span>
-            {product.old_price && (
+            {oldPrice && (
               <span className="text-[10px] text-muted-foreground line-through group-hover:text-destructive/70 transition-colors duration-300">
-                {product.old_price}
+                {oldPrice}
               </span>
             )}
           </div>
@@ -93,7 +103,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
         </div>
       </div>
 
-      {showModal && (
+      {showModal && product.page_token && (
         <ProductDrawer
           pageToken={product.page_token}
           onClose={() => setShowModal(false)}

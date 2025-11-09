@@ -70,6 +70,35 @@ export interface SearchHistoryItem {
   sessionId: string;
 }
 
+export interface ProductCard {
+  name: string;
+  price: string;
+  old_price?: string;
+  link: string;
+  image: string;
+  description?: string;
+  badge?: string;
+  page_token: string;
+}
+
+export interface SearchHistoryRecord {
+  id: string;
+  user_id?: string;
+  session_id?: string;
+  search_query: string;
+  optimized_query?: string;
+  search_type: string;
+  category?: string;
+  country_code: string;
+  language_code: string;
+  currency: string;
+  result_count: number;
+  products_found?: ProductCard[];
+  clicked_product_id?: string;
+  created_at: string;
+  expires_at?: string;
+}
+
 export interface User {
   id: string;
   email: string;
