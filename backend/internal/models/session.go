@@ -13,6 +13,7 @@ import (
 type ChatSession struct {
 	ID                  uuid.UUID            `json:"id" db:"id"`
 	SessionID           string               `json:"session_id" db:"session_id"`
+	UserID              *uuid.UUID           `json:"user_id,omitempty" db:"user_id"`
 	CountryCode         string               `json:"country_code" db:"country_code"`
 	LanguageCode        string               `json:"language_code" db:"language_code"`
 	Currency            string               `json:"currency" db:"currency"`

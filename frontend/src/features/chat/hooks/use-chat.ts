@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useChatStore } from "@/shared/lib";
 import { useAuthStore } from "@/shared/lib";
+import { SessionAPI } from "@/shared/lib";
 import { generateId } from "@/shared/lib";
 
 /**
@@ -139,6 +140,57 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return;
       }
 
+      // For authenticated users, check for active session on server
+      if (accessToken) {
+        try {
+          const activeSessionResponse = await SessionAPI.getActiveSession();
+
+          if (activeSessionResponse.has_active_session && activeSessionResponse.session) {
+            const serverSessionId = activeSessionResponse.session.session_id;
+            const localSessionId = store.sessionId || localStorage.getItem("chat_session_id");
+
+            // If server has a different session, ask user which one to use
+            if (localSessionId && localSessionId !== serverSessionId) {
+              // We have both local and server session - prefer server (most recent)
+              console.log("📱 Multi-device sync: Using server session", serverSessionId);
+              setSessionId(serverSessionId);
+              localStorage.setItem("chat_session_id", serverSessionId);
+
+              try {
+                await loadSessionMessages(serverSessionId);
+              } catch (error) {
+                console.error("Failed to load server session:", error);
+              }
+              return;
+            } else if (!localSessionId) {
+              // No local session, use server session
+              console.log("☁️ Restoring session from server:", serverSessionId);
+              setSessionId(serverSessionId);
+              localStorage.setItem("chat_session_id", serverSessionId);
+
+              try {
+                await loadSessionMessages(serverSessionId);
+              } catch (error) {
+                console.error("Failed to load server session:", error);
+              }
+              return;
+            }
+          } else if (store.sessionId) {
+            // No active session on server, but we have local session
+            // Link it to user account
+            console.log("🔗 Linking local session to user account");
+            try {
+              await SessionAPI.linkSessionToUser(store.sessionId);
+            } catch (error) {
+              console.error("Failed to link session to user:", error);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to check active session:", error);
+          // Continue with local session logic
+        }
+      }
+
       // If store already has sessionId (restored from persist), don't reload
       if (store.sessionId && store.messages.length > 0) {
         console.log("✅ Session restored from localStorage:", store.sessionId);
@@ -170,7 +222,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
     initializeSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialSessionId]);
+  }, [initialSessionId, accessToken]);
 
   // Sync sessionId to localStorage when it changes
   useEffect(() => {
