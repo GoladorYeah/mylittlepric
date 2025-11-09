@@ -201,14 +201,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return;
       }
 
-      // Server should always return the same session_id we sent
+      // Ignore messages from old sessions (e.g., after New Search)
       if (data.session_id && data.session_id !== sessionId) {
         console.warn(
-          "⚠️ Server returned different session_id:",
+          "⚠️ Ignoring message from old session:",
           data.session_id,
-          "Expected:",
+          "Current session:",
           sessionId
         );
+        return;
       }
 
       const assistantMessage = {
