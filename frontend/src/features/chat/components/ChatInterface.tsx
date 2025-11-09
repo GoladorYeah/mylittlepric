@@ -1,16 +1,13 @@
 "use client";
 
-import { useChat } from "@/hooks";
-import { useChatStore } from "@/lib/store";
-<<<<<<< HEAD
-import { SearchHistory } from "./SearchHistory";
-import { ChatMessages } from "./chat/chat-messages";
-import { ChatInput } from "./chat/chat-input";
-=======
+import { useChat } from "@/shared/hooks";
+import { useChatStore } from "@/shared/lib";
+
+
 import { SearchHistory } from "@/components/SearchHistory";
 import { ChatMessages } from "./chat-messages";
 import { ChatInput } from "./chat-input";
->>>>>>> ec8453a79c722d568c40fcfe98514957a65b9eff
+
 
 interface ChatInterfaceProps {
   initialQuery?: string;

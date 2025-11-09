@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ExternalLink, Star } from "lucide-react";
-import { ProductCard as ProductCardType } from "@/types";
+import { ProductCard as ProductCardType } from "@/shared/types";
 import { ProductDrawer } from "./ProductDrawer";
 
 interface ProductCardProps {

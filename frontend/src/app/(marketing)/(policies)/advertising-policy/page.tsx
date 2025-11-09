@@ -1,5 +1,4 @@
-import { PolicyLayout } from "@/components/PolicyLayout";
-import { AdvertisingPolicyContent } from "@/components/policies/AdvertisingPolicyContent";
+import { PolicyLayout, AdvertisingPolicyContent } from "@/features/policies";
 
 export const metadata = {
   title: "Advertising Policy - MyLittlePrice",

@@ -1,5 +1,4 @@
-import { PolicyLayout } from "@/components/PolicyLayout";
-import { CookiePolicyContent } from "@/components/policies/CookiePolicyContent";
+import { PolicyLayout, CookiePolicyContent } from "@/features/policies";
 
 export const metadata = {
   title: "Cookie Policy - MyLittlePrice",

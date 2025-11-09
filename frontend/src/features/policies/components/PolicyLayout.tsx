@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Home, MessageCircle } from "lucide-react";
-import { Logo } from "@/components/Logo";
+import { Logo } from "@/shared/components/ui";
 import { ReactNode } from "react";
 
 interface PolicyLayoutProps {

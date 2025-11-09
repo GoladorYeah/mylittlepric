@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
-import { useAuthStore } from '@/lib/auth-store';
-import { AuthAPI } from '@/lib/api/auth';
+import { useAuthStore, AuthAPI } from '@/shared/lib';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';

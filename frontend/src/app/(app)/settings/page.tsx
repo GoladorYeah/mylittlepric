@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Globe, Languages, Check, ChevronDown, Moon, Sun, Monitor } from "lucide-react";
-import { useChatStore } from "@/lib/store";
-import { getCurrencyForCountry } from "@/lib/locale";
+import { useChatStore, getCurrencyForCountry } from "@/shared/lib";
 import { useTheme } from "next-themes";
 
 interface Country {

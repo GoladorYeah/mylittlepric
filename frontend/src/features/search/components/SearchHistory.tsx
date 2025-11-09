@@ -1,15 +1,11 @@
 "use client";
 
-import { useChatStore } from "@/lib/store";
+import { useChatStore } from "@/shared/lib";
 import { Clock, Plus, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-<<<<<<< HEAD
-import { Logo } from "./Logo";
-import UserMenu from "./UserMenu";
-=======
+
 import { Logo } from "@/components/Logo";
 import UserMenu from "@/components/UserMenu";
->>>>>>> ec8453a79c722d568c40fcfe98514957a65b9eff
 
 interface SearchHistoryProps {
   isConnected?: boolean;

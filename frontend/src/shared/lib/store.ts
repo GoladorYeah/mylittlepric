@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { ChatMessage } from "@/types";
+import { ChatMessage } from "@/shared/types";
 import { detectCountry, detectLanguage, getCurrencyForCountry } from "./locale";
 
 export interface SearchHistoryItem {

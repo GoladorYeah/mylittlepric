@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { useEscape } from "@/hooks";
+import { useEscape } from "@/shared/hooks";
 
 interface DrawerProps {
   isOpen: boolean;

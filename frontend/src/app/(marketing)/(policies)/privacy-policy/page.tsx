@@ -1,5 +1,4 @@
-import { PolicyLayout } from "@/components/PolicyLayout";
-import { PrivacyPolicyContent } from "@/components/policies/PrivacyPolicyContent";
+import { PolicyLayout, PrivacyPolicyContent } from "@/features/policies";
 
 export const metadata = {
   title: "Privacy Policy - MyLittlePrice",

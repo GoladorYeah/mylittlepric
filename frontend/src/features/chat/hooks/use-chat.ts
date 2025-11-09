@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
-import { useChatStore } from "@/lib/store";
-import { useAuthStore } from "@/lib/auth-store";
-import { generateId } from "@/lib/utils";
+import { useChatStore } from "@/shared/lib";
+import { useAuthStore } from "@/shared/lib";
+import { generateId } from "@/shared/lib";
 
 /**
  * Build WebSocket URL dynamically based on current page protocol
