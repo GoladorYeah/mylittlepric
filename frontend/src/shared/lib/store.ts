@@ -24,6 +24,7 @@ interface ChatStore {
   isSidebarOpen: boolean;
   _hasInitialized: boolean; // Internal flag to track initialization
   savedSearch: SavedSearch | null; // Last search before "New Search" was clicked
+  showSavedSearchPrompt: boolean; // Show dialog to continue or start new search
   _wsSender: WebSocketSender | null; // Internal WebSocket sender for realtime sync
 
   addMessage: (message: ChatMessage) => void;
@@ -48,6 +49,8 @@ interface ChatStore {
   syncPreferencesFromServer: () => Promise<void>;
   syncPreferencesToServer: () => Promise<void>;
   registerWebSocketSender: (sender: WebSocketSender | null) => void;
+  setShowSavedSearchPrompt: (show: boolean) => void;
+  checkSavedSearchPrompt: () => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -64,6 +67,7 @@ export const useChatStore = create<ChatStore>()(
       isSidebarOpen: true, // По умолчанию развернута
       _hasInitialized: false,
       savedSearch: null,
+      showSavedSearchPrompt: false,
       _wsSender: null,
 
       addMessage: (message) =>
@@ -358,6 +362,32 @@ export const useChatStore = create<ChatStore>()(
 
       registerWebSocketSender: (sender) => {
         set({ _wsSender: sender });
+      },
+
+      setShowSavedSearchPrompt: (show) => {
+        set({ showSavedSearchPrompt: show });
+      },
+
+      checkSavedSearchPrompt: () => {
+        const state = get();
+
+        // Only show prompt if:
+        // 1. There is a savedSearch
+        // 2. Current chat is empty (no messages)
+        // 3. SavedSearch has messages but no products
+        if (state.savedSearch &&
+            state.messages.length === 0 &&
+            state.savedSearch.messages.length > 0) {
+
+          const hasProducts = state.savedSearch.messages.some(
+            m => m.products && m.products.length > 0
+          );
+
+          // Show prompt only if savedSearch has NO products
+          if (!hasProducts) {
+            set({ showSavedSearchPrompt: true });
+          }
+        }
       },
     }),
     {
