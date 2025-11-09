@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Providers } from "@/lib/providers";
+import { Providers } from "@/shared/lib/providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +14,69 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MyLittlePrice - Smart Shopping Assistant",
-  description: "Find the best products at the best prices",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  title: {
+    default: "MyLittlePrice - Smart Shopping Assistant",
+    template: "%s | MyLittlePrice",
+  },
+  description:
+    "Find the best products at the best prices with AI-powered shopping assistant. Compare prices, discover deals, and shop smarter.",
+  keywords: [
+    "shopping",
+    "price comparison",
+    "AI assistant",
+    "product search",
+    "best deals",
+    "online shopping",
+    "smart shopping",
+  ],
+  authors: [{ name: "MyLittlePrice" }],
+  creator: "MyLittlePrice",
+  publisher: "MyLittlePrice",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    siteName: "MyLittlePrice",
+    title: "MyLittlePrice - Smart Shopping Assistant",
+    description:
+      "Find the best products at the best prices with AI-powered shopping assistant",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "MyLittlePrice - Smart Shopping Assistant",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MyLittlePrice - Smart Shopping Assistant",
+    description:
+      "Find the best products at the best prices with AI-powered shopping assistant",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    // google: "your-google-verification-code",
+    // yandex: "your-yandex-verification-code",
+  },
 };
 
 export default function RootLayout({
