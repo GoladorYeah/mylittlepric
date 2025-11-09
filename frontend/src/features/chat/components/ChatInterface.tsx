@@ -11,13 +11,14 @@ import { ChatInput } from "./chat-input";
 
 interface ChatInterfaceProps {
   initialQuery?: string;
+  sessionId?: string;
 }
 
-export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
+export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
   const { messages, isLoading } = useChatStore();
 
   const { sendMessage, handleNewSearch, connectionStatus, isConnected } =
-    useChat({ initialQuery });
+    useChat({ initialQuery, sessionId });
 
   const handleQuickReply = (reply: string) => {
     sendMessage(reply);

@@ -37,7 +37,7 @@ func SetupRoutes(app *fiber.App, c *container.Container) {
 	// Product routes
 	setupProductRoutes(api, c)
 
-	// Search history routes (REQUIRE authentication)
+	// Search history routes (optional authentication)
 	setupSearchHistoryRoutes(api, c)
 
 	// Stats routes
@@ -119,11 +119,16 @@ func setupProductRoutes(api fiber.Router, c *container.Container) {
 func setupSearchHistoryRoutes(api fiber.Router, c *container.Container) {
 	historyHandler := handlers.NewSearchHistoryHandler(c)
 	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+	optionalAuthMiddleware := middleware.OptionalAuthMiddleware(c.JWTService)
 
-	// All search history routes REQUIRE authentication
-	api.Get("/search-history", authMiddleware, historyHandler.GetSearchHistory)
-	api.Delete("/search-history/:id", authMiddleware, historyHandler.DeleteSearchHistory)
-	api.Post("/search-history/:id/click", authMiddleware, historyHandler.TrackProductClick)
+	// Get search history - supports both authenticated and anonymous users
+	api.Get("/search-history", optionalAuthMiddleware, historyHandler.GetSearchHistory)
+
+	// Delete operations - support both authenticated and anonymous users
+	api.Delete("/search-history/:id", optionalAuthMiddleware, historyHandler.DeleteSearchHistory)
+	api.Post("/search-history/:id/click", optionalAuthMiddleware, historyHandler.TrackProductClick)
+
+	// Delete all - requires authentication
 	api.Delete("/search-history", authMiddleware, historyHandler.DeleteAllSearchHistory)
 }
 

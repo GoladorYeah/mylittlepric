@@ -7,8 +7,9 @@ import { ChatInterface } from "@/features/chat";
 function ChatContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q");
+  const sessionId = searchParams.get("session_id");
 
-  return <ChatInterface initialQuery={initialQuery || undefined} />;
+  return <ChatInterface initialQuery={initialQuery || undefined} sessionId={sessionId || undefined} />;
 }
 
 export default function ChatPage() {

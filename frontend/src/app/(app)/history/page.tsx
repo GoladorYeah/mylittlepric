@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore, useChatStore, SearchHistoryAPI, type SearchHistoryRecord } from "@/shared/lib";
-import { Clock, Trash2, Search, Package, RefreshCw, LogIn, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, Trash2, Search, Package, RefreshCw, LogIn, ChevronDown, ChevronUp, MoreVertical, MessageCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru, uk, enUS } from "date-fns/locale";
 import { SearchHistory as Sidebar } from "@/features/search";
@@ -26,19 +26,14 @@ export default function HistoryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const limit = 50;
 
   const locale = localeMap[language] || enUS;
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login?from=/history');
-    }
-  }, [isAuthenticated, authLoading, router]);
-
   const loadHistory = async (resetOffset = false) => {
-    if (!isAuthenticated) {
-      setHistory([]);
+    // Allow both authenticated and anonymous users to view history
+    if (authLoading) {
       setLoading(false);
       return;
     }
@@ -68,10 +63,11 @@ export default function HistoryPage() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // Load history for both authenticated and anonymous users
+    if (!authLoading) {
       loadHistory(true);
     }
-  }, [isAuthenticated]);
+  }, [authLoading]);
 
   const toggleExpanded = (id: string) => {
     setExpandedItems((prev) => {
@@ -117,6 +113,13 @@ export default function HistoryPage() {
       localStorage.removeItem("chat_session_id");
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete all history');
+    }
+  };
+
+  const handleViewChat = (sessionId: string) => {
+    if (sessionId) {
+      // Navigate to chat with this session
+      router.push(`/chat?session_id=${sessionId}`);
     }
   };
 
@@ -195,21 +198,7 @@ export default function HistoryPage() {
           )}
 
           {/* History List */}
-          {!isAuthenticated ? (
-            <div className="text-center py-16">
-              <LogIn className="w-16 h-16 text-muted-foreground/50 mb-4 mx-auto" />
-              <h2 className="text-xl font-semibold mb-2">Sign in to view history</h2>
-              <p className="text-muted-foreground mb-6">
-                Access your search history across all devices
-              </p>
-              <button
-                onClick={() => router.push('/login?from=/history')}
-                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-all"
-              >
-                Sign in
-              </button>
-            </div>
-          ) : loading && history.length === 0 ? (
+          {loading && history.length === 0 ? (
             <div className="flex items-center justify-center py-16">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
@@ -293,13 +282,61 @@ export default function HistoryPage() {
                                   )}
                                 </button>
                               )}
-                              <button
-                                onClick={(e) => handleDelete(item.id, e)}
-                                className="opacity-0 group-hover:opacity-100 p-2 hover:bg-destructive/10 rounded-lg transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </button>
+
+                              {/* Three-dot menu */}
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(openMenuId === item.id ? null : item.id);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-2 hover:bg-secondary/50 rounded-lg transition-all"
+                                  title="Options"
+                                >
+                                  <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                                </button>
+
+                                {/* Dropdown menu */}
+                                {openMenuId === item.id && (
+                                  <>
+                                    {/* Backdrop to close menu */}
+                                    <div
+                                      className="fixed inset-0 z-10"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuId(null);
+                                      }}
+                                    />
+
+                                    <div className="absolute right-0 top-full mt-1 w-48 bg-popover border border-border rounded-lg shadow-lg z-20 overflow-hidden">
+                                      {item.session_id && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleViewChat(item.session_id!);
+                                            setOpenMenuId(null);
+                                          }}
+                                          className="w-full px-4 py-2.5 text-left hover:bg-secondary transition-colors flex items-center gap-3 text-sm"
+                                        >
+                                          <MessageCircle className="w-4 h-4 text-primary" />
+                                          <span>View Chat History</span>
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDelete(item.id, e);
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-4 py-2.5 text-left hover:bg-destructive/10 transition-colors flex items-center gap-3 text-sm text-destructive"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                        <span>Delete</span>
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </button>

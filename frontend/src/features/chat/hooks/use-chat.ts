@@ -32,6 +32,7 @@ function getWebSocketUrl(token?: string | null): string {
 
 export interface UseChatOptions {
   initialQuery?: string;
+  sessionId?: string;
   reconnectAttempts?: number;
   reconnectInterval?: number;
 }
@@ -51,12 +52,14 @@ export interface UseChatReturn {
 export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const {
     initialQuery,
+    sessionId: initialSessionId,
     reconnectAttempts = 10,
     reconnectInterval = 3000,
   } = options;
 
   const initialQuerySentRef = useRef(false);
   const processedMessageIds = useRef<Set<string>>(new Set());
+  const sessionLoadedRef = useRef(false);
 
   const {
     messages,
@@ -116,11 +119,25 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   useEffect(() => {
     const initializeSession = async () => {
       const store = useChatStore.getState();
-      if (store._hasInitialized) {
+      if (store._hasInitialized && !initialSessionId) {
         return;
       }
 
       useChatStore.setState({ _hasInitialized: true });
+
+      // If session_id is provided in URL, use it and load messages
+      if (initialSessionId && !sessionLoadedRef.current) {
+        sessionLoadedRef.current = true;
+        setSessionId(initialSessionId);
+        localStorage.setItem("chat_session_id", initialSessionId);
+
+        try {
+          await loadSessionMessages(initialSessionId);
+        } catch (error) {
+          console.error("Failed to load session from URL:", error);
+        }
+        return;
+      }
 
       const savedSessionId = localStorage.getItem("chat_session_id");
 
@@ -141,7 +158,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
     initializeSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialSessionId]);
 
   // Sync sessionId to localStorage when it changes
   useEffect(() => {
