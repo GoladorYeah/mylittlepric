@@ -3,15 +3,6 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { ChatMessage } from "@/shared/types";
 import { detectCountry, detectLanguage, getCurrencyForCountry } from "./locale";
 
-export interface SearchHistoryItem {
-  id: string;
-  query: string;
-  timestamp: number;
-  category?: string;
-  productsCount?: number;
-  sessionId: string;
-}
-
 export interface SavedSearch {
   messages: ChatMessage[];
   sessionId: string;
@@ -28,7 +19,6 @@ interface ChatStore {
   currency: string;
   searchInProgress: boolean;
   currentCategory: string;
-  searchHistory: SearchHistoryItem[];
   isSidebarOpen: boolean;
   _hasInitialized: boolean; // Internal flag to track initialization
   savedSearch: SavedSearch | null; // Last search before "New Search" was clicked
@@ -43,12 +33,10 @@ interface ChatStore {
   setSearchInProgress: (inProgress: boolean) => void;
   setCurrentCategory: (category: string) => void;
   clearMessages: () => void;
+  clearAll: () => void;
   newSearch: () => void;
   initializeLocale: () => Promise<void>;
   loadSessionMessages: (sessionId: string) => Promise<void>;
-  addSearchToHistory: (query: string, category?: string, productsCount?: number) => void;
-  loadSearchFromHistory: (historyItem: SearchHistoryItem) => Promise<void>;
-  clearSearchHistory: () => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   saveCurrentSearch: () => void;
@@ -67,7 +55,6 @@ export const useChatStore = create<ChatStore>()(
       currency: "",
       searchInProgress: false,
       currentCategory: "",
-      searchHistory: [],
       isSidebarOpen: true, // По умолчанию развернута
       _hasInitialized: false,
       savedSearch: null,
@@ -92,6 +79,20 @@ export const useChatStore = create<ChatStore>()(
       setCurrentCategory: (category) => set({ currentCategory: category }),
 
       clearMessages: () => set({ messages: [], isLoading: false, currentCategory: "" }),
+
+      clearAll: () => {
+        // Clear all chat data (for logout)
+        localStorage.removeItem("chat_session_id");
+        set({
+          messages: [],
+          sessionId: "",
+          isLoading: false,
+          searchInProgress: false,
+          currentCategory: "",
+          savedSearch: null,
+          _hasInitialized: false,
+        });
+      },
 
       newSearch: () =>
         set({
@@ -153,42 +154,6 @@ export const useChatStore = create<ChatStore>()(
         }
       },
 
-      addSearchToHistory: (query, category, productsCount) => {
-        const state = get();
-        const newHistoryItem: SearchHistoryItem = {
-          id: `${Date.now()}-${Math.random()}`,
-          query,
-          timestamp: Date.now(),
-          category,
-          productsCount,
-          sessionId: state.sessionId,
-        };
-
-        set((state) => ({
-          searchHistory: [newHistoryItem, ...state.searchHistory].slice(0, 50), // Keep last 50 searches
-        }));
-      },
-
-      loadSearchFromHistory: async (historyItem) => {
-        // Clear current messages first
-        set({
-          messages: [],
-          searchInProgress: false,
-          isLoading: false,
-          currentCategory: historyItem.category || "",
-          sessionId: historyItem.sessionId,
-        });
-
-        // Save to localStorage
-        localStorage.setItem("chat_session_id", historyItem.sessionId);
-
-        // Load messages for this session
-        const { loadSessionMessages } = get();
-        await loadSessionMessages(historyItem.sessionId);
-      },
-
-      clearSearchHistory: () => set({ searchHistory: [] }),
-
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
 
       setSidebarOpen: (open) => set({ isSidebarOpen: open }),
@@ -232,7 +197,6 @@ export const useChatStore = create<ChatStore>()(
         country: state.country,
         language: state.language,
         currency: state.currency,
-        searchHistory: state.searchHistory,
         isSidebarOpen: state.isSidebarOpen,
         messages: state.messages,
         sessionId: state.sessionId,
