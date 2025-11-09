@@ -538,7 +538,8 @@ func (g *GeminiService) ProcessWithUniversalPrompt(
 	}
 
 	// Build the full prompt: (system prompt if first) + mini-kernel + state + user message
-	// Note: ResponseSchema ensures JSON output, no need for explicit JSON instructions
+	// Note: When grounding is disabled, ResponseSchema ensures JSON output.
+	// When grounding is enabled, we rely on mini_kernel prompt for JSON format (API limitation).
 	var prompt string
 	if systemPrompt != "" {
 		prompt = fmt.Sprintf("%s\n\n%s\n\n%s\n\nUser message: %s",
