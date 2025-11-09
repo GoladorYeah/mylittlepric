@@ -188,106 +188,73 @@ export const useChatStore = create<ChatStore>()(
         }
       },
 
-      toggleSidebar: async () => {
+      toggleSidebar: () => {
         set((state) => ({ isSidebarOpen: !state.isSidebarOpen }));
-
-        // Sync to server if user is authenticated
-        const { useAuthStore } = await import("./auth-store");
-        const isAuthenticated = useAuthStore.getState().isAuthenticated;
-
-        if (isAuthenticated) {
-          try {
-            const { PreferencesAPI } = await import("./preferences-api");
-            const newState = get().isSidebarOpen;
-            await PreferencesAPI.updateUserPreferences({ sidebar_open: newState });
-            console.log("✅ Synced sidebar state to server:", newState);
-
-            // Realtime sync to other devices
-            const state = get();
-            if (state._wsSender) {
-              const accessToken = useAuthStore.getState().accessToken;
-              state._wsSender({
-                type: "sync_preferences",
-                session_id: state.sessionId,
-                access_token: accessToken,
-              });
-            }
-          } catch (error) {
-            console.error("Failed to sync sidebar state:", error);
-          }
-        }
       },
 
-      setSidebarOpen: async (open) => {
+      setSidebarOpen: (open) => {
         set({ isSidebarOpen: open });
-
-        // Sync to server if user is authenticated
-        const { useAuthStore } = await import("./auth-store");
-        const isAuthenticated = useAuthStore.getState().isAuthenticated;
-
-        if (isAuthenticated) {
-          try {
-            const { PreferencesAPI } = await import("./preferences-api");
-            await PreferencesAPI.updateUserPreferences({ sidebar_open: open });
-            console.log("✅ Synced sidebar state to server:", open);
-
-            // Realtime sync to other devices
-            const state = get();
-            if (state._wsSender) {
-              const accessToken = useAuthStore.getState().accessToken;
-              state._wsSender({
-                type: "sync_preferences",
-                session_id: state.sessionId,
-                access_token: accessToken,
-              });
-            }
-          } catch (error) {
-            console.error("Failed to sync sidebar state:", error);
-          }
-        }
       },
 
       saveCurrentSearch: async () => {
         const state = get();
-        // Only save if there are messages (otherwise nothing to save)
-        if (state.messages.length > 0) {
-          const savedSearchData = {
-            messages: [...state.messages],
-            sessionId: state.sessionId,
-            category: state.currentCategory,
-            timestamp: Date.now(),
-          };
 
-          set({ savedSearch: savedSearchData });
+        // Don't save if there are no messages
+        if (state.messages.length === 0) {
+          return;
+        }
 
-          // Realtime sync to other devices via WebSocket
-          if (state._wsSender) {
-            const { useAuthStore } = await import("./auth-store");
-            const accessToken = useAuthStore.getState().accessToken;
-            if (accessToken) {
-              // Convert to backend format
-              const backendFormat = {
-                session_id: savedSearchData.sessionId,
-                category: savedSearchData.category,
-                timestamp: savedSearchData.timestamp,
-                messages: savedSearchData.messages.map(msg => ({
-                  id: msg.id,
-                  role: msg.role,
-                  content: msg.content,
-                  timestamp: msg.timestamp,
-                  quick_replies: msg.quick_replies,
-                  products: msg.products,
-                  search_type: msg.search_type,
-                })),
-              };
+        // Don't overwrite existing savedSearch if current chat is worse
+        if (state.savedSearch) {
+          const currentHasProducts = state.messages.some(m => m.products && m.products.length > 0);
+          const savedHasProducts = state.savedSearch.messages.some(m => m.products && m.products.length > 0);
 
-              state._wsSender({
-                type: "sync_saved_search",
-                session_id: state.sessionId,
-                access_token: accessToken,
-                saved_search: backendFormat,
-              });
-            }
+          // Don't overwrite if:
+          // 1. Current chat has fewer messages than saved
+          // 2. Saved has products but current doesn't
+          if (state.messages.length < state.savedSearch.messages.length ||
+              (savedHasProducts && !currentHasProducts)) {
+            console.log("⏭️ Skipping save: current chat is less valuable than saved search");
+            return;
+          }
+        }
+
+        const savedSearchData = {
+          messages: [...state.messages],
+          sessionId: state.sessionId,
+          category: state.currentCategory,
+          timestamp: Date.now(),
+        };
+
+        set({ savedSearch: savedSearchData });
+
+        // Realtime sync to other devices via WebSocket
+        if (state._wsSender) {
+          const { useAuthStore } = await import("./auth-store");
+          const accessToken = useAuthStore.getState().accessToken;
+          if (accessToken) {
+            // Convert to backend format
+            const backendFormat = {
+              session_id: savedSearchData.sessionId,
+              category: savedSearchData.category,
+              timestamp: savedSearchData.timestamp,
+              messages: savedSearchData.messages.map(msg => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                timestamp: msg.timestamp,
+                quick_replies: msg.quick_replies,
+                products: msg.products,
+                search_type: msg.search_type,
+              })),
+            };
+
+            state._wsSender({
+              type: "sync_saved_search",
+              session_id: state.sessionId,
+              access_token: accessToken,
+              saved_search: backendFormat,
+            });
           }
         }
       },
@@ -352,7 +319,6 @@ export const useChatStore = create<ChatStore>()(
             if (prefs.country) updates.country = prefs.country;
             if (prefs.currency) updates.currency = prefs.currency;
             if (prefs.language) updates.language = prefs.language;
-            if (prefs.sidebar_open !== undefined) updates.isSidebarOpen = prefs.sidebar_open;
 
             // Sync saved_search from server
             if (prefs.saved_search !== undefined) {
@@ -396,7 +362,6 @@ export const useChatStore = create<ChatStore>()(
             country: state.country || undefined,
             currency: state.currency || undefined,
             language: state.language || undefined,
-            sidebar_open: state.isSidebarOpen,
           };
 
           await PreferencesAPI.updateUserPreferences(update);
