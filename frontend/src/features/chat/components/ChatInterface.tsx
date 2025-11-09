@@ -47,8 +47,12 @@ export function ChatInterface({ initialQuery }: ChatInterfaceProps) {
           onQuickReply={handleQuickReply}
         />
 
-        {/* Sticky input field - always visible */}
-        <div className="sticky bottom-0 bg-background">
+        {/* Fixed input field - always visible at bottom */}
+        <div
+          className={`fixed bottom-0 left-0 right-0 bg-background z-30 transition-[padding] duration-300 ease-in-out ${
+            isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
+          }`}
+        >
           <ChatInput
             onSend={sendMessage}
             isLoading={isLoading}

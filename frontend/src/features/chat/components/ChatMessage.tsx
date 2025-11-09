@@ -68,29 +68,24 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
   };
 
   return (
-    <div className="flex items-start gap-3">
-      {/* Profile Avatar - only for user messages */}
-      {isUser && (
-        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
-          {getInitials(user)}
-        </div>
-      )}
-
-      {/* Spacer for agent messages to align properly */}
-      {!isUser && <div className="flex-shrink-0 w-9" />}
-
+    <div>
       <div
-        className={`${message.products && message.products.length > 0 ? 'flex-1 min-w-0' : 'max-w-[80%]'} space-y-3`}
+        className={`${message.products && message.products.length > 0 ? 'w-full' : 'max-w-[80%]'} space-y-3`}
       >
         {message.content && message.content.trim() !== '' && (
           <div
             className={`${
               isUser
-                ? "rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground"
+                ? "rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground flex items-start gap-3"
                 : "text-foreground"
             }`}
           >
-            <p className="whitespace-pre-wrap">{message.content}</p>
+            {isUser && (
+              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
+                {getInitials(user)}
+              </div>
+            )}
+            <p className="whitespace-pre-wrap flex-1">{message.content}</p>
           </div>
         )}
 
