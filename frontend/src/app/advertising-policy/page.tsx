@@ -1,4 +1,5 @@
-import { DocumentViewer } from "@/components/DocumentViewer";
+import { PolicyLayout } from "@/components/PolicyLayout";
+import { AdvertisingPolicyContent } from "@/components/policies/AdvertisingPolicyContent";
 
 export const metadata = {
   title: "Advertising Policy - MyLittlePrice",
@@ -7,10 +8,8 @@ export const metadata = {
 
 export default function AdvertisingPolicyPage() {
   return (
-    <DocumentViewer
-      title="Advertiser & Seller Advertising Policy"
-      pdfPath="/documents/advertising-policy.pdf"
-      lastUpdated="November 6, 2025"
-    />
+    <PolicyLayout title="Advertiser & Seller Advertising Policy" lastUpdated="November 6, 2025">
+      <AdvertisingPolicyContent />
+    </PolicyLayout>
   );
 }

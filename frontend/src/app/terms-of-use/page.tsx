@@ -1,4 +1,5 @@
-import { DocumentViewer } from "@/components/DocumentViewer";
+import { PolicyLayout } from "@/components/PolicyLayout";
+import { TermsOfUseContent } from "@/components/policies/TermsOfUseContent";
 
 export const metadata = {
   title: "Terms of Use - MyLittlePrice",
@@ -7,10 +8,8 @@ export const metadata = {
 
 export default function TermsOfUsePage() {
   return (
-    <DocumentViewer
-      title="Terms of Use"
-      pdfPath="/documents/terms-of-use.pdf"
-      lastUpdated="November 6, 2025"
-    />
+    <PolicyLayout title="Terms of Use" lastUpdated="November 6, 2025">
+      <TermsOfUseContent />
+    </PolicyLayout>
   );
 }

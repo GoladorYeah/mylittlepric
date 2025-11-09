@@ -1,4 +1,5 @@
-import { DocumentViewer } from "@/components/DocumentViewer";
+import { PolicyLayout } from "@/components/PolicyLayout";
+import { CookiePolicyContent } from "@/components/policies/CookiePolicyContent";
 
 export const metadata = {
   title: "Cookie Policy - MyLittlePrice",
@@ -7,10 +8,8 @@ export const metadata = {
 
 export default function CookiePolicyPage() {
   return (
-    <DocumentViewer
-      title="Cookie Policy"
-      pdfPath="/documents/cookie-policy.pdf"
-      lastUpdated="November 7, 2025"
-    />
+    <PolicyLayout title="Cookie Policy" lastUpdated="November 7, 2025">
+      <CookiePolicyContent />
+    </PolicyLayout>
   );
 }
