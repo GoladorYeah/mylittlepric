@@ -32,7 +32,7 @@ dependencies:
   uuid: ^4.5.2
   intl: ^0.20.2
   equatable: ^2.0.7
-  freezed_annotation: ^3.1.0
+  freezed_annotation: ^2.4.4  # Match freezed 2.x version
   json_annotation: ^4.9.0
 
   # Routing
@@ -47,11 +47,11 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # Code generation tools
-  # Note: build_runner 2.10.0+ requires analyzer ^8.0.0 which conflicts with Flutter SDK's test_api 0.7.6
-  # Using ^2.7.1 for compatibility with current Flutter SDK (3.9.2) - recommended by Flutter tooling
-  build_runner: ^2.7.1
-  freezed: ^3.2.3
-  json_serializable: ^6.7.1
+  # Updated build_runner to avoid analyzer conflicts
+  # Using freezed 2.x to avoid JsonKey annotation conflicts with json_serializable
+  build_runner: ^2.4.13
+  freezed: ^2.5.7  # Downgraded from 3.x to avoid annotation duplication warnings
+  json_serializable: ^6.8.0
   hive_generator: ^2.0.1
   riverpod_generator: ^3.0.0  # For Riverpod 3.0 code generation
 
