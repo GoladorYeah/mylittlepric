@@ -1,0 +1,167 @@
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  inject,
+  signal,
+  effect,
+  ViewChild,
+  ElementRef,
+} from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ChatStore } from '../../../../core/stores/chat.store';
+import { AuthStore } from '../../../../core/stores/auth.store';
+import { WebSocketService } from '../../../../core/services/websocket.service';
+import { HeaderComponent } from '../../../../shared/components/header/header.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { ChatMessageComponent } from '../chat-message/chat-message.component';
+import { ProductCardComponent } from '../../../products/components/product-card/product-card.component';
+import { Product } from '../../../../shared/types';
+import { detectCountry, detectLanguage, getCurrencyForCountry } from '../../../../shared/utils/locale';
+
+@Component({
+  selector: 'app-chat-page',
+  standalone: true,
+  imports: [
+    FormsModule,
+    HeaderComponent,
+    ButtonComponent,
+    ChatMessageComponent,
+    ProductCardComponent,
+  ],
+  templateUrl: './chat-page.component.html',
+  styleUrl: './chat-page.component.scss',
+})
+export class ChatPageComponent implements OnInit, OnDestroy {
+  @ViewChild('messagesContainer') messagesContainer?: ElementRef<HTMLDivElement>;
+
+  private readonly route = inject(ActivatedRoute);
+  readonly chatStore = inject(ChatStore);
+  readonly authStore = inject(AuthStore);
+  readonly wsService = inject(WebSocketService);
+
+  messageInput = signal('');
+  isConnecting = signal(false);
+
+  constructor() {
+    // Auto-scroll when messages change
+    effect(() => {
+      if (this.chatStore.messages()) {
+        this.scrollToBottom();
+      }
+    });
+  }
+
+  ngOnInit(): void {
+    // Check for query parameter
+    this.route.queryParams.subscribe((params) => {
+      const query = params['q'];
+      if (query && !this.chatStore.hasMessages()) {
+        this.messageInput.set(query);
+        // Auto-send after a short delay
+        setTimeout(() => this.sendMessage(), 500);
+      }
+    });
+
+    // Connect WebSocket
+    this.connectWebSocket();
+  }
+
+  ngOnDestroy(): void {
+    this.wsService.disconnect();
+  }
+
+  private async connectWebSocket(): Promise<void> {
+    const sessionId = this.chatStore.sessionId();
+    const token = this.authStore.accessToken();
+    const country = this.authStore.preferences().country || await detectCountry();
+    const language = this.authStore.preferences().language || detectLanguage();
+    const currency = this.authStore.preferences().currency || getCurrencyForCountry(country);
+
+    this.isConnecting.set(true);
+    this.wsService.connect(sessionId, token || undefined, country, language, currency);
+
+    // Wait for connection
+    const checkConnection = setInterval(() => {
+      if (this.wsService.isConnected()) {
+        this.isConnecting.set(false);
+        clearInterval(checkConnection);
+      }
+    }, 100);
+
+    // Timeout after 5 seconds
+    setTimeout(() => {
+      if (!this.wsService.isConnected()) {
+        this.isConnecting.set(false);
+        clearInterval(checkConnection);
+      }
+    }, 5000);
+  }
+
+  async sendMessage(): Promise<void> {
+    const content = this.messageInput().trim();
+    if (!content) return;
+
+    const token = this.authStore.accessToken();
+    const country = this.authStore.preferences().country || await detectCountry();
+    const language = this.authStore.preferences().language || detectLanguage();
+    const currency = this.authStore.preferences().currency || getCurrencyForCountry(country);
+
+    // Try WebSocket first, fallback to HTTP
+    if (this.wsService.isConnected()) {
+      this.chatStore.sendMessage(
+        content,
+        token || undefined,
+        country,
+        language,
+        currency
+      );
+    } else {
+      this.chatStore.sendMessageHttp(
+        content,
+        token || undefined,
+        country,
+        language,
+        currency
+      );
+    }
+
+    this.messageInput.set('');
+  }
+
+  handleQuickReply(reply: string): void {
+    this.messageInput.set(reply);
+    this.sendMessage();
+  }
+
+  startNewChat(): void {
+    this.chatStore.startNewSession();
+    this.connectWebSocket();
+  }
+
+  private scrollToBottom(): void {
+    setTimeout(() => {
+      const container = this.messagesContainer?.nativeElement;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }, 100);
+  }
+
+  // Get all products from messages
+  getAllProducts(): Product[] {
+    const products: Product[] = [];
+    for (const message of this.chatStore.messages()) {
+      if (message.products) {
+        products.push(...message.products);
+      }
+    }
+    return products;
+  }
+
+  // Track products by their position to avoid re-rendering
+  trackByPosition(index: number, product: Product): number {
+    return product.position;
+  }
+}

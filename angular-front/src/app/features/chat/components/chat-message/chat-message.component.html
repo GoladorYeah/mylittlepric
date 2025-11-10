@@ -1,0 +1,25 @@
+<div [class]="'message message-' + message().role">
+  <div class="message-content">
+    <div class="message-bubble">
+      <p class="message-text">{{ message().content }}</p>
+      @if (message().timestamp) {
+        <span class="message-time">{{ formatTime(message().timestamp) }}</span>
+      }
+    </div>
+
+    <!-- Quick replies for assistant messages -->
+    @if (message().role === 'assistant' && message().quick_replies && message().quick_replies!.length > 0) {
+      <div class="quick-replies">
+        @for (reply of message().quick_replies!; track reply) {
+          <app-button
+            variant="outline"
+            size="sm"
+            (click)="handleQuickReply(reply)"
+          >
+            {{ reply }}
+          </app-button>
+        }
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,235 @@
+<app-header />
+
+<main class="landing">
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-container">
+      <div class="hero-content animate-fade-in">
+        <h1 class="hero-title">
+          Find the Best Deals with
+          <span class="gradient-text">AI-Powered Search</span>
+        </h1>
+        <p class="hero-description">
+          MyLittlePrice helps you discover the perfect products at the best prices through intelligent
+          conversational search powered by AI.
+        </p>
+        <div class="hero-actions">
+          <app-button size="lg" (click)="navigateToChat()">
+            Start Shopping
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </app-button>
+          <app-button variant="outline" size="lg">
+            Learn More
+          </app-button>
+        </div>
+      </div>
+
+      <div class="hero-image animate-slide-up">
+        <div class="hero-image-placeholder">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="120"
+            height="120"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features">
+    <div class="features-container">
+      <h2 class="features-title">Why Choose MyLittlePrice?</h2>
+      <p class="features-description">
+        Powerful features to help you find exactly what you're looking for
+      </p>
+
+      <div class="features-grid">
+        <app-card [padding]="true" className="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Conversational Search</h3>
+          <p class="feature-description">
+            Simply chat with our AI assistant to describe what you're looking for. No complex filters or
+            keywords needed.
+          </p>
+        </app-card>
+
+        <app-card [padding]="true" className="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 16v-4"></path>
+              <path d="M12 8h.01"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Smart Recommendations</h3>
+          <p class="feature-description">
+            Get personalized product suggestions based on your preferences and previous searches.
+          </p>
+        </app-card>
+
+        <app-card [padding]="true" className="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Best Prices</h3>
+          <p class="feature-description">
+            Compare prices from multiple sellers to ensure you always get the best deal available.
+          </p>
+        </app-card>
+
+        <app-card [padding]="true" className="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+          </div>
+          <h3 class="feature-title">Real-time Updates</h3>
+          <p class="feature-description">
+            Stay informed with instant notifications about price changes and product availability.
+          </p>
+        </app-card>
+
+        <app-card [padding]="true" className="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Multi-User Support</h3>
+          <p class="feature-description">
+            Save your searches and preferences across devices with your personal account.
+          </p>
+        </app-card>
+
+        <app-card [padding]="true" className="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Privacy First</h3>
+          <p class="feature-description">
+            Your data is secure and private. We never share your information with third parties.
+          </p>
+        </app-card>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta">
+    <div class="cta-container">
+      <h2 class="cta-title">Ready to Find Your Perfect Product?</h2>
+      <p class="cta-description">
+        Start chatting with our AI assistant and discover amazing deals today.
+      </p>
+      <app-button size="lg" (click)="navigateToChat()">
+        Get Started Now
+      </app-button>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-container">
+    <p class="footer-text">&copy; 2025 MyLittlePrice. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="#" class="footer-link">Privacy Policy</a>
+      <a href="#" class="footer-link">Terms of Service</a>
+      <a href="#" class="footer-link">Contact</a>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,77 @@
+<app-card [padding]="false" [hover]="true" className="product-card">
+  <div class="product-image-container">
+    <img
+      [src]="product().thumbnail"
+      [alt]="product().title"
+      class="product-image"
+      loading="lazy"
+    />
+    @if (product().tag) {
+      <span class="product-tag">{{ product().tag }}</span>
+    }
+  </div>
+
+  <div class="product-info">
+    <h3 class="product-title">{{ product().title }}</h3>
+
+    <div class="product-source">{{ product().source }}</div>
+
+    @if (product().rating) {
+      <div class="product-rating">
+        <div class="stars">
+          @for (star of getRatingStars(product().rating!); track $index) {
+            @if (star === 'full') {
+              <svg class="star star-full" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            } @else if (star === 'half') {
+              <svg class="star star-half" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <defs>
+                  <linearGradient id="half">
+                    <stop offset="50%" stop-color="currentColor"/>
+                    <stop offset="50%" stop-color="transparent"/>
+                  </linearGradient>
+                </defs>
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="url(#half)"></polygon>
+              </svg>
+            } @else {
+              <svg class="star star-empty" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            }
+          }
+        </div>
+        @if (product().reviews) {
+          <span class="reviews-count">({{ product().reviews }})</span>
+        }
+      </div>
+    }
+
+    <div class="product-price">
+      <span class="price">{{ product().price }}</span>
+      @if (product().relevance_score) {
+        <span class="relevance-badge">{{ (product().relevance_score! * 100).toFixed(0) }}% match</span>
+      }
+    </div>
+
+    @if (product().delivery) {
+      <div class="product-delivery">{{ product().delivery }}</div>
+    }
+
+    @if (product().extensions && product().extensions!.length > 0) {
+      <div class="product-extensions">
+        @for (ext of product().extensions!; track ext) {
+          <span class="extension-badge">{{ ext }}</span>
+        }
+      </div>
+    }
+
+    <app-button
+      [fullWidth]="true"
+      size="sm"
+      (click)="openProductLink()"
+    >
+      View Product
+    </app-button>
+  </div>
+</app-card>
