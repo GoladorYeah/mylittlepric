@@ -9,7 +9,6 @@ import '../storage/storage_service.dart';
 
 /// WebSocket client with automatic reconnection and heartbeat
 class WebSocketClient {
-  final StorageService _storageService;
   final Logger _logger = Logger();
 
   WebSocketChannel? _channel;
@@ -27,7 +26,7 @@ class WebSocketClient {
   /// Stream controller for connection state
   final _connectionStateController = StreamController<WebSocketState>.broadcast();
 
-  WebSocketClient(this._storageService);
+  WebSocketClient();
 
   /// Stream of incoming messages
   Stream<Map<String, dynamic>> get messages => _messageController.stream;
@@ -121,7 +120,8 @@ class WebSocketClient {
     final endpoint = AppConfig.wsEndpoint;
 
     // Get session ID from storage
-    final sessionId = await _storageService.getString(AppConfig.sessionIdKey);
+    final prefs = StorageService.prefs;
+    final sessionId = prefs.getString(AppConfig.sessionIdKey);
 
     // Build URL with session ID if available
     var url = '$baseUrl$endpoint';
@@ -256,8 +256,7 @@ enum WebSocketState {
 
 /// Provider for WebSocketClient
 final webSocketClientProvider = Provider<WebSocketClient>((ref) {
-  final storageService = ref.watch(storageServiceProvider);
-  final client = WebSocketClient(storageService);
+  final client = WebSocketClient();
 
   // Dispose when provider is disposed
   ref.onDispose(() {
