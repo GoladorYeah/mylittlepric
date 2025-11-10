@@ -51,6 +51,7 @@ export class ChatPageComponent implements OnInit, OnDestroy {
 
   messageInput = signal('');
   isConnecting = signal(false);
+  isInputFocused = signal(false);
 
   constructor() {
     // Auto-scroll when messages change
