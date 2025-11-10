@@ -1,9 +1,10 @@
 import 'package:chat_app/core/config/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:chat_app/features/chat/widgets/widgets.dart';
 
-// Import screens (will be created later)
-// import 'package:chat_app/features/chat/screens/chat_screen.dart';
+// Import screens
+// TODO: Create History, Settings, and Login screens
 // import 'package:chat_app/features/history/screens/history_screen.dart';
 // import 'package:chat_app/features/settings/screens/settings_screen.dart';
 // import 'package:chat_app/features/auth/screens/login_screen.dart';
@@ -21,16 +22,10 @@ class AppRouter {
           final query = state.uri.queryParameters['q'];
           final sessionId = state.uri.queryParameters['session_id'];
 
-          // TODO: Pass to ChatScreen when implemented
-          return const Scaffold(
-            body: Center(
-              child: Text('Chat Screen - Coming Soon'),
-            ),
+          return ChatScreen(
+            initialQuery: query,
+            sessionId: sessionId,
           );
-          // return ChatScreen(
-          //   initialQuery: query,
-          //   sessionId: sessionId,
-          // );
         },
       ),
       GoRoute(
