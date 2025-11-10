@@ -79,7 +79,7 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
           </h2>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
             aria-label="Close dialog"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

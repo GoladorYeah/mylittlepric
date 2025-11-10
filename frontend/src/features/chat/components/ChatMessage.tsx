@@ -81,7 +81,7 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
             }`}
           >
             {isUser && (
-              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
+              <div className="shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
                 {getInitials(user)}
               </div>
             )}
@@ -120,7 +120,7 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-1 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+                <div className="h-8 w-1 bg-linear-to-b from-primary to-primary/50 rounded-full" />
                 <div>
                   <h3 className="text-lg font-bold text-foreground">
                     {message.products.length} {message.products.length === 1 ? 'Product' : 'Products'} Found
@@ -153,8 +153,8 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
             {/* Products Slider */}
             <div className="relative group/slider overflow-hidden">
               {/* Gradient Overlays */}
-              <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity" />
-              <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity" />
+              <div className="absolute left-0 top-0 bottom-0 w-12 bg-linear-to-r from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity" />
+              <div className="absolute right-0 top-0 bottom-0 w-12 bg-linear-to-l from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity" />
 
               {/* Slider Container */}
               <div

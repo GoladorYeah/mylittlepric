@@ -106,9 +106,9 @@ export default function UserMenu({ showName = false }: UserMenuProps) {
         </button>
 
         {isMenuOpen && (
-          <div className={`fixed w-64 rounded-lg bg-background border border-border shadow-xl z-[60] ${
+          <div className={`fixed w-64 rounded-lg bg-background border border-border shadow-xl z-60 ${
             isSidebarOpen
-              ? 'bottom-20 md:bottom-auto right-4 md:right-4 md:bottom-full md:mb-2'
+              ? 'bottom-20 right-4 md:right-4 md:bottom-full md:mb-2'
               : 'bottom-20 md:bottom-4 left-4 md:left-4'
           }`}>
             <div className="p-4">

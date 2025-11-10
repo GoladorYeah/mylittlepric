@@ -28,7 +28,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        "bg-gradient-to-r from-muted via-muted/50 to-muted bg-[length:200%_100%]",
+        "bg-linear-to-r from-muted via-muted/50 to-muted bg-size-[200%_100%]",
         variantClass,
         animationClass,
         className
