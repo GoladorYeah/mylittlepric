@@ -52,7 +52,7 @@ class Counter extends _$Counter {
 1. Добавьте `import 'package:riverpod_annotation/riverpod_annotation.dart';`
 2. Добавьте `part 'filename.g.dart';`
 3. Используйте `@riverpod` аннотацию
-4. Запустите: `flutter pub run build_runner build`
+4. Запустите: `dart run build_runner build`
 
 **Новые возможности:**
 
@@ -155,8 +155,8 @@ class User with _$User {
 ```
 
 **Действия:**
-1. Запустите: `flutter pub run build_runner clean`
-2. Запустите: `flutter pub run build_runner build --delete-conflicting-outputs`
+1. Запустите: `dart run build_runner clean`
+2. Запустите: `dart run build_runner build --delete-conflicting-outputs`
 
 **Ссылки:**
 - [Freezed Documentation](https://pub.dev/packages/freezed)
@@ -262,8 +262,8 @@ flutter pub get
 
 ### Шаг 2: Генерация кода
 ```bash
-flutter pub run build_runner clean
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner clean
+dart run build_runner build --delete-conflicting-outputs
 ```
 
 ### Шаг 3: Анализ кода
@@ -301,7 +301,7 @@ flutter pub get
 
 2. **Перегенерируйте код**:
 ```bash
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 ```
 
 3. **Проверьте imports**:

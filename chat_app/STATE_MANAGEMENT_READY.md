@@ -176,7 +176,7 @@ final electronics = ref.read(sessionProvider.notifier).getSearchesByCategory('El
 ```bash
 cd chat_app
 flutter pub get
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 ```
 
 Эта команда создаст все `*.freezed.dart` файлы для State классов.

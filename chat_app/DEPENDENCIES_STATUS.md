@@ -95,7 +95,7 @@ flutter clean
 flutter pub get
 
 # 3. Генерация кода
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 
 # 4. Проверка
 flutter analyze

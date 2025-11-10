@@ -289,7 +289,7 @@ cd chat_app
 flutter pub get
 
 # 2. Сгенерировать Freezed/JSON код
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 
 # 3. Запустить приложение
 flutter run -d chrome      # Web

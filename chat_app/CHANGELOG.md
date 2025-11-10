@@ -72,7 +72,7 @@ final myProvider = Provider<String>((ref) => 'Hello');
 String myProvider(MyProviderRef ref) => 'Hello';
 ```
 
-Run `flutter pub run build_runner build` after creating providers.
+Run `dart run build_runner build` after creating providers.
 
 #### go_router 17.0
 - Review router configuration for breaking changes
@@ -82,7 +82,7 @@ Run `flutter pub run build_runner build` after creating providers.
 #### Freezed 3.0
 - Code generation unchanged
 - Some internal API improvements
-- Run `flutter pub run build_runner build --delete-conflicting-outputs`
+- Run `dart run build_runner build --delete-conflicting-outputs`
 
 ### Dependencies Status
 

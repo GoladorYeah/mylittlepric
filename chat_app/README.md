@@ -73,7 +73,7 @@ flutter pub get
 
 2. **Сгенерируйте код (модели, freezed):**
 ```bash
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 ```
 
 3. **Запустите приложение:**
@@ -112,10 +112,10 @@ flutter run --dart-define=API_BASE_URL=http://your-api.com
 flutter pub get
 
 # Генерация кода
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 
 # Continuous code generation (watch mode)
-flutter pub run build_runner watch
+dart run build_runner watch
 
 # Запуск тестов
 flutter test

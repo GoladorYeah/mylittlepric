@@ -272,7 +272,7 @@ cd chat_app
 flutter pub get
 
 # 2. Сгенерировать Freezed/JSON код (ОБЯЗАТЕЛЬНО!)
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 
 # 3. Запустить приложение
 flutter run -d chrome      # Web
@@ -339,7 +339,7 @@ flutter run                 # Default device
 
 ## 📝 Примечания
 
-- **Freezed генерация**: Запустите `flutter pub run build_runner build` после создания моделей
+- **Freezed генерация**: Запустите `dart run build_runner build` после создания моделей
 - **API URL**: По умолчанию `http://localhost:8080`, настраивается через env
 - **WebSocket**: Автоматическое переподключение при потере связи
 - **Offline**: Hive кеширует сообщения и сессии
@@ -354,7 +354,7 @@ cd chat_app
 flutter pub get
 
 # 2. Сгенерировать код
-flutter pub run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs
 
 # 3. Запустить (выберите платформу)
 flutter run -d chrome      # Web
