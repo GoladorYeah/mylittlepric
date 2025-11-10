@@ -2,12 +2,9 @@ import 'package:chat_app/core/config/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:chat_app/features/chat/widgets/widgets.dart';
-
-// Import screens
-// TODO: Create History, Settings, and Login screens
-// import 'package:chat_app/features/history/screens/history_screen.dart';
-// import 'package:chat_app/features/settings/screens/settings_screen.dart';
-// import 'package:chat_app/features/auth/screens/login_screen.dart';
+import 'package:chat_app/features/history/screens/screens.dart';
+import 'package:chat_app/features/settings/screens/screens.dart';
+import 'package:chat_app/features/auth/screens/screens.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -32,36 +29,21 @@ class AppRouter {
         path: AppConstants.historyRoute,
         name: 'history',
         builder: (context, state) {
-          return const Scaffold(
-            body: Center(
-              child: Text('History Screen - Coming Soon'),
-            ),
-          );
-          // return const HistoryScreen();
+          return const HistoryScreen();
         },
       ),
       GoRoute(
         path: AppConstants.settingsRoute,
         name: 'settings',
         builder: (context, state) {
-          return const Scaffold(
-            body: Center(
-              child: Text('Settings Screen - Coming Soon'),
-            ),
-          );
-          // return const SettingsScreen();
+          return const SettingsScreen();
         },
       ),
       GoRoute(
         path: AppConstants.loginRoute,
         name: 'login',
         builder: (context, state) {
-          return const Scaffold(
-            body: Center(
-              child: Text('Login Screen - Coming Soon'),
-            ),
-          );
-          // return const LoginScreen();
+          return const LoginScreen();
         },
       ),
     ],
