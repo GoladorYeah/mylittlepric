@@ -31,6 +31,7 @@
             <app-chat-message
               [message]="message"
               [onQuickReply]="handleQuickReply.bind(this)"
+              (productDetailsRequested)="handleProductDetailsRequest($event)"
             />
           }
 
@@ -92,4 +93,13 @@
       }
     </div>
   </div>
+
+  <!-- Product Drawer -->
+  @if (selectedPageToken() && isDrawerOpen()) {
+    <app-product-drawer
+      [pageToken]="selectedPageToken()"
+      [isOpen]="isDrawerOpen()"
+      (closed)="handleDrawerClose()"
+    />
+  }
 </main>

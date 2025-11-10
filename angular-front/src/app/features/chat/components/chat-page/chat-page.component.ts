@@ -21,6 +21,7 @@ import { AuthStore } from '../../../../core/stores/auth.store';
 import { WebSocketService } from '../../../../core/services/websocket.service';
 import { HeaderComponent } from '../../../../shared/components/header/header.component';
 import { ChatMessageComponent } from '../chat-message/chat-message.component';
+import { ProductDrawerComponent } from '../../../products/components/product-drawer/product-drawer.component';
 import { Product } from '../../../../shared/types';
 import { detectCountry, detectLanguage, getCurrencyForCountry } from '../../../../shared/utils/locale';
 
@@ -37,6 +38,7 @@ import { detectCountry, detectLanguage, getCurrencyForCountry } from '../../../.
     MatProgressSpinnerModule,
     HeaderComponent,
     ChatMessageComponent,
+    ProductDrawerComponent,
   ],
   templateUrl: './chat-page.component.html',
   styleUrl: './chat-page.component.scss',
@@ -52,6 +54,10 @@ export class ChatPageComponent implements OnInit, OnDestroy {
   messageInput = signal('');
   isConnecting = signal(false);
   isInputFocused = signal(false);
+
+  // Product drawer state
+  selectedPageToken = signal<string>('');
+  isDrawerOpen = signal(false);
 
   constructor() {
     // Auto-scroll when messages change
@@ -172,5 +178,18 @@ export class ChatPageComponent implements OnInit, OnDestroy {
   // Track products by their position to avoid re-rendering
   trackByPosition(index: number, product: Product): number {
     return product.position;
+  }
+
+  // Handle product details request
+  handleProductDetailsRequest(pageToken: string): void {
+    this.selectedPageToken.set(pageToken);
+    this.isDrawerOpen.set(true);
+  }
+
+  // Handle drawer close
+  handleDrawerClose(): void {
+    this.isDrawerOpen.set(false);
+    // Clear page token after animation
+    setTimeout(() => this.selectedPageToken.set(''), 300);
   }
 }

@@ -86,7 +86,11 @@
           >
             @for (product of message().products!; track product.position; let idx = $index) {
               <div class="flex-none w-[210px] snap-start first:ml-1">
-                <app-product-card [product]="product" [index]="idx + 1" />
+                <app-product-card
+                  [product]="product"
+                  [index]="idx + 1"
+                  (productDetailsRequested)="handleProductDetailsRequest($event)"
+                />
               </div>
             }
           </div>

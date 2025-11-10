@@ -1,0 +1,45 @@
+<div class="space-y-4">
+  <!-- Title -->
+  <h1 class="text-2xl font-bold">{{ title() }}</h1>
+
+  <!-- Rating & Reviews -->
+  @if (rating()) {
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1">
+        <mat-icon class="!w-5 !h-5 !text-[20px] text-yellow-500">star</mat-icon>
+        <span class="font-semibold">{{ rating() }}</span>
+      </div>
+      @if (reviews()) {
+        <span class="text-sm text-muted-foreground">
+          ({{ formatNumber(reviews()!) }} reviews)
+        </span>
+      }
+    </div>
+  }
+
+  <!-- Price -->
+  <div class="text-3xl font-bold text-primary">{{ price() }}</div>
+
+  <!-- Description -->
+  @if (description()) {
+    <div class="space-y-2">
+      <h3 class="font-semibold">Description</h3>
+      <p class="text-muted-foreground">{{ description() }}</p>
+    </div>
+  }
+
+  <!-- Specifications -->
+  @if (specifications() && specifications()!.length > 0) {
+    <div class="space-y-2">
+      <h3 class="font-semibold">Specifications</h3>
+      <div class="grid grid-cols-2 gap-2 text-sm">
+        @for (spec of specifications(); track $index) {
+          <div class="flex flex-col">
+            <span class="text-muted-foreground">{{ spec.title }}</span>
+            <span class="font-medium">{{ spec.value }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

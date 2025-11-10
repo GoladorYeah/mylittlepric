@@ -1,0 +1,79 @@
+<mat-drawer-container class="product-drawer-container" [hasBackdrop]="true">
+  <mat-drawer
+    #drawer
+    mode="over"
+    position="end"
+    [opened]="isOpen()"
+    (closed)="handleClose()"
+    class="product-drawer"
+  >
+    <!-- Header -->
+    <div
+      class="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border p-4 flex items-center justify-between"
+    >
+      <button
+        mat-icon-button
+        (click)="handleClose()"
+        class="!w-10 !h-10 !rounded-full bg-secondary hover:bg-secondary/80 transition-colors ml-auto"
+        aria-label="Close drawer"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6">
+      @if (loading()) {
+        <app-product-drawer-skeleton />
+      } @else if (error()) {
+        <div
+          class="flex items-center justify-center h-96 animate-fade-in"
+        >
+          <div class="text-center space-y-2">
+            <p class="text-muted-foreground text-lg">
+              Failed to load product details
+            </p>
+            <button
+              (click)="retry()"
+              class="text-primary hover:underline text-sm"
+            >
+              Retry
+            </button>
+            <button
+              (click)="handleClose()"
+              class="text-primary hover:underline text-sm block"
+            >
+              Close and try again
+            </button>
+          </div>
+        </div>
+      } @else if (product()) {
+        <div class="space-y-8 animate-fade-in">
+          <app-product-image-gallery
+            [images]="product()!.images || []"
+            [title]="product()!.title"
+          />
+
+          <app-product-info
+            [title]="product()!.title"
+            [price]="product()!.price"
+            [rating]="product()!.rating"
+            [reviews]="product()!.reviews"
+            [description]="product()!.description"
+            [specifications]="product()!.specifications"
+          />
+
+          <app-product-offers [offers]="product()!.offers || []" />
+
+          <app-product-rating-breakdown
+            [ratings]="product()!.rating_breakdown || []"
+          />
+
+          <app-product-similar-items
+            [products]="product()!.more_options || []"
+          />
+        </div>
+      }
+    </div>
+  </mat-drawer>
+</mat-drawer-container>

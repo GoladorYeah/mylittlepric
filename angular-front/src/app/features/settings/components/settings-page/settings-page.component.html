@@ -1,0 +1,196 @@
+<div class="settings-page">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-container">
+      <button
+        mat-icon-button
+        (click)="handleBack()"
+        class="back-button"
+        aria-label="Go back"
+      >
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1 class="header-title">Settings</h1>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="content">
+    <div class="settings-container">
+      <!-- Regional Settings Section -->
+      <div class="settings-section">
+        <div class="section-header">
+          <mat-icon class="section-icon" color="primary">public</mat-icon>
+          <h2 class="section-title">Regional Settings</h2>
+        </div>
+
+        <div class="section-content">
+          <!-- Country Selection -->
+          <div class="setting-item">
+            <label class="setting-label">Country/Region</label>
+            <mat-form-field appearance="outline" class="setting-field">
+              <mat-select
+                [value]="country()"
+                (selectionChange)="handleCountrySelect($event.value)"
+                class="country-select"
+              >
+                <mat-option>
+                  <input
+                    type="text"
+                    [value]="countrySearchQuery()"
+                    (input)="countrySearchQuery.set($any($event.target).value)"
+                    (click)="$event.stopPropagation()"
+                    placeholder="Search countries..."
+                    class="search-input"
+                  />
+                </mat-option>
+
+                @for (c of filteredCountries(); track c.code) {
+                  <mat-option [value]="c.code" class="country-option">
+                    <span class="country-flag">{{ c.flag }}</span>
+                    <span class="country-name">{{ c.name }}</span>
+                    @if (isCountrySelected(c.code)) {
+                      <mat-icon class="check-icon" color="primary">check</mat-icon>
+                    }
+                  </mat-option>
+                }
+
+                @if (filteredCountries().length === 0) {
+                  <mat-option disabled>
+                    <span class="no-results">No countries found</span>
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <p class="setting-hint">Currency: {{ currency() }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Language Settings Section -->
+      <div class="settings-section">
+        <div class="section-header">
+          <mat-icon class="section-icon" color="primary">language</mat-icon>
+          <h2 class="section-title">Language Settings</h2>
+        </div>
+
+        <div class="section-content">
+          <!-- Language Selection -->
+          <div class="setting-item">
+            <label class="setting-label">Agent Communication Language</label>
+            <p class="setting-description">
+              Choose the language for the AI assistant to communicate with you
+            </p>
+            <mat-form-field appearance="outline" class="setting-field">
+              <mat-select
+                [value]="language()"
+                (selectionChange)="handleLanguageSelect($event.value)"
+                class="language-select"
+              >
+                <mat-option>
+                  <input
+                    type="text"
+                    [value]="languageSearchQuery()"
+                    (input)="languageSearchQuery.set($any($event.target).value)"
+                    (click)="$event.stopPropagation()"
+                    placeholder="Search languages..."
+                    class="search-input"
+                  />
+                </mat-option>
+
+                @for (l of filteredLanguages(); track l.code) {
+                  <mat-option [value]="l.code" class="language-option">
+                    <div class="language-info">
+                      <span class="language-name">{{ l.name }}</span>
+                      <span class="language-native">{{ l.nativeName }}</span>
+                    </div>
+                    @if (isLanguageSelected(l.code)) {
+                      <mat-icon class="check-icon" color="primary">check</mat-icon>
+                    }
+                  </mat-option>
+                }
+
+                @if (filteredLanguages().length === 0) {
+                  <mat-option disabled>
+                    <span class="no-results">No languages found</span>
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appearance Settings Section -->
+      <div class="settings-section">
+        <div class="section-header">
+          <mat-icon class="section-icon" color="primary">palette</mat-icon>
+          <h2 class="section-title">Appearance</h2>
+        </div>
+
+        <div class="section-content">
+          <!-- Theme Selection -->
+          <div class="setting-item">
+            <label class="setting-label">Theme</label>
+            <p class="setting-description">Choose your preferred color scheme</p>
+            <div class="theme-options">
+              <!-- Light Theme -->
+              <button
+                mat-stroked-button
+                (click)="handleThemeChange('light')"
+                [class.selected]="theme() === 'light'"
+                class="theme-button"
+              >
+                <div class="theme-button-content">
+                  <mat-icon [color]="theme() === 'light' ? 'primary' : undefined">
+                    light_mode
+                  </mat-icon>
+                  <span>Light</span>
+                  @if (theme() === 'light') {
+                    <mat-icon class="theme-check" color="primary">check</mat-icon>
+                  }
+                </div>
+              </button>
+
+              <!-- Dark Theme -->
+              <button
+                mat-stroked-button
+                (click)="handleThemeChange('dark')"
+                [class.selected]="theme() === 'dark'"
+                class="theme-button"
+              >
+                <div class="theme-button-content">
+                  <mat-icon [color]="theme() === 'dark' ? 'primary' : undefined">
+                    dark_mode
+                  </mat-icon>
+                  <span>Dark</span>
+                  @if (theme() === 'dark') {
+                    <mat-icon class="theme-check" color="primary">check</mat-icon>
+                  }
+                </div>
+              </button>
+
+              <!-- System Theme -->
+              <button
+                mat-stroked-button
+                (click)="handleThemeChange('system')"
+                [class.selected]="theme() === 'system'"
+                class="theme-button"
+              >
+                <div class="theme-button-content">
+                  <mat-icon [color]="theme() === 'system' ? 'primary' : undefined">
+                    computer
+                  </mat-icon>
+                  <span>System</span>
+                  @if (theme() === 'system') {
+                    <mat-icon class="theme-check" color="primary">check</mat-icon>
+                  }
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

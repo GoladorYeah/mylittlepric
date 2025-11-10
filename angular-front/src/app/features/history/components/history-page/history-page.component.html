@@ -1,0 +1,171 @@
+<div class="history-page">
+  <!-- Loading State -->
+  @if (authLoading()) {
+    <div class="loading-container">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p class="loading-text">Loading...</p>
+    </div>
+  } @else if (!isAuthenticated()) {
+    <!-- Not authenticated - show nothing or redirect -->
+  } @else {
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-content">
+          <div class="title-section">
+            <mat-icon class="title-icon">history</mat-icon>
+            <h1 class="title">Search History</h1>
+          </div>
+          <div class="actions">
+            <button
+              mat-icon-button
+              (click)="loadHistory(true)"
+              [disabled]="loading()"
+              class="refresh-button"
+              [matTooltip]="'Refresh'"
+            >
+              <mat-icon [class.spinning]="loading()">refresh</mat-icon>
+            </button>
+            @if (history().length > 0) {
+              <button
+                mat-raised-button
+                color="warn"
+                (click)="handleClearAll()"
+                class="clear-all-button"
+              >
+                <mat-icon>delete</mat-icon>
+                Clear All
+              </button>
+            }
+          </div>
+        </div>
+        <p class="subtitle">
+          @if (history().length > 0) {
+            {{ history().length }} search{{ history().length !== 1 ? 'es' : '' }} found
+          } @else {
+            No search history yet
+          }
+        </p>
+      </div>
+
+      <!-- Error Message -->
+      @if (error()) {
+        <div class="error-message">
+          {{ error() }}
+        </div>
+      }
+
+      <!-- History List -->
+      @if (loading() && history().length === 0) {
+        <div class="loading-spinner">
+          <mat-spinner diameter="48"></mat-spinner>
+        </div>
+      } @else if (history().length === 0) {
+        <div class="empty-state">
+          <mat-icon class="empty-icon">search_off</mat-icon>
+          <h2 class="empty-title">No search history yet</h2>
+          <p class="empty-subtitle">Start searching to build your history</p>
+          <button mat-raised-button color="primary" (click)="goToChat()">
+            Start Searching
+          </button>
+        </div>
+      } @else {
+        <div class="history-list">
+          @for (item of history(); track item.id) {
+            @if (item.session_id) {
+              <mat-card class="history-item">
+                <!-- Header -->
+                <div class="item-header" (click)="hasProducts(item) && toggleExpanded(item.id)">
+                  <mat-icon class="search-icon">search</mat-icon>
+                  <div class="item-content">
+                    <p class="item-query">{{ item.search_query }}</p>
+                    <div class="item-meta">
+                      <span class="meta-item">{{ getTimeAgo(item.created_at) }}</span>
+                      @if (item.result_count > 0) {
+                        <span class="meta-separator">•</span>
+                        <span class="meta-item">
+                          <mat-icon class="meta-icon">inventory_2</mat-icon>
+                          {{ item.result_count }} product{{ item.result_count !== 1 ? 's' : '' }}
+                        </span>
+                      }
+                      @if (item.category) {
+                        <span class="meta-separator">•</span>
+                        <span class="meta-item category">{{ item.category }}</span>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="item-actions">
+                    @if (hasProducts(item)) {
+                      <button
+                        mat-icon-button
+                        (click)="toggleExpanded(item.id); $event.stopPropagation()"
+                        [matTooltip]="isExpanded(item.id) ? 'Hide products' : 'Show products'"
+                      >
+                        <mat-icon>
+                          {{ isExpanded(item.id) ? 'expand_less' : 'expand_more' }}
+                        </mat-icon>
+                      </button>
+                    }
+
+                    <!-- Three-dot menu -->
+                    <button
+                      mat-icon-button
+                      [matMenuTriggerFor]="itemMenu"
+                      (click)="$event.stopPropagation()"
+                      [matTooltip]="'Options'"
+                    >
+                      <mat-icon>more_vert</mat-icon>
+                    </button>
+
+                    <mat-menu #itemMenu="matMenu">
+                      @if (item.session_id) {
+                        <button mat-menu-item (click)="handleViewChat(item.session_id!)">
+                          <mat-icon color="primary">chat</mat-icon>
+                          <span>View Chat History</span>
+                        </button>
+                      }
+                      <button mat-menu-item (click)="handleDelete(item.id, $event)">
+                        <mat-icon color="warn">delete</mat-icon>
+                        <span>Delete</span>
+                      </button>
+                    </mat-menu>
+                  </div>
+                </div>
+
+                <!-- Products Grid -->
+                @if (isExpanded(item.id) && hasProducts(item)) {
+                  <div class="products-section">
+                    <div class="products-grid">
+                      @for (product of item.products_found; track product.link) {
+                        <app-product-card
+                          [product]="product"
+                          [index]="$index + 1"
+                        ></app-product-card>
+                      }
+                    </div>
+                  </div>
+                }
+              </mat-card>
+            }
+          }
+        </div>
+
+        <!-- Load More Button -->
+        @if (hasMore()) {
+          <div class="load-more">
+            <button
+              mat-raised-button
+              (click)="loadHistory(false)"
+              [disabled]="loading()"
+              class="load-more-button"
+            >
+              {{ loading() ? 'Loading...' : 'Load More' }}
+            </button>
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

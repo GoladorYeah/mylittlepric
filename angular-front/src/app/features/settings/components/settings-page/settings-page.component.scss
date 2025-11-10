@@ -1,0 +1,249 @@
+.settings-page {
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--background);
+
+  .header-container {
+    max-width: 1024px;
+    margin: 0 auto;
+    padding: 0 1rem;
+    height: 4rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .back-button {
+    flex-shrink: 0;
+  }
+
+  .header-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--foreground);
+  }
+}
+
+.content {
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.settings-section {
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.25rem;
+  }
+
+  .section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--foreground);
+  }
+
+  .section-content {
+    padding-left: 1.75rem;
+  }
+}
+
+.setting-item {
+  margin-bottom: 1.5rem;
+
+  .setting-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    margin-bottom: 0.5rem;
+  }
+
+  .setting-description {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    margin: 0 0 0.5rem;
+  }
+
+  .setting-hint {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    margin: 0.25rem 0 0;
+  }
+
+  .setting-field {
+    width: 100%;
+
+    ::ng-deep .mat-mdc-form-field-focus-overlay {
+      background-color: transparent;
+    }
+  }
+}
+
+// Custom select styling
+.search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background-color: var(--secondary);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  outline: none;
+
+  &:focus {
+    border-color: var(--primary);
+  }
+
+  &::placeholder {
+    color: var(--muted-foreground);
+  }
+}
+
+.country-option,
+.language-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+
+  &:hover {
+    background-color: var(--secondary);
+  }
+}
+
+.country-flag {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.country-name {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.language-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+  .language-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .language-native {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+}
+
+.check-icon {
+  width: 1rem;
+  height: 1rem;
+  font-size: 1rem;
+  margin-left: auto;
+}
+
+.no-results {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  text-align: center;
+  padding: 2rem 1rem;
+  display: block;
+}
+
+// Theme options styling
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.theme-button {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background-color: var(--secondary);
+  transition: all 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgba(var(--primary-rgb), 0.5);
+  }
+
+  &.selected {
+    background-color: rgba(var(--primary-rgb), 0.1);
+    border-color: var(--primary);
+  }
+
+  .theme-button-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+
+    mat-icon:first-child {
+      width: 1.5rem;
+      height: 1.5rem;
+      font-size: 1.5rem;
+    }
+
+    span {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .theme-check {
+      width: 1rem;
+      height: 1rem;
+      font-size: 1rem;
+    }
+  }
+}
+
+// Override Material Select styling
+::ng-deep {
+  .mat-mdc-select-panel {
+    max-height: 320px;
+  }
+
+  .mat-mdc-option {
+    &:first-child {
+      padding: 0.5rem 1rem;
+      min-height: auto;
+
+      &:hover {
+        background-color: transparent;
+      }
+    }
+  }
+}

@@ -11,6 +11,7 @@ import {
   ActiveSessionResponse,
   SavedSearchBackend,
   UserPreferences,
+  SearchHistoryRecord,
 } from '../../shared/types';
 
 @Injectable({
@@ -200,6 +201,69 @@ export class ApiService {
   getStats(): Observable<any> {
     return this.http
       .get(`${this.baseUrl}/api/stats/all`)
+      .pipe(catchError(this.handleError));
+  }
+
+  // Search history endpoints
+  getSearchHistory(
+    limit: number = 50,
+    offset: number = 0,
+    sessionId?: string,
+    accessToken?: string
+  ): Observable<{
+    items: SearchHistoryRecord[];
+    total: number;
+    limit: number;
+    offset: number;
+    has_more: boolean;
+  }> {
+    let url = `${this.baseUrl}/api/search-history?limit=${limit}&offset=${offset}`;
+    if (sessionId) {
+      url += `&session_id=${sessionId}`;
+    }
+
+    return this.http
+      .get<{
+        items: SearchHistoryRecord[];
+        total: number;
+        limit: number;
+        offset: number;
+        has_more: boolean;
+      }>(url, {
+        headers: this.getHeaders(accessToken),
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  deleteSearchHistory(id: string, accessToken?: string): Observable<{ message: string }> {
+    return this.http
+      .delete<{ message: string }>(`${this.baseUrl}/api/search-history/${id}`, {
+        headers: this.getHeaders(accessToken),
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  deleteAllSearchHistory(accessToken?: string): Observable<{ message: string }> {
+    return this.http
+      .delete<{ message: string }>(`${this.baseUrl}/api/search-history`, {
+        headers: this.getHeaders(accessToken),
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  trackProductClick(
+    historyId: string,
+    productId: string,
+    accessToken?: string
+  ): Observable<{ message: string }> {
+    return this.http
+      .post<{ message: string }>(
+        `${this.baseUrl}/api/search-history/${historyId}/click`,
+        { product_id: productId },
+        {
+          headers: this.getHeaders(accessToken),
+        }
+      )
       .pipe(catchError(this.handleError));
   }
 }

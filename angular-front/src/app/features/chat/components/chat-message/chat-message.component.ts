@@ -1,4 +1,4 @@
-import { Component, input, inject } from '@angular/core';
+import { Component, input, output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -24,6 +24,8 @@ import { ProductCardComponent } from '../../../products/components/product-card/
 export class ChatMessageComponent {
   message = input.required<ChatMessage>();
   onQuickReply = input<(reply: string) => void>();
+  productDetailsRequested = output<string>();
+
   private authStore = inject(AuthStore);
 
   // Make Math available in template
@@ -78,5 +80,9 @@ export class ChatMessageComponent {
       left: newScrollLeft,
       behavior: 'smooth'
     });
+  }
+
+  handleProductDetailsRequest(pageToken: string): void {
+    this.productDetailsRequested.emit(pageToken);
   }
 }

@@ -1,0 +1,47 @@
+<div class="policy-page">
+  <!-- Header -->
+  <header class="policy-header">
+    <div class="header-container">
+      <div class="nav-links">
+        <a routerLink="/" class="nav-link">
+          <mat-icon>home</mat-icon>
+          <span class="nav-text">Home</span>
+        </a>
+        <a routerLink="/chat" class="nav-link">
+          <mat-icon>chat</mat-icon>
+          <span class="nav-text">Chat</span>
+        </a>
+      </div>
+      <div class="logo">MyLittlePrice</div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="policy-main">
+    <div class="policy-container">
+      <div class="policy-content">
+        <div class="policy-header-text">
+          <h1 class="policy-title">{{ title() }}</h1>
+          <p class="policy-date">Last updated: {{ lastUpdated() }}</p>
+        </div>
+
+        <div class="policy-body">
+          <ng-content />
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="policy-footer">
+    <div class="footer-container">
+      <p class="footer-copyright">&copy; 2025 MyLittlePrice. All rights reserved.</p>
+      <div class="footer-links">
+        <a routerLink="/privacy-policy" class="footer-link">Privacy Policy</a>
+        <a routerLink="/terms-of-use" class="footer-link">Terms of Use</a>
+        <a routerLink="/cookie-policy" class="footer-link">Cookie Policy</a>
+        <a routerLink="/advertising-policy" class="footer-link">Advertising Policy</a>
+      </div>
+    </div>
+  </footer>
+</div>

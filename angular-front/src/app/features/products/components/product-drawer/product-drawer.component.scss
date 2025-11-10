@@ -1,0 +1,26 @@
+.product-drawer-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+  pointer-events: none;
+
+  &::ng-deep .mat-drawer-backdrop {
+    pointer-events: auto;
+  }
+}
+
+.product-drawer {
+  width: 100%;
+  max-width: 36rem; // 576px (tailwind's max-w-xl)
+  height: 100%;
+  overflow-y: auto;
+  pointer-events: auto;
+
+  &::ng-deep .mat-drawer-inner-container {
+    display: flex;
+    flex-direction: column;
+  }
+}

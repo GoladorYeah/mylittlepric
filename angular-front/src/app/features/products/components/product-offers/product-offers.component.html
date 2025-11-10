@@ -1,0 +1,172 @@
+@if (offers() && offers().length > 0) {
+  <div class="space-y-4">
+    <h2 class="text-xl font-bold">
+      Available from {{ offers().length }}
+      {{ offers().length === 1 ? 'store' : 'stores' }}
+    </h2>
+
+    <div class="space-y-3">
+      @for (offer of offers(); track $index) {
+        <div
+          [class]="
+            'relative flex flex-col gap-4 p-4 rounded-xl border transition-all ' +
+            (isBestPrice(offer)
+              ? 'bg-primary/5 border-primary/40 shadow-md'
+              : 'bg-secondary border-border hover:border-primary/30')
+          "
+        >
+          <!-- Best Price Tag -->
+          @if (isBestPrice(offer) || offer.tag) {
+            <div
+              class="absolute -top-2 -right-2 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg flex items-center gap-1"
+            >
+              <mat-icon class="!w-3 !h-3 !text-[12px]">local_offer</mat-icon>
+              {{ offer.tag || 'Best price' }}
+            </div>
+          }
+
+          <div class="flex flex-col sm:flex-row gap-4">
+            <!-- Store Logo & Info -->
+            <div class="flex-1 space-y-3">
+              <div class="flex items-center gap-3">
+                @if (offer.logo) {
+                  <div class="relative w-8 h-8 flex-shrink-0">
+                    <img
+                      [src]="offer.logo"
+                      [alt]="offer.merchant"
+                      class="w-full h-full object-contain"
+                      (error)="onImageError($event)"
+                    />
+                  </div>
+                }
+                <div class="flex-1 min-w-0">
+                  <div class="font-semibold text-lg truncate">
+                    {{ offer.merchant }}
+                  </div>
+                  @if (offer.title) {
+                    <div class="text-sm text-muted-foreground line-clamp-1">
+                      {{ offer.title }}
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Pricing -->
+              <div class="space-y-1">
+                @if (hasMonthlyPayment(offer)) {
+                  <div>
+                    <div class="text-3xl font-bold text-primary">
+                      {{ offer.price }}
+                      <span class="text-sm font-normal text-muted-foreground ml-2">
+                        /mo for {{ offer.monthly_payment_duration }} months
+                      </span>
+                    </div>
+                    @if (offer.down_payment && offer.down_payment !== '$0.00') {
+                      <div class="text-sm text-muted-foreground">
+                        Down payment: {{ offer.down_payment }}
+                      </div>
+                    }
+                    @if (offer.total) {
+                      <div class="text-sm text-muted-foreground">
+                        Total: {{ offer.total }}
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <div class="text-3xl font-bold text-primary">
+                    {{ offer.price }}
+                  </div>
+                }
+
+                <div class="flex flex-wrap gap-2 text-sm">
+                  @if (offer.shipping) {
+                    <div
+                      [class]="
+                        offer.shipping.toLowerCase().includes('free')
+                          ? 'text-green-600 dark:text-green-500 font-medium'
+                          : 'text-muted-foreground'
+                      "
+                    >
+                      <mat-icon class="!w-3.5 !h-3.5 !text-[14px] inline mr-1"
+                        >local_shipping</mat-icon
+                      >
+                      {{ offer.shipping }}
+                    </div>
+                  }
+                  @if (offer.total && !hasMonthlyPayment(offer)) {
+                    <div class="text-muted-foreground">
+                      Total: {{ offer.total }}
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Rating & Reviews -->
+              @if (offer.rating || offer.reviews) {
+                <div class="flex items-center gap-3 text-sm">
+                  @if (offer.rating) {
+                    <div
+                      class="flex items-center gap-1 text-yellow-600 dark:text-yellow-500"
+                    >
+                      <mat-icon class="!w-4 !h-4 !text-[16px]">star</mat-icon>
+                      <span class="font-medium">{{ offer.rating }}</span>
+                    </div>
+                  }
+                  @if (offer.reviews) {
+                    <div class="text-muted-foreground">
+                      ({{ formatNumber(offer.reviews) }}
+                      {{ offer.reviews === 1 ? 'review' : 'reviews' }})
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- Payment Methods -->
+              @if (offer.payment_methods) {
+                <div class="text-sm text-muted-foreground flex items-center gap-1">
+                  <mat-icon class="!w-3.5 !h-3.5 !text-[14px]"
+                    >credit_card</mat-icon
+                  >
+                  {{ offer.payment_methods }}
+                </div>
+              }
+
+              <!-- Details and Offers -->
+              @if (offer.details_and_offers && offer.details_and_offers.length > 0) {
+                <div class="space-y-1">
+                  @for (detail of offer.details_and_offers; track $index) {
+                    <div class="text-sm text-muted-foreground flex items-start gap-2">
+                      <mat-icon
+                        class="!w-4 !h-4 !text-[16px] text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5"
+                        >check</mat-icon
+                      >
+                      <span>{{ detail }}</span>
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- Availability -->
+              @if (offer.availability) {
+                <div class="text-sm text-green-600 dark:text-green-500 font-medium">
+                  {{ offer.availability }}
+                </div>
+              }
+            </div>
+
+            <!-- View Offer Button -->
+            <a
+              [href]="offer.link"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="px-6 py-3 bg-primary text-primary-foreground rounded-full font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 whitespace-nowrap self-start sm:self-center h-fit"
+            >
+              View Offer
+              <mat-icon class="!w-4 !h-4 !text-[16px]">open_in_new</mat-icon>
+            </a>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}

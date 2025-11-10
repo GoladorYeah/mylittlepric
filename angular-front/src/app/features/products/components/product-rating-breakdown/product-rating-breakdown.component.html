@@ -1,0 +1,25 @@
+@if (ratings() && ratings().length > 0) {
+  <div class="space-y-4">
+    <h2 class="text-xl font-bold">Rating Breakdown</h2>
+
+    <div class="space-y-2">
+      @for (rating of ratings(); track $index) {
+        <div class="flex items-center gap-3">
+          <span class="w-12 text-sm font-medium">
+            {{ rating.stars }}
+            <mat-icon class="!w-3 !h-3 !text-[12px] inline">star</mat-icon>
+          </span>
+          <div class="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              class="h-full bg-primary transition-all"
+              [style.width]="getPercentageWidth(rating.amount)"
+            ></div>
+          </div>
+          <span class="w-16 text-sm text-muted-foreground text-right">
+            {{ formatNumber(rating.amount) }}
+          </span>
+        </div>
+      }
+    </div>
+  </div>
+}

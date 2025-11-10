@@ -1,9 +1,9 @@
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { Product } from '../../../../shared/types';
+import { Product, ProductCard } from '../../../../shared/types';
 
 @Component({
   selector: 'app-product-card',
@@ -18,8 +18,11 @@ import { Product } from '../../../../shared/types';
   styleUrl: './product-card.component.scss',
 })
 export class ProductCardComponent {
-  product = input.required<Product>();
+  product = input.required<Product | ProductCard>();
   index = input<number>();
+
+  // Output event when user wants to view product details
+  productDetailsRequested = output<string>();
 
   getImage(): string {
     const product = this.product() as any;
@@ -37,7 +40,8 @@ export class ProductCardComponent {
   }
 
   getRating(): string | undefined {
-    const rating = this.product().rating;
+    const product = this.product() as any;
+    const rating = product.rating;
     return rating ? `${rating}` : undefined;
   }
 
@@ -46,7 +50,13 @@ export class ProductCardComponent {
   }
 
   getProductLink(): string {
-    return this.product().product_link || this.product().link || '#';
+    const product = this.product() as any;
+    return product.product_link || product.link || '#';
+  }
+
+  getPageToken(): string | undefined {
+    const product = this.product() as any;
+    return product.page_token;
   }
 
   openProductLink(event: Event): void {
@@ -58,7 +68,15 @@ export class ProductCardComponent {
   }
 
   onCardClick(): void {
-    // TODO: Open product drawer/modal with detailed information
-    console.log('Product clicked:', this.product());
+    const pageToken = this.getPageToken();
+    if (pageToken) {
+      this.productDetailsRequested.emit(pageToken);
+    } else {
+      // Fallback: open product link if no page token
+      const link = this.getProductLink();
+      if (link && link !== '#') {
+        window.open(link, '_blank', 'noopener,noreferrer');
+      }
+    }
   }
 }
