@@ -1,6 +1,5 @@
+import 'package:chat_app/shared/models/chat_message.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hive/hive.dart';
-import 'chat_message.dart';
 
 part 'saved_search.freezed.dart';
 part 'saved_search.g.dart';

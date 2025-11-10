@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:chat_app/core/config/constants.dart';
+import 'package:flutter/material.dart';
 
 class AppTextStyles {
   // Display Styles

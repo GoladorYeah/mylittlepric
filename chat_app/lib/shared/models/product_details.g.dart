@@ -9,11 +9,11 @@ part of 'product_details.dart';
 _ProductOffer _$ProductOfferFromJson(Map<String, dynamic> json) =>
     _ProductOffer(
       merchant: json['merchant'] as String,
-      logo: json['logo'] as String?,
       price: json['price'] as String,
+      link: json['link'] as String,
+      logo: json['logo'] as String?,
       extractedPrice: (json['extracted_price'] as num?)?.toDouble(),
       currency: json['currency'] as String?,
-      link: json['link'] as String,
       title: json['title'] as String?,
       availability: json['availability'] as String?,
       shipping: json['shipping'] as String?,
@@ -35,11 +35,11 @@ _ProductOffer _$ProductOfferFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$ProductOfferToJson(_ProductOffer instance) =>
     <String, dynamic>{
       'merchant': instance.merchant,
-      'logo': instance.logo,
       'price': instance.price,
+      'link': instance.link,
+      'logo': instance.logo,
       'extracted_price': instance.extractedPrice,
       'currency': instance.currency,
-      'link': instance.link,
       'title': instance.title,
       'availability': instance.availability,
       'shipping': instance.shipping,
@@ -79,15 +79,15 @@ _ProductDetailsResponse _$ProductDetailsResponseFromJson(
   type: json['type'] as String,
   title: json['title'] as String,
   price: json['price'] as String,
+  offers: (json['offers'] as List<dynamic>)
+      .map((e) => ProductOffer.fromJson(e as Map<String, dynamic>))
+      .toList(),
   rating: (json['rating'] as num?)?.toDouble(),
   reviews: (json['reviews'] as num?)?.toInt(),
   description: json['description'] as String?,
   images: (json['images'] as List<dynamic>?)?.map((e) => e as String).toList(),
   specifications: (json['specifications'] as List<dynamic>?)
       ?.map((e) => Specification.fromJson(e as Map<String, dynamic>))
-      .toList(),
-  offers: (json['offers'] as List<dynamic>)
-      .map((e) => ProductOffer.fromJson(e as Map<String, dynamic>))
       .toList(),
   ratingBreakdown: (json['rating_breakdown'] as List<dynamic>?)
       ?.map((e) => RatingBreakdown.fromJson(e as Map<String, dynamic>))
@@ -100,11 +100,11 @@ Map<String, dynamic> _$ProductDetailsResponseToJson(
   'type': instance.type,
   'title': instance.title,
   'price': instance.price,
+  'offers': instance.offers,
   'rating': instance.rating,
   'reviews': instance.reviews,
   'description': instance.description,
   'images': instance.images,
   'specifications': instance.specifications,
-  'offers': instance.offers,
   'rating_breakdown': instance.ratingBreakdown,
 };

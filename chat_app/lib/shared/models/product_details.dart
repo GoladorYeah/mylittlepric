@@ -7,11 +7,9 @@ part 'product_details.g.dart';
 class ProductOffer with _$ProductOffer {
   const factory ProductOffer({
     required String merchant,
-    String? logo,
-    required String price,
+    required String price, required String link, String? logo,
     @JsonKey(name: 'extracted_price') double? extractedPrice,
     String? currency,
-    required String link,
     String? title,
     String? availability,
     String? shipping,
@@ -56,13 +54,12 @@ class ProductDetailsResponse with _$ProductDetailsResponse {
     required String type,
     required String title,
     required String price,
-    double? rating,
+    // variants would need more complex modeling
+    required List<ProductOffer> offers, double? rating,
     int? reviews,
     String? description,
     List<String>? images,
     List<Specification>? specifications,
-    // variants would need more complex modeling
-    required List<ProductOffer> offers,
     // videos and more_options could be added if needed
     @JsonKey(name: 'rating_breakdown') List<RatingBreakdown>? ratingBreakdown,
   }) = _ProductDetailsResponse;

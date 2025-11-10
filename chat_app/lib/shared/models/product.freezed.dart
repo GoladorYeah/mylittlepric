@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Product {
 
- int get position; String get title; String get link;@JsonKey(name: 'product_link') String get productLink;@JsonKey(name: 'product_id') String get productId;@JsonKey(name: 'serpapi_product_api') String get serpapiProductApi;@JsonKey(name: 'serpapi_product_api_comparative') String? get serpapiProductApiComparative; String get source; String get price;@JsonKey(name: 'extracted_price') double get extractedPrice; double? get rating; int? get reviews; String get thumbnail; String? get delivery; String? get tag; List<String>? get extensions; String? get currency;@JsonKey(name: 'page_token') String? get pageToken;@JsonKey(name: 'relevance_score') double? get relevanceScore;
+ int get position; String get title; String get link;@JsonKey(name: 'product_link') String get productLink;@JsonKey(name: 'product_id') String get productId;@JsonKey(name: 'serpapi_product_api') String get serpapiProductApi; String get source; String get price;@JsonKey(name: 'extracted_price') double get extractedPrice; String get thumbnail;@JsonKey(name: 'serpapi_product_api_comparative') String? get serpapiProductApiComparative; double? get rating; int? get reviews; String? get delivery; String? get tag; List<String>? get extensions; String? get currency;@JsonKey(name: 'page_token') String? get pageToken;@JsonKey(name: 'relevance_score') double? get relevanceScore;
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $ProductCopyWith<Product> get copyWith => _$ProductCopyWithImpl<Product>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Product&&(identical(other.position, position) || other.position == position)&&(identical(other.title, title) || other.title == title)&&(identical(other.link, link) || other.link == link)&&(identical(other.productLink, productLink) || other.productLink == productLink)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.serpapiProductApi, serpapiProductApi) || other.serpapiProductApi == serpapiProductApi)&&(identical(other.serpapiProductApiComparative, serpapiProductApiComparative) || other.serpapiProductApiComparative == serpapiProductApiComparative)&&(identical(other.source, source) || other.source == source)&&(identical(other.price, price) || other.price == price)&&(identical(other.extractedPrice, extractedPrice) || other.extractedPrice == extractedPrice)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&(identical(other.delivery, delivery) || other.delivery == delivery)&&(identical(other.tag, tag) || other.tag == tag)&&const DeepCollectionEquality().equals(other.extensions, extensions)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.pageToken, pageToken) || other.pageToken == pageToken)&&(identical(other.relevanceScore, relevanceScore) || other.relevanceScore == relevanceScore));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Product&&(identical(other.position, position) || other.position == position)&&(identical(other.title, title) || other.title == title)&&(identical(other.link, link) || other.link == link)&&(identical(other.productLink, productLink) || other.productLink == productLink)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.serpapiProductApi, serpapiProductApi) || other.serpapiProductApi == serpapiProductApi)&&(identical(other.source, source) || other.source == source)&&(identical(other.price, price) || other.price == price)&&(identical(other.extractedPrice, extractedPrice) || other.extractedPrice == extractedPrice)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&(identical(other.serpapiProductApiComparative, serpapiProductApiComparative) || other.serpapiProductApiComparative == serpapiProductApiComparative)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.delivery, delivery) || other.delivery == delivery)&&(identical(other.tag, tag) || other.tag == tag)&&const DeepCollectionEquality().equals(other.extensions, extensions)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.pageToken, pageToken) || other.pageToken == pageToken)&&(identical(other.relevanceScore, relevanceScore) || other.relevanceScore == relevanceScore));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,position,title,link,productLink,productId,serpapiProductApi,serpapiProductApiComparative,source,price,extractedPrice,rating,reviews,thumbnail,delivery,tag,const DeepCollectionEquality().hash(extensions),currency,pageToken,relevanceScore]);
+int get hashCode => Object.hashAll([runtimeType,position,title,link,productLink,productId,serpapiProductApi,source,price,extractedPrice,thumbnail,serpapiProductApiComparative,rating,reviews,delivery,tag,const DeepCollectionEquality().hash(extensions),currency,pageToken,relevanceScore]);
 
 @override
 String toString() {
-  return 'Product(position: $position, title: $title, link: $link, productLink: $productLink, productId: $productId, serpapiProductApi: $serpapiProductApi, serpapiProductApiComparative: $serpapiProductApiComparative, source: $source, price: $price, extractedPrice: $extractedPrice, rating: $rating, reviews: $reviews, thumbnail: $thumbnail, delivery: $delivery, tag: $tag, extensions: $extensions, currency: $currency, pageToken: $pageToken, relevanceScore: $relevanceScore)';
+  return 'Product(position: $position, title: $title, link: $link, productLink: $productLink, productId: $productId, serpapiProductApi: $serpapiProductApi, source: $source, price: $price, extractedPrice: $extractedPrice, thumbnail: $thumbnail, serpapiProductApiComparative: $serpapiProductApiComparative, rating: $rating, reviews: $reviews, delivery: $delivery, tag: $tag, extensions: $extensions, currency: $currency, pageToken: $pageToken, relevanceScore: $relevanceScore)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $ProductCopyWith<$Res>  {
   factory $ProductCopyWith(Product value, $Res Function(Product) _then) = _$ProductCopyWithImpl;
 @useResult
 $Res call({
- int position, String title, String link,@JsonKey(name: 'product_link') String productLink,@JsonKey(name: 'product_id') String productId,@JsonKey(name: 'serpapi_product_api') String serpapiProductApi,@JsonKey(name: 'serpapi_product_api_comparative') String? serpapiProductApiComparative, String source, String price,@JsonKey(name: 'extracted_price') double extractedPrice, double? rating, int? reviews, String thumbnail, String? delivery, String? tag, List<String>? extensions, String? currency,@JsonKey(name: 'page_token') String? pageToken,@JsonKey(name: 'relevance_score') double? relevanceScore
+ int position, String title, String link,@JsonKey(name: 'product_link') String productLink,@JsonKey(name: 'product_id') String productId,@JsonKey(name: 'serpapi_product_api') String serpapiProductApi, String source, String price,@JsonKey(name: 'extracted_price') double extractedPrice, String thumbnail,@JsonKey(name: 'serpapi_product_api_comparative') String? serpapiProductApiComparative, double? rating, int? reviews, String? delivery, String? tag, List<String>? extensions, String? currency,@JsonKey(name: 'page_token') String? pageToken,@JsonKey(name: 'relevance_score') double? relevanceScore
 });
 
 
@@ -65,7 +65,7 @@ class _$ProductCopyWithImpl<$Res>
 
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? position = null,Object? title = null,Object? link = null,Object? productLink = null,Object? productId = null,Object? serpapiProductApi = null,Object? serpapiProductApiComparative = freezed,Object? source = null,Object? price = null,Object? extractedPrice = null,Object? rating = freezed,Object? reviews = freezed,Object? thumbnail = null,Object? delivery = freezed,Object? tag = freezed,Object? extensions = freezed,Object? currency = freezed,Object? pageToken = freezed,Object? relevanceScore = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? position = null,Object? title = null,Object? link = null,Object? productLink = null,Object? productId = null,Object? serpapiProductApi = null,Object? source = null,Object? price = null,Object? extractedPrice = null,Object? thumbnail = null,Object? serpapiProductApiComparative = freezed,Object? rating = freezed,Object? reviews = freezed,Object? delivery = freezed,Object? tag = freezed,Object? extensions = freezed,Object? currency = freezed,Object? pageToken = freezed,Object? relevanceScore = freezed,}) {
   return _then(_self.copyWith(
 position: null == position ? _self.position : position // ignore: cast_nullable_to_non_nullable
 as int,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -73,14 +73,14 @@ as String,link: null == link ? _self.link : link // ignore: cast_nullable_to_non
 as String,productLink: null == productLink ? _self.productLink : productLink // ignore: cast_nullable_to_non_nullable
 as String,productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
 as String,serpapiProductApi: null == serpapiProductApi ? _self.serpapiProductApi : serpapiProductApi // ignore: cast_nullable_to_non_nullable
-as String,serpapiProductApiComparative: freezed == serpapiProductApiComparative ? _self.serpapiProductApiComparative : serpapiProductApiComparative // ignore: cast_nullable_to_non_nullable
-as String?,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
 as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
 as String,extractedPrice: null == extractedPrice ? _self.extractedPrice : extractedPrice // ignore: cast_nullable_to_non_nullable
-as double,rating: freezed == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
+as double,thumbnail: null == thumbnail ? _self.thumbnail : thumbnail // ignore: cast_nullable_to_non_nullable
+as String,serpapiProductApiComparative: freezed == serpapiProductApiComparative ? _self.serpapiProductApiComparative : serpapiProductApiComparative // ignore: cast_nullable_to_non_nullable
+as String?,rating: freezed == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
 as double?,reviews: freezed == reviews ? _self.reviews : reviews // ignore: cast_nullable_to_non_nullable
-as int?,thumbnail: null == thumbnail ? _self.thumbnail : thumbnail // ignore: cast_nullable_to_non_nullable
-as String,delivery: freezed == delivery ? _self.delivery : delivery // ignore: cast_nullable_to_non_nullable
+as int?,delivery: freezed == delivery ? _self.delivery : delivery // ignore: cast_nullable_to_non_nullable
 as String?,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
 as String?,extensions: freezed == extensions ? _self.extensions : extensions // ignore: cast_nullable_to_non_nullable
 as List<String>?,currency: freezed == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
@@ -171,10 +171,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int position,  String title,  String link, @JsonKey(name: 'product_link')  String productLink, @JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'serpapi_product_api')  String serpapiProductApi, @JsonKey(name: 'serpapi_product_api_comparative')  String? serpapiProductApiComparative,  String source,  String price, @JsonKey(name: 'extracted_price')  double extractedPrice,  double? rating,  int? reviews,  String thumbnail,  String? delivery,  String? tag,  List<String>? extensions,  String? currency, @JsonKey(name: 'page_token')  String? pageToken, @JsonKey(name: 'relevance_score')  double? relevanceScore)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int position,  String title,  String link, @JsonKey(name: 'product_link')  String productLink, @JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'serpapi_product_api')  String serpapiProductApi,  String source,  String price, @JsonKey(name: 'extracted_price')  double extractedPrice,  String thumbnail, @JsonKey(name: 'serpapi_product_api_comparative')  String? serpapiProductApiComparative,  double? rating,  int? reviews,  String? delivery,  String? tag,  List<String>? extensions,  String? currency, @JsonKey(name: 'page_token')  String? pageToken, @JsonKey(name: 'relevance_score')  double? relevanceScore)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Product() when $default != null:
-return $default(_that.position,_that.title,_that.link,_that.productLink,_that.productId,_that.serpapiProductApi,_that.serpapiProductApiComparative,_that.source,_that.price,_that.extractedPrice,_that.rating,_that.reviews,_that.thumbnail,_that.delivery,_that.tag,_that.extensions,_that.currency,_that.pageToken,_that.relevanceScore);case _:
+return $default(_that.position,_that.title,_that.link,_that.productLink,_that.productId,_that.serpapiProductApi,_that.source,_that.price,_that.extractedPrice,_that.thumbnail,_that.serpapiProductApiComparative,_that.rating,_that.reviews,_that.delivery,_that.tag,_that.extensions,_that.currency,_that.pageToken,_that.relevanceScore);case _:
   return orElse();
 
 }
@@ -192,10 +192,10 @@ return $default(_that.position,_that.title,_that.link,_that.productLink,_that.pr
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int position,  String title,  String link, @JsonKey(name: 'product_link')  String productLink, @JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'serpapi_product_api')  String serpapiProductApi, @JsonKey(name: 'serpapi_product_api_comparative')  String? serpapiProductApiComparative,  String source,  String price, @JsonKey(name: 'extracted_price')  double extractedPrice,  double? rating,  int? reviews,  String thumbnail,  String? delivery,  String? tag,  List<String>? extensions,  String? currency, @JsonKey(name: 'page_token')  String? pageToken, @JsonKey(name: 'relevance_score')  double? relevanceScore)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int position,  String title,  String link, @JsonKey(name: 'product_link')  String productLink, @JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'serpapi_product_api')  String serpapiProductApi,  String source,  String price, @JsonKey(name: 'extracted_price')  double extractedPrice,  String thumbnail, @JsonKey(name: 'serpapi_product_api_comparative')  String? serpapiProductApiComparative,  double? rating,  int? reviews,  String? delivery,  String? tag,  List<String>? extensions,  String? currency, @JsonKey(name: 'page_token')  String? pageToken, @JsonKey(name: 'relevance_score')  double? relevanceScore)  $default,) {final _that = this;
 switch (_that) {
 case _Product():
-return $default(_that.position,_that.title,_that.link,_that.productLink,_that.productId,_that.serpapiProductApi,_that.serpapiProductApiComparative,_that.source,_that.price,_that.extractedPrice,_that.rating,_that.reviews,_that.thumbnail,_that.delivery,_that.tag,_that.extensions,_that.currency,_that.pageToken,_that.relevanceScore);case _:
+return $default(_that.position,_that.title,_that.link,_that.productLink,_that.productId,_that.serpapiProductApi,_that.source,_that.price,_that.extractedPrice,_that.thumbnail,_that.serpapiProductApiComparative,_that.rating,_that.reviews,_that.delivery,_that.tag,_that.extensions,_that.currency,_that.pageToken,_that.relevanceScore);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -212,10 +212,10 @@ return $default(_that.position,_that.title,_that.link,_that.productLink,_that.pr
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int position,  String title,  String link, @JsonKey(name: 'product_link')  String productLink, @JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'serpapi_product_api')  String serpapiProductApi, @JsonKey(name: 'serpapi_product_api_comparative')  String? serpapiProductApiComparative,  String source,  String price, @JsonKey(name: 'extracted_price')  double extractedPrice,  double? rating,  int? reviews,  String thumbnail,  String? delivery,  String? tag,  List<String>? extensions,  String? currency, @JsonKey(name: 'page_token')  String? pageToken, @JsonKey(name: 'relevance_score')  double? relevanceScore)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int position,  String title,  String link, @JsonKey(name: 'product_link')  String productLink, @JsonKey(name: 'product_id')  String productId, @JsonKey(name: 'serpapi_product_api')  String serpapiProductApi,  String source,  String price, @JsonKey(name: 'extracted_price')  double extractedPrice,  String thumbnail, @JsonKey(name: 'serpapi_product_api_comparative')  String? serpapiProductApiComparative,  double? rating,  int? reviews,  String? delivery,  String? tag,  List<String>? extensions,  String? currency, @JsonKey(name: 'page_token')  String? pageToken, @JsonKey(name: 'relevance_score')  double? relevanceScore)?  $default,) {final _that = this;
 switch (_that) {
 case _Product() when $default != null:
-return $default(_that.position,_that.title,_that.link,_that.productLink,_that.productId,_that.serpapiProductApi,_that.serpapiProductApiComparative,_that.source,_that.price,_that.extractedPrice,_that.rating,_that.reviews,_that.thumbnail,_that.delivery,_that.tag,_that.extensions,_that.currency,_that.pageToken,_that.relevanceScore);case _:
+return $default(_that.position,_that.title,_that.link,_that.productLink,_that.productId,_that.serpapiProductApi,_that.source,_that.price,_that.extractedPrice,_that.thumbnail,_that.serpapiProductApiComparative,_that.rating,_that.reviews,_that.delivery,_that.tag,_that.extensions,_that.currency,_that.pageToken,_that.relevanceScore);case _:
   return null;
 
 }
@@ -227,7 +227,7 @@ return $default(_that.position,_that.title,_that.link,_that.productLink,_that.pr
 @JsonSerializable()
 
 class _Product implements Product {
-  const _Product({required this.position, required this.title, required this.link, @JsonKey(name: 'product_link') required this.productLink, @JsonKey(name: 'product_id') required this.productId, @JsonKey(name: 'serpapi_product_api') required this.serpapiProductApi, @JsonKey(name: 'serpapi_product_api_comparative') this.serpapiProductApiComparative, required this.source, required this.price, @JsonKey(name: 'extracted_price') required this.extractedPrice, this.rating, this.reviews, required this.thumbnail, this.delivery, this.tag, final  List<String>? extensions, this.currency, @JsonKey(name: 'page_token') this.pageToken, @JsonKey(name: 'relevance_score') this.relevanceScore}): _extensions = extensions;
+  const _Product({required this.position, required this.title, required this.link, @JsonKey(name: 'product_link') required this.productLink, @JsonKey(name: 'product_id') required this.productId, @JsonKey(name: 'serpapi_product_api') required this.serpapiProductApi, required this.source, required this.price, @JsonKey(name: 'extracted_price') required this.extractedPrice, required this.thumbnail, @JsonKey(name: 'serpapi_product_api_comparative') this.serpapiProductApiComparative, this.rating, this.reviews, this.delivery, this.tag, final  List<String>? extensions, this.currency, @JsonKey(name: 'page_token') this.pageToken, @JsonKey(name: 'relevance_score') this.relevanceScore}): _extensions = extensions;
   factory _Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
 
 @override final  int position;
@@ -236,13 +236,13 @@ class _Product implements Product {
 @override@JsonKey(name: 'product_link') final  String productLink;
 @override@JsonKey(name: 'product_id') final  String productId;
 @override@JsonKey(name: 'serpapi_product_api') final  String serpapiProductApi;
-@override@JsonKey(name: 'serpapi_product_api_comparative') final  String? serpapiProductApiComparative;
 @override final  String source;
 @override final  String price;
 @override@JsonKey(name: 'extracted_price') final  double extractedPrice;
+@override final  String thumbnail;
+@override@JsonKey(name: 'serpapi_product_api_comparative') final  String? serpapiProductApiComparative;
 @override final  double? rating;
 @override final  int? reviews;
-@override final  String thumbnail;
 @override final  String? delivery;
 @override final  String? tag;
  final  List<String>? _extensions;
@@ -271,16 +271,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Product&&(identical(other.position, position) || other.position == position)&&(identical(other.title, title) || other.title == title)&&(identical(other.link, link) || other.link == link)&&(identical(other.productLink, productLink) || other.productLink == productLink)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.serpapiProductApi, serpapiProductApi) || other.serpapiProductApi == serpapiProductApi)&&(identical(other.serpapiProductApiComparative, serpapiProductApiComparative) || other.serpapiProductApiComparative == serpapiProductApiComparative)&&(identical(other.source, source) || other.source == source)&&(identical(other.price, price) || other.price == price)&&(identical(other.extractedPrice, extractedPrice) || other.extractedPrice == extractedPrice)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&(identical(other.delivery, delivery) || other.delivery == delivery)&&(identical(other.tag, tag) || other.tag == tag)&&const DeepCollectionEquality().equals(other._extensions, _extensions)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.pageToken, pageToken) || other.pageToken == pageToken)&&(identical(other.relevanceScore, relevanceScore) || other.relevanceScore == relevanceScore));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Product&&(identical(other.position, position) || other.position == position)&&(identical(other.title, title) || other.title == title)&&(identical(other.link, link) || other.link == link)&&(identical(other.productLink, productLink) || other.productLink == productLink)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.serpapiProductApi, serpapiProductApi) || other.serpapiProductApi == serpapiProductApi)&&(identical(other.source, source) || other.source == source)&&(identical(other.price, price) || other.price == price)&&(identical(other.extractedPrice, extractedPrice) || other.extractedPrice == extractedPrice)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&(identical(other.serpapiProductApiComparative, serpapiProductApiComparative) || other.serpapiProductApiComparative == serpapiProductApiComparative)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.delivery, delivery) || other.delivery == delivery)&&(identical(other.tag, tag) || other.tag == tag)&&const DeepCollectionEquality().equals(other._extensions, _extensions)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.pageToken, pageToken) || other.pageToken == pageToken)&&(identical(other.relevanceScore, relevanceScore) || other.relevanceScore == relevanceScore));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,position,title,link,productLink,productId,serpapiProductApi,serpapiProductApiComparative,source,price,extractedPrice,rating,reviews,thumbnail,delivery,tag,const DeepCollectionEquality().hash(_extensions),currency,pageToken,relevanceScore]);
+int get hashCode => Object.hashAll([runtimeType,position,title,link,productLink,productId,serpapiProductApi,source,price,extractedPrice,thumbnail,serpapiProductApiComparative,rating,reviews,delivery,tag,const DeepCollectionEquality().hash(_extensions),currency,pageToken,relevanceScore]);
 
 @override
 String toString() {
-  return 'Product(position: $position, title: $title, link: $link, productLink: $productLink, productId: $productId, serpapiProductApi: $serpapiProductApi, serpapiProductApiComparative: $serpapiProductApiComparative, source: $source, price: $price, extractedPrice: $extractedPrice, rating: $rating, reviews: $reviews, thumbnail: $thumbnail, delivery: $delivery, tag: $tag, extensions: $extensions, currency: $currency, pageToken: $pageToken, relevanceScore: $relevanceScore)';
+  return 'Product(position: $position, title: $title, link: $link, productLink: $productLink, productId: $productId, serpapiProductApi: $serpapiProductApi, source: $source, price: $price, extractedPrice: $extractedPrice, thumbnail: $thumbnail, serpapiProductApiComparative: $serpapiProductApiComparative, rating: $rating, reviews: $reviews, delivery: $delivery, tag: $tag, extensions: $extensions, currency: $currency, pageToken: $pageToken, relevanceScore: $relevanceScore)';
 }
 
 
@@ -291,7 +291,7 @@ abstract mixin class _$ProductCopyWith<$Res> implements $ProductCopyWith<$Res> {
   factory _$ProductCopyWith(_Product value, $Res Function(_Product) _then) = __$ProductCopyWithImpl;
 @override @useResult
 $Res call({
- int position, String title, String link,@JsonKey(name: 'product_link') String productLink,@JsonKey(name: 'product_id') String productId,@JsonKey(name: 'serpapi_product_api') String serpapiProductApi,@JsonKey(name: 'serpapi_product_api_comparative') String? serpapiProductApiComparative, String source, String price,@JsonKey(name: 'extracted_price') double extractedPrice, double? rating, int? reviews, String thumbnail, String? delivery, String? tag, List<String>? extensions, String? currency,@JsonKey(name: 'page_token') String? pageToken,@JsonKey(name: 'relevance_score') double? relevanceScore
+ int position, String title, String link,@JsonKey(name: 'product_link') String productLink,@JsonKey(name: 'product_id') String productId,@JsonKey(name: 'serpapi_product_api') String serpapiProductApi, String source, String price,@JsonKey(name: 'extracted_price') double extractedPrice, String thumbnail,@JsonKey(name: 'serpapi_product_api_comparative') String? serpapiProductApiComparative, double? rating, int? reviews, String? delivery, String? tag, List<String>? extensions, String? currency,@JsonKey(name: 'page_token') String? pageToken,@JsonKey(name: 'relevance_score') double? relevanceScore
 });
 
 
@@ -308,7 +308,7 @@ class __$ProductCopyWithImpl<$Res>
 
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? position = null,Object? title = null,Object? link = null,Object? productLink = null,Object? productId = null,Object? serpapiProductApi = null,Object? serpapiProductApiComparative = freezed,Object? source = null,Object? price = null,Object? extractedPrice = null,Object? rating = freezed,Object? reviews = freezed,Object? thumbnail = null,Object? delivery = freezed,Object? tag = freezed,Object? extensions = freezed,Object? currency = freezed,Object? pageToken = freezed,Object? relevanceScore = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? position = null,Object? title = null,Object? link = null,Object? productLink = null,Object? productId = null,Object? serpapiProductApi = null,Object? source = null,Object? price = null,Object? extractedPrice = null,Object? thumbnail = null,Object? serpapiProductApiComparative = freezed,Object? rating = freezed,Object? reviews = freezed,Object? delivery = freezed,Object? tag = freezed,Object? extensions = freezed,Object? currency = freezed,Object? pageToken = freezed,Object? relevanceScore = freezed,}) {
   return _then(_Product(
 position: null == position ? _self.position : position // ignore: cast_nullable_to_non_nullable
 as int,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -316,14 +316,14 @@ as String,link: null == link ? _self.link : link // ignore: cast_nullable_to_non
 as String,productLink: null == productLink ? _self.productLink : productLink // ignore: cast_nullable_to_non_nullable
 as String,productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
 as String,serpapiProductApi: null == serpapiProductApi ? _self.serpapiProductApi : serpapiProductApi // ignore: cast_nullable_to_non_nullable
-as String,serpapiProductApiComparative: freezed == serpapiProductApiComparative ? _self.serpapiProductApiComparative : serpapiProductApiComparative // ignore: cast_nullable_to_non_nullable
-as String?,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
+as String,source: null == source ? _self.source : source // ignore: cast_nullable_to_non_nullable
 as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
 as String,extractedPrice: null == extractedPrice ? _self.extractedPrice : extractedPrice // ignore: cast_nullable_to_non_nullable
-as double,rating: freezed == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
+as double,thumbnail: null == thumbnail ? _self.thumbnail : thumbnail // ignore: cast_nullable_to_non_nullable
+as String,serpapiProductApiComparative: freezed == serpapiProductApiComparative ? _self.serpapiProductApiComparative : serpapiProductApiComparative // ignore: cast_nullable_to_non_nullable
+as String?,rating: freezed == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
 as double?,reviews: freezed == reviews ? _self.reviews : reviews // ignore: cast_nullable_to_non_nullable
-as int?,thumbnail: null == thumbnail ? _self.thumbnail : thumbnail // ignore: cast_nullable_to_non_nullable
-as String,delivery: freezed == delivery ? _self.delivery : delivery // ignore: cast_nullable_to_non_nullable
+as int?,delivery: freezed == delivery ? _self.delivery : delivery // ignore: cast_nullable_to_non_nullable
 as String?,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
 as String?,extensions: freezed == extensions ? _self._extensions : extensions // ignore: cast_nullable_to_non_nullable
 as List<String>?,currency: freezed == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable

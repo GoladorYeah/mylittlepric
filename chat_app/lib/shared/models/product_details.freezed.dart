@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ProductOffer {
 
- String get merchant; String? get logo; String get price;@JsonKey(name: 'extracted_price') double? get extractedPrice; String? get currency; String get link; String? get title; String? get availability; String? get shipping;@JsonKey(name: 'shipping_extracted') double? get shippingExtracted; String? get total;@JsonKey(name: 'extracted_total') double? get extractedTotal; double? get rating; int? get reviews;@JsonKey(name: 'payment_methods') String? get paymentMethods; String? get tag;@JsonKey(name: 'details_and_offers') List<String>? get detailsAndOffers;@JsonKey(name: 'monthly_payment_duration') int? get monthlyPaymentDuration;@JsonKey(name: 'down_payment') String? get downPayment;
+ String get merchant; String get price; String get link; String? get logo;@JsonKey(name: 'extracted_price') double? get extractedPrice; String? get currency; String? get title; String? get availability; String? get shipping;@JsonKey(name: 'shipping_extracted') double? get shippingExtracted; String? get total;@JsonKey(name: 'extracted_total') double? get extractedTotal; double? get rating; int? get reviews;@JsonKey(name: 'payment_methods') String? get paymentMethods; String? get tag;@JsonKey(name: 'details_and_offers') List<String>? get detailsAndOffers;@JsonKey(name: 'monthly_payment_duration') int? get monthlyPaymentDuration;@JsonKey(name: 'down_payment') String? get downPayment;
 /// Create a copy of ProductOffer
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $ProductOfferCopyWith<ProductOffer> get copyWith => _$ProductOfferCopyWithImpl<P
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProductOffer&&(identical(other.merchant, merchant) || other.merchant == merchant)&&(identical(other.logo, logo) || other.logo == logo)&&(identical(other.price, price) || other.price == price)&&(identical(other.extractedPrice, extractedPrice) || other.extractedPrice == extractedPrice)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.link, link) || other.link == link)&&(identical(other.title, title) || other.title == title)&&(identical(other.availability, availability) || other.availability == availability)&&(identical(other.shipping, shipping) || other.shipping == shipping)&&(identical(other.shippingExtracted, shippingExtracted) || other.shippingExtracted == shippingExtracted)&&(identical(other.total, total) || other.total == total)&&(identical(other.extractedTotal, extractedTotal) || other.extractedTotal == extractedTotal)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.paymentMethods, paymentMethods) || other.paymentMethods == paymentMethods)&&(identical(other.tag, tag) || other.tag == tag)&&const DeepCollectionEquality().equals(other.detailsAndOffers, detailsAndOffers)&&(identical(other.monthlyPaymentDuration, monthlyPaymentDuration) || other.monthlyPaymentDuration == monthlyPaymentDuration)&&(identical(other.downPayment, downPayment) || other.downPayment == downPayment));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProductOffer&&(identical(other.merchant, merchant) || other.merchant == merchant)&&(identical(other.price, price) || other.price == price)&&(identical(other.link, link) || other.link == link)&&(identical(other.logo, logo) || other.logo == logo)&&(identical(other.extractedPrice, extractedPrice) || other.extractedPrice == extractedPrice)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.title, title) || other.title == title)&&(identical(other.availability, availability) || other.availability == availability)&&(identical(other.shipping, shipping) || other.shipping == shipping)&&(identical(other.shippingExtracted, shippingExtracted) || other.shippingExtracted == shippingExtracted)&&(identical(other.total, total) || other.total == total)&&(identical(other.extractedTotal, extractedTotal) || other.extractedTotal == extractedTotal)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.paymentMethods, paymentMethods) || other.paymentMethods == paymentMethods)&&(identical(other.tag, tag) || other.tag == tag)&&const DeepCollectionEquality().equals(other.detailsAndOffers, detailsAndOffers)&&(identical(other.monthlyPaymentDuration, monthlyPaymentDuration) || other.monthlyPaymentDuration == monthlyPaymentDuration)&&(identical(other.downPayment, downPayment) || other.downPayment == downPayment));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,merchant,logo,price,extractedPrice,currency,link,title,availability,shipping,shippingExtracted,total,extractedTotal,rating,reviews,paymentMethods,tag,const DeepCollectionEquality().hash(detailsAndOffers),monthlyPaymentDuration,downPayment]);
+int get hashCode => Object.hashAll([runtimeType,merchant,price,link,logo,extractedPrice,currency,title,availability,shipping,shippingExtracted,total,extractedTotal,rating,reviews,paymentMethods,tag,const DeepCollectionEquality().hash(detailsAndOffers),monthlyPaymentDuration,downPayment]);
 
 @override
 String toString() {
-  return 'ProductOffer(merchant: $merchant, logo: $logo, price: $price, extractedPrice: $extractedPrice, currency: $currency, link: $link, title: $title, availability: $availability, shipping: $shipping, shippingExtracted: $shippingExtracted, total: $total, extractedTotal: $extractedTotal, rating: $rating, reviews: $reviews, paymentMethods: $paymentMethods, tag: $tag, detailsAndOffers: $detailsAndOffers, monthlyPaymentDuration: $monthlyPaymentDuration, downPayment: $downPayment)';
+  return 'ProductOffer(merchant: $merchant, price: $price, link: $link, logo: $logo, extractedPrice: $extractedPrice, currency: $currency, title: $title, availability: $availability, shipping: $shipping, shippingExtracted: $shippingExtracted, total: $total, extractedTotal: $extractedTotal, rating: $rating, reviews: $reviews, paymentMethods: $paymentMethods, tag: $tag, detailsAndOffers: $detailsAndOffers, monthlyPaymentDuration: $monthlyPaymentDuration, downPayment: $downPayment)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $ProductOfferCopyWith<$Res>  {
   factory $ProductOfferCopyWith(ProductOffer value, $Res Function(ProductOffer) _then) = _$ProductOfferCopyWithImpl;
 @useResult
 $Res call({
- String merchant, String? logo, String price,@JsonKey(name: 'extracted_price') double? extractedPrice, String? currency, String link, String? title, String? availability, String? shipping,@JsonKey(name: 'shipping_extracted') double? shippingExtracted, String? total,@JsonKey(name: 'extracted_total') double? extractedTotal, double? rating, int? reviews,@JsonKey(name: 'payment_methods') String? paymentMethods, String? tag,@JsonKey(name: 'details_and_offers') List<String>? detailsAndOffers,@JsonKey(name: 'monthly_payment_duration') int? monthlyPaymentDuration,@JsonKey(name: 'down_payment') String? downPayment
+ String merchant, String price, String link, String? logo,@JsonKey(name: 'extracted_price') double? extractedPrice, String? currency, String? title, String? availability, String? shipping,@JsonKey(name: 'shipping_extracted') double? shippingExtracted, String? total,@JsonKey(name: 'extracted_total') double? extractedTotal, double? rating, int? reviews,@JsonKey(name: 'payment_methods') String? paymentMethods, String? tag,@JsonKey(name: 'details_and_offers') List<String>? detailsAndOffers,@JsonKey(name: 'monthly_payment_duration') int? monthlyPaymentDuration,@JsonKey(name: 'down_payment') String? downPayment
 });
 
 
@@ -65,15 +65,15 @@ class _$ProductOfferCopyWithImpl<$Res>
 
 /// Create a copy of ProductOffer
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? merchant = null,Object? logo = freezed,Object? price = null,Object? extractedPrice = freezed,Object? currency = freezed,Object? link = null,Object? title = freezed,Object? availability = freezed,Object? shipping = freezed,Object? shippingExtracted = freezed,Object? total = freezed,Object? extractedTotal = freezed,Object? rating = freezed,Object? reviews = freezed,Object? paymentMethods = freezed,Object? tag = freezed,Object? detailsAndOffers = freezed,Object? monthlyPaymentDuration = freezed,Object? downPayment = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? merchant = null,Object? price = null,Object? link = null,Object? logo = freezed,Object? extractedPrice = freezed,Object? currency = freezed,Object? title = freezed,Object? availability = freezed,Object? shipping = freezed,Object? shippingExtracted = freezed,Object? total = freezed,Object? extractedTotal = freezed,Object? rating = freezed,Object? reviews = freezed,Object? paymentMethods = freezed,Object? tag = freezed,Object? detailsAndOffers = freezed,Object? monthlyPaymentDuration = freezed,Object? downPayment = freezed,}) {
   return _then(_self.copyWith(
 merchant: null == merchant ? _self.merchant : merchant // ignore: cast_nullable_to_non_nullable
+as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
+as String,link: null == link ? _self.link : link // ignore: cast_nullable_to_non_nullable
 as String,logo: freezed == logo ? _self.logo : logo // ignore: cast_nullable_to_non_nullable
-as String?,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
-as String,extractedPrice: freezed == extractedPrice ? _self.extractedPrice : extractedPrice // ignore: cast_nullable_to_non_nullable
+as String?,extractedPrice: freezed == extractedPrice ? _self.extractedPrice : extractedPrice // ignore: cast_nullable_to_non_nullable
 as double?,currency: freezed == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
-as String?,link: null == link ? _self.link : link // ignore: cast_nullable_to_non_nullable
-as String,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String?,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String?,availability: freezed == availability ? _self.availability : availability // ignore: cast_nullable_to_non_nullable
 as String?,shipping: freezed == shipping ? _self.shipping : shipping // ignore: cast_nullable_to_non_nullable
 as String?,shippingExtracted: freezed == shippingExtracted ? _self.shippingExtracted : shippingExtracted // ignore: cast_nullable_to_non_nullable
@@ -171,10 +171,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String merchant,  String? logo,  String price, @JsonKey(name: 'extracted_price')  double? extractedPrice,  String? currency,  String link,  String? title,  String? availability,  String? shipping, @JsonKey(name: 'shipping_extracted')  double? shippingExtracted,  String? total, @JsonKey(name: 'extracted_total')  double? extractedTotal,  double? rating,  int? reviews, @JsonKey(name: 'payment_methods')  String? paymentMethods,  String? tag, @JsonKey(name: 'details_and_offers')  List<String>? detailsAndOffers, @JsonKey(name: 'monthly_payment_duration')  int? monthlyPaymentDuration, @JsonKey(name: 'down_payment')  String? downPayment)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String merchant,  String price,  String link,  String? logo, @JsonKey(name: 'extracted_price')  double? extractedPrice,  String? currency,  String? title,  String? availability,  String? shipping, @JsonKey(name: 'shipping_extracted')  double? shippingExtracted,  String? total, @JsonKey(name: 'extracted_total')  double? extractedTotal,  double? rating,  int? reviews, @JsonKey(name: 'payment_methods')  String? paymentMethods,  String? tag, @JsonKey(name: 'details_and_offers')  List<String>? detailsAndOffers, @JsonKey(name: 'monthly_payment_duration')  int? monthlyPaymentDuration, @JsonKey(name: 'down_payment')  String? downPayment)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProductOffer() when $default != null:
-return $default(_that.merchant,_that.logo,_that.price,_that.extractedPrice,_that.currency,_that.link,_that.title,_that.availability,_that.shipping,_that.shippingExtracted,_that.total,_that.extractedTotal,_that.rating,_that.reviews,_that.paymentMethods,_that.tag,_that.detailsAndOffers,_that.monthlyPaymentDuration,_that.downPayment);case _:
+return $default(_that.merchant,_that.price,_that.link,_that.logo,_that.extractedPrice,_that.currency,_that.title,_that.availability,_that.shipping,_that.shippingExtracted,_that.total,_that.extractedTotal,_that.rating,_that.reviews,_that.paymentMethods,_that.tag,_that.detailsAndOffers,_that.monthlyPaymentDuration,_that.downPayment);case _:
   return orElse();
 
 }
@@ -192,10 +192,10 @@ return $default(_that.merchant,_that.logo,_that.price,_that.extractedPrice,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String merchant,  String? logo,  String price, @JsonKey(name: 'extracted_price')  double? extractedPrice,  String? currency,  String link,  String? title,  String? availability,  String? shipping, @JsonKey(name: 'shipping_extracted')  double? shippingExtracted,  String? total, @JsonKey(name: 'extracted_total')  double? extractedTotal,  double? rating,  int? reviews, @JsonKey(name: 'payment_methods')  String? paymentMethods,  String? tag, @JsonKey(name: 'details_and_offers')  List<String>? detailsAndOffers, @JsonKey(name: 'monthly_payment_duration')  int? monthlyPaymentDuration, @JsonKey(name: 'down_payment')  String? downPayment)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String merchant,  String price,  String link,  String? logo, @JsonKey(name: 'extracted_price')  double? extractedPrice,  String? currency,  String? title,  String? availability,  String? shipping, @JsonKey(name: 'shipping_extracted')  double? shippingExtracted,  String? total, @JsonKey(name: 'extracted_total')  double? extractedTotal,  double? rating,  int? reviews, @JsonKey(name: 'payment_methods')  String? paymentMethods,  String? tag, @JsonKey(name: 'details_and_offers')  List<String>? detailsAndOffers, @JsonKey(name: 'monthly_payment_duration')  int? monthlyPaymentDuration, @JsonKey(name: 'down_payment')  String? downPayment)  $default,) {final _that = this;
 switch (_that) {
 case _ProductOffer():
-return $default(_that.merchant,_that.logo,_that.price,_that.extractedPrice,_that.currency,_that.link,_that.title,_that.availability,_that.shipping,_that.shippingExtracted,_that.total,_that.extractedTotal,_that.rating,_that.reviews,_that.paymentMethods,_that.tag,_that.detailsAndOffers,_that.monthlyPaymentDuration,_that.downPayment);case _:
+return $default(_that.merchant,_that.price,_that.link,_that.logo,_that.extractedPrice,_that.currency,_that.title,_that.availability,_that.shipping,_that.shippingExtracted,_that.total,_that.extractedTotal,_that.rating,_that.reviews,_that.paymentMethods,_that.tag,_that.detailsAndOffers,_that.monthlyPaymentDuration,_that.downPayment);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -212,10 +212,10 @@ return $default(_that.merchant,_that.logo,_that.price,_that.extractedPrice,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String merchant,  String? logo,  String price, @JsonKey(name: 'extracted_price')  double? extractedPrice,  String? currency,  String link,  String? title,  String? availability,  String? shipping, @JsonKey(name: 'shipping_extracted')  double? shippingExtracted,  String? total, @JsonKey(name: 'extracted_total')  double? extractedTotal,  double? rating,  int? reviews, @JsonKey(name: 'payment_methods')  String? paymentMethods,  String? tag, @JsonKey(name: 'details_and_offers')  List<String>? detailsAndOffers, @JsonKey(name: 'monthly_payment_duration')  int? monthlyPaymentDuration, @JsonKey(name: 'down_payment')  String? downPayment)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String merchant,  String price,  String link,  String? logo, @JsonKey(name: 'extracted_price')  double? extractedPrice,  String? currency,  String? title,  String? availability,  String? shipping, @JsonKey(name: 'shipping_extracted')  double? shippingExtracted,  String? total, @JsonKey(name: 'extracted_total')  double? extractedTotal,  double? rating,  int? reviews, @JsonKey(name: 'payment_methods')  String? paymentMethods,  String? tag, @JsonKey(name: 'details_and_offers')  List<String>? detailsAndOffers, @JsonKey(name: 'monthly_payment_duration')  int? monthlyPaymentDuration, @JsonKey(name: 'down_payment')  String? downPayment)?  $default,) {final _that = this;
 switch (_that) {
 case _ProductOffer() when $default != null:
-return $default(_that.merchant,_that.logo,_that.price,_that.extractedPrice,_that.currency,_that.link,_that.title,_that.availability,_that.shipping,_that.shippingExtracted,_that.total,_that.extractedTotal,_that.rating,_that.reviews,_that.paymentMethods,_that.tag,_that.detailsAndOffers,_that.monthlyPaymentDuration,_that.downPayment);case _:
+return $default(_that.merchant,_that.price,_that.link,_that.logo,_that.extractedPrice,_that.currency,_that.title,_that.availability,_that.shipping,_that.shippingExtracted,_that.total,_that.extractedTotal,_that.rating,_that.reviews,_that.paymentMethods,_that.tag,_that.detailsAndOffers,_that.monthlyPaymentDuration,_that.downPayment);case _:
   return null;
 
 }
@@ -227,15 +227,15 @@ return $default(_that.merchant,_that.logo,_that.price,_that.extractedPrice,_that
 @JsonSerializable()
 
 class _ProductOffer implements ProductOffer {
-  const _ProductOffer({required this.merchant, this.logo, required this.price, @JsonKey(name: 'extracted_price') this.extractedPrice, this.currency, required this.link, this.title, this.availability, this.shipping, @JsonKey(name: 'shipping_extracted') this.shippingExtracted, this.total, @JsonKey(name: 'extracted_total') this.extractedTotal, this.rating, this.reviews, @JsonKey(name: 'payment_methods') this.paymentMethods, this.tag, @JsonKey(name: 'details_and_offers') final  List<String>? detailsAndOffers, @JsonKey(name: 'monthly_payment_duration') this.monthlyPaymentDuration, @JsonKey(name: 'down_payment') this.downPayment}): _detailsAndOffers = detailsAndOffers;
+  const _ProductOffer({required this.merchant, required this.price, required this.link, this.logo, @JsonKey(name: 'extracted_price') this.extractedPrice, this.currency, this.title, this.availability, this.shipping, @JsonKey(name: 'shipping_extracted') this.shippingExtracted, this.total, @JsonKey(name: 'extracted_total') this.extractedTotal, this.rating, this.reviews, @JsonKey(name: 'payment_methods') this.paymentMethods, this.tag, @JsonKey(name: 'details_and_offers') final  List<String>? detailsAndOffers, @JsonKey(name: 'monthly_payment_duration') this.monthlyPaymentDuration, @JsonKey(name: 'down_payment') this.downPayment}): _detailsAndOffers = detailsAndOffers;
   factory _ProductOffer.fromJson(Map<String, dynamic> json) => _$ProductOfferFromJson(json);
 
 @override final  String merchant;
-@override final  String? logo;
 @override final  String price;
+@override final  String link;
+@override final  String? logo;
 @override@JsonKey(name: 'extracted_price') final  double? extractedPrice;
 @override final  String? currency;
-@override final  String link;
 @override final  String? title;
 @override final  String? availability;
 @override final  String? shipping;
@@ -271,16 +271,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProductOffer&&(identical(other.merchant, merchant) || other.merchant == merchant)&&(identical(other.logo, logo) || other.logo == logo)&&(identical(other.price, price) || other.price == price)&&(identical(other.extractedPrice, extractedPrice) || other.extractedPrice == extractedPrice)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.link, link) || other.link == link)&&(identical(other.title, title) || other.title == title)&&(identical(other.availability, availability) || other.availability == availability)&&(identical(other.shipping, shipping) || other.shipping == shipping)&&(identical(other.shippingExtracted, shippingExtracted) || other.shippingExtracted == shippingExtracted)&&(identical(other.total, total) || other.total == total)&&(identical(other.extractedTotal, extractedTotal) || other.extractedTotal == extractedTotal)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.paymentMethods, paymentMethods) || other.paymentMethods == paymentMethods)&&(identical(other.tag, tag) || other.tag == tag)&&const DeepCollectionEquality().equals(other._detailsAndOffers, _detailsAndOffers)&&(identical(other.monthlyPaymentDuration, monthlyPaymentDuration) || other.monthlyPaymentDuration == monthlyPaymentDuration)&&(identical(other.downPayment, downPayment) || other.downPayment == downPayment));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProductOffer&&(identical(other.merchant, merchant) || other.merchant == merchant)&&(identical(other.price, price) || other.price == price)&&(identical(other.link, link) || other.link == link)&&(identical(other.logo, logo) || other.logo == logo)&&(identical(other.extractedPrice, extractedPrice) || other.extractedPrice == extractedPrice)&&(identical(other.currency, currency) || other.currency == currency)&&(identical(other.title, title) || other.title == title)&&(identical(other.availability, availability) || other.availability == availability)&&(identical(other.shipping, shipping) || other.shipping == shipping)&&(identical(other.shippingExtracted, shippingExtracted) || other.shippingExtracted == shippingExtracted)&&(identical(other.total, total) || other.total == total)&&(identical(other.extractedTotal, extractedTotal) || other.extractedTotal == extractedTotal)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.paymentMethods, paymentMethods) || other.paymentMethods == paymentMethods)&&(identical(other.tag, tag) || other.tag == tag)&&const DeepCollectionEquality().equals(other._detailsAndOffers, _detailsAndOffers)&&(identical(other.monthlyPaymentDuration, monthlyPaymentDuration) || other.monthlyPaymentDuration == monthlyPaymentDuration)&&(identical(other.downPayment, downPayment) || other.downPayment == downPayment));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,merchant,logo,price,extractedPrice,currency,link,title,availability,shipping,shippingExtracted,total,extractedTotal,rating,reviews,paymentMethods,tag,const DeepCollectionEquality().hash(_detailsAndOffers),monthlyPaymentDuration,downPayment]);
+int get hashCode => Object.hashAll([runtimeType,merchant,price,link,logo,extractedPrice,currency,title,availability,shipping,shippingExtracted,total,extractedTotal,rating,reviews,paymentMethods,tag,const DeepCollectionEquality().hash(_detailsAndOffers),monthlyPaymentDuration,downPayment]);
 
 @override
 String toString() {
-  return 'ProductOffer(merchant: $merchant, logo: $logo, price: $price, extractedPrice: $extractedPrice, currency: $currency, link: $link, title: $title, availability: $availability, shipping: $shipping, shippingExtracted: $shippingExtracted, total: $total, extractedTotal: $extractedTotal, rating: $rating, reviews: $reviews, paymentMethods: $paymentMethods, tag: $tag, detailsAndOffers: $detailsAndOffers, monthlyPaymentDuration: $monthlyPaymentDuration, downPayment: $downPayment)';
+  return 'ProductOffer(merchant: $merchant, price: $price, link: $link, logo: $logo, extractedPrice: $extractedPrice, currency: $currency, title: $title, availability: $availability, shipping: $shipping, shippingExtracted: $shippingExtracted, total: $total, extractedTotal: $extractedTotal, rating: $rating, reviews: $reviews, paymentMethods: $paymentMethods, tag: $tag, detailsAndOffers: $detailsAndOffers, monthlyPaymentDuration: $monthlyPaymentDuration, downPayment: $downPayment)';
 }
 
 
@@ -291,7 +291,7 @@ abstract mixin class _$ProductOfferCopyWith<$Res> implements $ProductOfferCopyWi
   factory _$ProductOfferCopyWith(_ProductOffer value, $Res Function(_ProductOffer) _then) = __$ProductOfferCopyWithImpl;
 @override @useResult
 $Res call({
- String merchant, String? logo, String price,@JsonKey(name: 'extracted_price') double? extractedPrice, String? currency, String link, String? title, String? availability, String? shipping,@JsonKey(name: 'shipping_extracted') double? shippingExtracted, String? total,@JsonKey(name: 'extracted_total') double? extractedTotal, double? rating, int? reviews,@JsonKey(name: 'payment_methods') String? paymentMethods, String? tag,@JsonKey(name: 'details_and_offers') List<String>? detailsAndOffers,@JsonKey(name: 'monthly_payment_duration') int? monthlyPaymentDuration,@JsonKey(name: 'down_payment') String? downPayment
+ String merchant, String price, String link, String? logo,@JsonKey(name: 'extracted_price') double? extractedPrice, String? currency, String? title, String? availability, String? shipping,@JsonKey(name: 'shipping_extracted') double? shippingExtracted, String? total,@JsonKey(name: 'extracted_total') double? extractedTotal, double? rating, int? reviews,@JsonKey(name: 'payment_methods') String? paymentMethods, String? tag,@JsonKey(name: 'details_and_offers') List<String>? detailsAndOffers,@JsonKey(name: 'monthly_payment_duration') int? monthlyPaymentDuration,@JsonKey(name: 'down_payment') String? downPayment
 });
 
 
@@ -308,15 +308,15 @@ class __$ProductOfferCopyWithImpl<$Res>
 
 /// Create a copy of ProductOffer
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? merchant = null,Object? logo = freezed,Object? price = null,Object? extractedPrice = freezed,Object? currency = freezed,Object? link = null,Object? title = freezed,Object? availability = freezed,Object? shipping = freezed,Object? shippingExtracted = freezed,Object? total = freezed,Object? extractedTotal = freezed,Object? rating = freezed,Object? reviews = freezed,Object? paymentMethods = freezed,Object? tag = freezed,Object? detailsAndOffers = freezed,Object? monthlyPaymentDuration = freezed,Object? downPayment = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? merchant = null,Object? price = null,Object? link = null,Object? logo = freezed,Object? extractedPrice = freezed,Object? currency = freezed,Object? title = freezed,Object? availability = freezed,Object? shipping = freezed,Object? shippingExtracted = freezed,Object? total = freezed,Object? extractedTotal = freezed,Object? rating = freezed,Object? reviews = freezed,Object? paymentMethods = freezed,Object? tag = freezed,Object? detailsAndOffers = freezed,Object? monthlyPaymentDuration = freezed,Object? downPayment = freezed,}) {
   return _then(_ProductOffer(
 merchant: null == merchant ? _self.merchant : merchant // ignore: cast_nullable_to_non_nullable
+as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
+as String,link: null == link ? _self.link : link // ignore: cast_nullable_to_non_nullable
 as String,logo: freezed == logo ? _self.logo : logo // ignore: cast_nullable_to_non_nullable
-as String?,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
-as String,extractedPrice: freezed == extractedPrice ? _self.extractedPrice : extractedPrice // ignore: cast_nullable_to_non_nullable
+as String?,extractedPrice: freezed == extractedPrice ? _self.extractedPrice : extractedPrice // ignore: cast_nullable_to_non_nullable
 as double?,currency: freezed == currency ? _self.currency : currency // ignore: cast_nullable_to_non_nullable
-as String?,link: null == link ? _self.link : link // ignore: cast_nullable_to_non_nullable
-as String,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String?,title: freezed == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String?,availability: freezed == availability ? _self.availability : availability // ignore: cast_nullable_to_non_nullable
 as String?,shipping: freezed == shipping ? _self.shipping : shipping // ignore: cast_nullable_to_non_nullable
 as String?,shippingExtracted: freezed == shippingExtracted ? _self.shippingExtracted : shippingExtracted // ignore: cast_nullable_to_non_nullable
@@ -872,8 +872,8 @@ as int,
 /// @nodoc
 mixin _$ProductDetailsResponse {
 
- String get type; String get title; String get price; double? get rating; int? get reviews; String? get description; List<String>? get images; List<Specification>? get specifications;// variants would need more complex modeling
- List<ProductOffer> get offers;// videos and more_options could be added if needed
+ String get type; String get title; String get price;// variants would need more complex modeling
+ List<ProductOffer> get offers; double? get rating; int? get reviews; String? get description; List<String>? get images; List<Specification>? get specifications;// videos and more_options could be added if needed
 @JsonKey(name: 'rating_breakdown') List<RatingBreakdown>? get ratingBreakdown;
 /// Create a copy of ProductDetailsResponse
 /// with the given fields replaced by the non-null parameter values.
@@ -887,16 +887,16 @@ $ProductDetailsResponseCopyWith<ProductDetailsResponse> get copyWith => _$Produc
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProductDetailsResponse&&(identical(other.type, type) || other.type == type)&&(identical(other.title, title) || other.title == title)&&(identical(other.price, price) || other.price == price)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other.images, images)&&const DeepCollectionEquality().equals(other.specifications, specifications)&&const DeepCollectionEquality().equals(other.offers, offers)&&const DeepCollectionEquality().equals(other.ratingBreakdown, ratingBreakdown));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProductDetailsResponse&&(identical(other.type, type) || other.type == type)&&(identical(other.title, title) || other.title == title)&&(identical(other.price, price) || other.price == price)&&const DeepCollectionEquality().equals(other.offers, offers)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other.images, images)&&const DeepCollectionEquality().equals(other.specifications, specifications)&&const DeepCollectionEquality().equals(other.ratingBreakdown, ratingBreakdown));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,type,title,price,rating,reviews,description,const DeepCollectionEquality().hash(images),const DeepCollectionEquality().hash(specifications),const DeepCollectionEquality().hash(offers),const DeepCollectionEquality().hash(ratingBreakdown));
+int get hashCode => Object.hash(runtimeType,type,title,price,const DeepCollectionEquality().hash(offers),rating,reviews,description,const DeepCollectionEquality().hash(images),const DeepCollectionEquality().hash(specifications),const DeepCollectionEquality().hash(ratingBreakdown));
 
 @override
 String toString() {
-  return 'ProductDetailsResponse(type: $type, title: $title, price: $price, rating: $rating, reviews: $reviews, description: $description, images: $images, specifications: $specifications, offers: $offers, ratingBreakdown: $ratingBreakdown)';
+  return 'ProductDetailsResponse(type: $type, title: $title, price: $price, offers: $offers, rating: $rating, reviews: $reviews, description: $description, images: $images, specifications: $specifications, ratingBreakdown: $ratingBreakdown)';
 }
 
 
@@ -907,7 +907,7 @@ abstract mixin class $ProductDetailsResponseCopyWith<$Res>  {
   factory $ProductDetailsResponseCopyWith(ProductDetailsResponse value, $Res Function(ProductDetailsResponse) _then) = _$ProductDetailsResponseCopyWithImpl;
 @useResult
 $Res call({
- String type, String title, String price, double? rating, int? reviews, String? description, List<String>? images, List<Specification>? specifications, List<ProductOffer> offers,@JsonKey(name: 'rating_breakdown') List<RatingBreakdown>? ratingBreakdown
+ String type, String title, String price, List<ProductOffer> offers, double? rating, int? reviews, String? description, List<String>? images, List<Specification>? specifications,@JsonKey(name: 'rating_breakdown') List<RatingBreakdown>? ratingBreakdown
 });
 
 
@@ -924,18 +924,18 @@ class _$ProductDetailsResponseCopyWithImpl<$Res>
 
 /// Create a copy of ProductDetailsResponse
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? title = null,Object? price = null,Object? rating = freezed,Object? reviews = freezed,Object? description = freezed,Object? images = freezed,Object? specifications = freezed,Object? offers = null,Object? ratingBreakdown = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? type = null,Object? title = null,Object? price = null,Object? offers = null,Object? rating = freezed,Object? reviews = freezed,Object? description = freezed,Object? images = freezed,Object? specifications = freezed,Object? ratingBreakdown = freezed,}) {
   return _then(_self.copyWith(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
-as String,rating: freezed == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
+as String,offers: null == offers ? _self.offers : offers // ignore: cast_nullable_to_non_nullable
+as List<ProductOffer>,rating: freezed == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
 as double?,reviews: freezed == reviews ? _self.reviews : reviews // ignore: cast_nullable_to_non_nullable
 as int?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,images: freezed == images ? _self.images : images // ignore: cast_nullable_to_non_nullable
 as List<String>?,specifications: freezed == specifications ? _self.specifications : specifications // ignore: cast_nullable_to_non_nullable
-as List<Specification>?,offers: null == offers ? _self.offers : offers // ignore: cast_nullable_to_non_nullable
-as List<ProductOffer>,ratingBreakdown: freezed == ratingBreakdown ? _self.ratingBreakdown : ratingBreakdown // ignore: cast_nullable_to_non_nullable
+as List<Specification>?,ratingBreakdown: freezed == ratingBreakdown ? _self.ratingBreakdown : ratingBreakdown // ignore: cast_nullable_to_non_nullable
 as List<RatingBreakdown>?,
   ));
 }
@@ -1021,10 +1021,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String type,  String title,  String price,  double? rating,  int? reviews,  String? description,  List<String>? images,  List<Specification>? specifications,  List<ProductOffer> offers, @JsonKey(name: 'rating_breakdown')  List<RatingBreakdown>? ratingBreakdown)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String type,  String title,  String price,  List<ProductOffer> offers,  double? rating,  int? reviews,  String? description,  List<String>? images,  List<Specification>? specifications, @JsonKey(name: 'rating_breakdown')  List<RatingBreakdown>? ratingBreakdown)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProductDetailsResponse() when $default != null:
-return $default(_that.type,_that.title,_that.price,_that.rating,_that.reviews,_that.description,_that.images,_that.specifications,_that.offers,_that.ratingBreakdown);case _:
+return $default(_that.type,_that.title,_that.price,_that.offers,_that.rating,_that.reviews,_that.description,_that.images,_that.specifications,_that.ratingBreakdown);case _:
   return orElse();
 
 }
@@ -1042,10 +1042,10 @@ return $default(_that.type,_that.title,_that.price,_that.rating,_that.reviews,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String type,  String title,  String price,  double? rating,  int? reviews,  String? description,  List<String>? images,  List<Specification>? specifications,  List<ProductOffer> offers, @JsonKey(name: 'rating_breakdown')  List<RatingBreakdown>? ratingBreakdown)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String type,  String title,  String price,  List<ProductOffer> offers,  double? rating,  int? reviews,  String? description,  List<String>? images,  List<Specification>? specifications, @JsonKey(name: 'rating_breakdown')  List<RatingBreakdown>? ratingBreakdown)  $default,) {final _that = this;
 switch (_that) {
 case _ProductDetailsResponse():
-return $default(_that.type,_that.title,_that.price,_that.rating,_that.reviews,_that.description,_that.images,_that.specifications,_that.offers,_that.ratingBreakdown);case _:
+return $default(_that.type,_that.title,_that.price,_that.offers,_that.rating,_that.reviews,_that.description,_that.images,_that.specifications,_that.ratingBreakdown);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1062,10 +1062,10 @@ return $default(_that.type,_that.title,_that.price,_that.rating,_that.reviews,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String type,  String title,  String price,  double? rating,  int? reviews,  String? description,  List<String>? images,  List<Specification>? specifications,  List<ProductOffer> offers, @JsonKey(name: 'rating_breakdown')  List<RatingBreakdown>? ratingBreakdown)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String type,  String title,  String price,  List<ProductOffer> offers,  double? rating,  int? reviews,  String? description,  List<String>? images,  List<Specification>? specifications, @JsonKey(name: 'rating_breakdown')  List<RatingBreakdown>? ratingBreakdown)?  $default,) {final _that = this;
 switch (_that) {
 case _ProductDetailsResponse() when $default != null:
-return $default(_that.type,_that.title,_that.price,_that.rating,_that.reviews,_that.description,_that.images,_that.specifications,_that.offers,_that.ratingBreakdown);case _:
+return $default(_that.type,_that.title,_that.price,_that.offers,_that.rating,_that.reviews,_that.description,_that.images,_that.specifications,_that.ratingBreakdown);case _:
   return null;
 
 }
@@ -1077,12 +1077,21 @@ return $default(_that.type,_that.title,_that.price,_that.rating,_that.reviews,_t
 @JsonSerializable()
 
 class _ProductDetailsResponse implements ProductDetailsResponse {
-  const _ProductDetailsResponse({required this.type, required this.title, required this.price, this.rating, this.reviews, this.description, final  List<String>? images, final  List<Specification>? specifications, required final  List<ProductOffer> offers, @JsonKey(name: 'rating_breakdown') final  List<RatingBreakdown>? ratingBreakdown}): _images = images,_specifications = specifications,_offers = offers,_ratingBreakdown = ratingBreakdown;
+  const _ProductDetailsResponse({required this.type, required this.title, required this.price, required final  List<ProductOffer> offers, this.rating, this.reviews, this.description, final  List<String>? images, final  List<Specification>? specifications, @JsonKey(name: 'rating_breakdown') final  List<RatingBreakdown>? ratingBreakdown}): _offers = offers,_images = images,_specifications = specifications,_ratingBreakdown = ratingBreakdown;
   factory _ProductDetailsResponse.fromJson(Map<String, dynamic> json) => _$ProductDetailsResponseFromJson(json);
 
 @override final  String type;
 @override final  String title;
 @override final  String price;
+// variants would need more complex modeling
+ final  List<ProductOffer> _offers;
+// variants would need more complex modeling
+@override List<ProductOffer> get offers {
+  if (_offers is EqualUnmodifiableListView) return _offers;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_offers);
+}
+
 @override final  double? rating;
 @override final  int? reviews;
 @override final  String? description;
@@ -1102,15 +1111,6 @@ class _ProductDetailsResponse implements ProductDetailsResponse {
   if (_specifications is EqualUnmodifiableListView) return _specifications;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(value);
-}
-
-// variants would need more complex modeling
- final  List<ProductOffer> _offers;
-// variants would need more complex modeling
-@override List<ProductOffer> get offers {
-  if (_offers is EqualUnmodifiableListView) return _offers;
-  // ignore: implicit_dynamic_type
-  return EqualUnmodifiableListView(_offers);
 }
 
 // videos and more_options could be added if needed
@@ -1138,16 +1138,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProductDetailsResponse&&(identical(other.type, type) || other.type == type)&&(identical(other.title, title) || other.title == title)&&(identical(other.price, price) || other.price == price)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other._images, _images)&&const DeepCollectionEquality().equals(other._specifications, _specifications)&&const DeepCollectionEquality().equals(other._offers, _offers)&&const DeepCollectionEquality().equals(other._ratingBreakdown, _ratingBreakdown));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProductDetailsResponse&&(identical(other.type, type) || other.type == type)&&(identical(other.title, title) || other.title == title)&&(identical(other.price, price) || other.price == price)&&const DeepCollectionEquality().equals(other._offers, _offers)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.reviews, reviews) || other.reviews == reviews)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other._images, _images)&&const DeepCollectionEquality().equals(other._specifications, _specifications)&&const DeepCollectionEquality().equals(other._ratingBreakdown, _ratingBreakdown));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,type,title,price,rating,reviews,description,const DeepCollectionEquality().hash(_images),const DeepCollectionEquality().hash(_specifications),const DeepCollectionEquality().hash(_offers),const DeepCollectionEquality().hash(_ratingBreakdown));
+int get hashCode => Object.hash(runtimeType,type,title,price,const DeepCollectionEquality().hash(_offers),rating,reviews,description,const DeepCollectionEquality().hash(_images),const DeepCollectionEquality().hash(_specifications),const DeepCollectionEquality().hash(_ratingBreakdown));
 
 @override
 String toString() {
-  return 'ProductDetailsResponse(type: $type, title: $title, price: $price, rating: $rating, reviews: $reviews, description: $description, images: $images, specifications: $specifications, offers: $offers, ratingBreakdown: $ratingBreakdown)';
+  return 'ProductDetailsResponse(type: $type, title: $title, price: $price, offers: $offers, rating: $rating, reviews: $reviews, description: $description, images: $images, specifications: $specifications, ratingBreakdown: $ratingBreakdown)';
 }
 
 
@@ -1158,7 +1158,7 @@ abstract mixin class _$ProductDetailsResponseCopyWith<$Res> implements $ProductD
   factory _$ProductDetailsResponseCopyWith(_ProductDetailsResponse value, $Res Function(_ProductDetailsResponse) _then) = __$ProductDetailsResponseCopyWithImpl;
 @override @useResult
 $Res call({
- String type, String title, String price, double? rating, int? reviews, String? description, List<String>? images, List<Specification>? specifications, List<ProductOffer> offers,@JsonKey(name: 'rating_breakdown') List<RatingBreakdown>? ratingBreakdown
+ String type, String title, String price, List<ProductOffer> offers, double? rating, int? reviews, String? description, List<String>? images, List<Specification>? specifications,@JsonKey(name: 'rating_breakdown') List<RatingBreakdown>? ratingBreakdown
 });
 
 
@@ -1175,18 +1175,18 @@ class __$ProductDetailsResponseCopyWithImpl<$Res>
 
 /// Create a copy of ProductDetailsResponse
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? title = null,Object? price = null,Object? rating = freezed,Object? reviews = freezed,Object? description = freezed,Object? images = freezed,Object? specifications = freezed,Object? offers = null,Object? ratingBreakdown = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? type = null,Object? title = null,Object? price = null,Object? offers = null,Object? rating = freezed,Object? reviews = freezed,Object? description = freezed,Object? images = freezed,Object? specifications = freezed,Object? ratingBreakdown = freezed,}) {
   return _then(_ProductDetailsResponse(
 type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,price: null == price ? _self.price : price // ignore: cast_nullable_to_non_nullable
-as String,rating: freezed == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
+as String,offers: null == offers ? _self._offers : offers // ignore: cast_nullable_to_non_nullable
+as List<ProductOffer>,rating: freezed == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
 as double?,reviews: freezed == reviews ? _self.reviews : reviews // ignore: cast_nullable_to_non_nullable
 as int?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,images: freezed == images ? _self._images : images // ignore: cast_nullable_to_non_nullable
 as List<String>?,specifications: freezed == specifications ? _self._specifications : specifications // ignore: cast_nullable_to_non_nullable
-as List<Specification>?,offers: null == offers ? _self._offers : offers // ignore: cast_nullable_to_non_nullable
-as List<ProductOffer>,ratingBreakdown: freezed == ratingBreakdown ? _self._ratingBreakdown : ratingBreakdown // ignore: cast_nullable_to_non_nullable
+as List<Specification>?,ratingBreakdown: freezed == ratingBreakdown ? _self._ratingBreakdown : ratingBreakdown // ignore: cast_nullable_to_non_nullable
 as List<RatingBreakdown>?,
   ));
 }

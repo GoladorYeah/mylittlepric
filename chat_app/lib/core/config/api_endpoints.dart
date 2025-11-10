@@ -1,4 +1,4 @@
-import 'app_config.dart';
+import 'package:chat_app/core/config/app_config.dart';
 
 class ApiEndpoints {
   // Base URLs

@@ -1,5 +1,5 @@
+import 'package:chat_app/shared/models/product.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'product.dart';
 
 part 'chat_message.freezed.dart';
 part 'chat_message.g.dart';

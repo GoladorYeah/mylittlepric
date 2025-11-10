@@ -1,25 +1,22 @@
+import 'package:chat_app/core/config/constants.dart';
+import 'package:chat_app/theme/app_colors.dart';
+import 'package:chat_app/theme/app_text_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'app_colors.dart';
-import 'app_text_styles.dart';
-import 'package:chat_app/core/config/constants.dart';
 
 class AppTheme {
   // Light Theme
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    colorScheme: ColorScheme.light(
+    colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
-      onPrimary: Colors.white,
       primaryContainer: AppColors.primaryLight,
       secondary: AppColors.secondary,
       onSecondary: Colors.white,
       secondaryContainer: AppColors.secondaryLight,
-      surface: AppColors.surfaceLight,
       onSurface: AppColors.textPrimaryLight,
       error: AppColors.error,
-      onError: Colors.white,
       outline: AppColors.borderLight,
     ),
     scaffoldBackgroundColor: AppColors.backgroundLight,
@@ -40,7 +37,7 @@ class AppTheme {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        side: const BorderSide(color: AppColors.borderLight, width: 1),
+        side: const BorderSide(color: AppColors.borderLight),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -134,7 +131,7 @@ class AppTheme {
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    colorScheme: ColorScheme.dark(
+    colorScheme: const ColorScheme.dark(
       primary: AppColors.primaryLight,
       onPrimary: AppColors.textPrimaryDark,
       primaryContainer: AppColors.primary,
@@ -165,7 +162,7 @@ class AppTheme {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusL),
-        side: const BorderSide(color: AppColors.borderDark, width: 1),
+        side: const BorderSide(color: AppColors.borderDark),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(

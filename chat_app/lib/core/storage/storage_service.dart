@@ -1,7 +1,7 @@
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:chat_app/core/config/app_config.dart';
 import 'package:chat_app/shared/utils/logger.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
   static late SharedPreferences _prefs;
@@ -78,7 +78,7 @@ class StorageService {
       final now = DateTime.now().millisecondsSinceEpoch;
       final keysToDelete = <String>[];
 
-      for (var key in cacheBox.keys) {
+      for (final key in cacheBox.keys) {
         final entry = cacheBox.get(key);
         if (entry is Map && entry['expiresAt'] != null) {
           final expiresAt = entry['expiresAt'] as int;

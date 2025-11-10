@@ -1,6 +1,6 @@
+import 'package:chat_app/core/config/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:chat_app/core/config/constants.dart';
 
 // Import screens (will be created later)
 // import 'package:chat_app/features/chat/screens/chat_screen.dart';
