@@ -1,0 +1,24 @@
+@use '@angular/material' as mat;
+
+// Include the common styles for Angular Material
+@include mat.core();
+
+// Define the light theme using the new API (default colors)
+$light-theme: mat.define-theme();
+
+// Define the dark theme
+$dark-theme: mat.define-theme((
+  color: (
+    theme-type: dark,
+  ),
+));
+
+// Apply the light theme by default
+:root {
+  @include mat.all-component-themes($light-theme);
+}
+
+// Apply the dark theme when .dark class is present
+.dark {
+  @include mat.all-component-colors($dark-theme);
+}

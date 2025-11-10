@@ -6,6 +6,7 @@ import {
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
+import { provideAnimations } from '@angular/platform-browser/animations';
 
 import { routes } from './app.routes';
 
@@ -19,5 +20,6 @@ export const appConfig: ApplicationConfig = {
       withInterceptorsFromDi()
     ),
     provideClientHydration(withEventReplay()),
+    provideAnimations(),
   ],
 };

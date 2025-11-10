@@ -1,118 +1,112 @@
 <app-header />
 
-<main class="chat-page">
-  <div class="chat-container">
+<main class="min-h-screen w-full bg-gradient-to-br from-background via-background to-background/95">
+  <div class="w-full max-w-4xl mx-auto px-4 pt-8 pb-36">
     <!-- Chat messages area -->
-    <div class="messages-area" #messagesContainer>
+    <div #messagesContainer>
       @if (!chatStore.hasMessages()) {
-        <div class="welcome-message">
-          <h2 class="welcome-title">Welcome to MyLittlePrice!</h2>
-          <p class="welcome-text">
-            Ask me anything about products you're looking for, and I'll help you find the best deals.
-          </p>
-          <div class="welcome-examples">
-            <p class="examples-title">Try asking:</p>
-            <button class="example-button" (click)="messageInput.set('I need a new laptop for programming')">
-              "I need a new laptop for programming"
-            </button>
-            <button class="example-button" (click)="messageInput.set('Show me wireless headphones under $100')">
-              "Show me wireless headphones under $100"
-            </button>
-            <button class="example-button" (click)="messageInput.set('Looking for a gaming mouse')">
-              "Looking for a gaming mouse"
-            </button>
+        <!-- Empty State -->
+        <div class="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 animate-fade-in">
+          <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <mat-icon class="text-primary" style="font-size: 48px; width: 48px; height: 48px;">chat</mat-icon>
+          </div>
+          <div class="space-y-2">
+            <h2 class="text-3xl font-bold text-foreground">Welcome to MyLittlePrice!</h2>
+            <p class="text-muted-foreground text-lg max-w-md">
+              Ask me anything about products you're looking for, and I'll help you find the best deals.
+            </p>
+          </div>
+          <div class="space-y-3 w-full max-w-md">
+            <p class="text-sm font-medium text-foreground">Try asking:</p>
+            <div class="flex flex-col gap-2">
+              <button
+                mat-stroked-button
+                class="text-left hover:bg-accent transition-colors"
+                (click)="messageInput.set('I need a new laptop for programming')"
+              >
+                "I need a new laptop for programming"
+              </button>
+              <button
+                mat-stroked-button
+                class="text-left hover:bg-accent transition-colors"
+                (click)="messageInput.set('Show me wireless headphones under $100')"
+              >
+                "Show me wireless headphones under $100"
+              </button>
+              <button
+                mat-stroked-button
+                class="text-left hover:bg-accent transition-colors"
+                (click)="messageInput.set('Looking for a gaming mouse')"
+              >
+                "Looking for a gaming mouse"
+              </button>
+            </div>
           </div>
         </div>
       } @else {
-        @for (message of chatStore.messages(); track message.id) {
-          <app-chat-message
-            [message]="message"
-            [onQuickReply]="handleQuickReply.bind(this)"
-          />
+        <div class="space-y-6">
+          @for (message of chatStore.messages(); track message.id) {
+            <app-chat-message
+              [message]="message"
+              [onQuickReply]="handleQuickReply.bind(this)"
+            />
+          }
 
-          <!-- Show products after assistant message if any -->
-          @if (message.role === 'assistant' && message.products && message.products.length > 0) {
-            <div class="products-grid">
-              @for (product of message.products; track trackByPosition($index, product)) {
-                <app-product-card [product]="product" />
-              }
+          <!-- Loading indicator -->
+          @if (chatStore.isLoading()) {
+            <div class="flex items-center gap-2 text-muted-foreground">
+              <div class="flex gap-1">
+                <span class="loading-dot w-2 h-2 rounded-full bg-primary"></span>
+                <span class="loading-dot w-2 h-2 rounded-full bg-primary"></span>
+                <span class="loading-dot w-2 h-2 rounded-full bg-primary"></span>
+              </div>
+              <span class="text-sm">Thinking...</span>
             </div>
           }
-        }
-
-        <!-- Loading indicator -->
-        @if (chatStore.isLoading()) {
-          <div class="loading-indicator">
-            <div class="loading-dots">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-        }
+        </div>
       }
     </div>
+  </div>
 
-    <!-- Chat input area -->
-    <div class="input-area">
-      <div class="input-container">
+  <!-- Fixed input field - always visible at bottom -->
+  <div class="fixed bottom-0 left-0 right-0 bg-background z-30">
+    <div class="w-full max-w-4xl mx-auto px-4 py-4 pb-8">
+      <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary border border-border focus-within:border-primary transition-colors">
         @if (chatStore.hasMessages()) {
           <button
-            class="new-chat-button"
+            mat-icon-button
             (click)="startNewChat()"
             title="Start new chat"
+            class="flex-shrink-0"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
+            <mat-icon>add</mat-icon>
           </button>
         }
 
         <input
           type="text"
-          class="message-input"
-          placeholder="Type your message..."
           [(ngModel)]="messageInput"
           (keydown.enter)="sendMessage()"
-          [disabled]="chatStore.isLoading()"
+          [placeholder]="wsService.isConnected() ? 'Type your message...' : 'Connecting...'"
+          [disabled]="chatStore.isLoading() || !wsService.isConnected()"
+          class="flex-1 px-2 py-3 bg-transparent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         />
 
-        <app-button
+        <button
+          mat-flat-button
+          color="primary"
           (click)="sendMessage()"
-          [disabled]="!messageInput().trim() || chatStore.isLoading()"
+          [disabled]="!messageInput().trim() || chatStore.isLoading() || !wsService.isConnected()"
+          class="w-10 h-10 min-w-0 rounded-lg flex items-center justify-center flex-shrink-0"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-          </svg>
-        </app-button>
+          <mat-icon>send</mat-icon>
+        </button>
       </div>
 
       @if (isConnecting()) {
-        <div class="connection-status">Connecting to server...</div>
+        <div class="text-xs text-muted-foreground mt-2 text-center">Connecting to server...</div>
       } @else if (!wsService.isConnected()) {
-        <div class="connection-status warning">Not connected. Messages will be sent via HTTP.</div>
+        <div class="text-xs text-warning mt-2 text-center">Not connected. Messages will be sent via HTTP.</div>
       }
     </div>
   </div>

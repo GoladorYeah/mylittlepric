@@ -1,0 +1,8 @@
+<button
+  mat-icon-button
+  (click)="toggleTheme()"
+  [matTooltip]="getLabel()"
+  class="theme-toggle-button transition-transform hover:scale-110"
+>
+  <mat-icon class="transition-all duration-300">{{ getIcon() }}</mat-icon>
+</button>
