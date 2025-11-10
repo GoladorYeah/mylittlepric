@@ -75,7 +75,7 @@ class MessageBubble extends ConsumerWidget {
                         radius: 18,
                         backgroundColor: theme.colorScheme.primary,
                         child: Text(
-                          _getInitials(user?.fullName, user?.email),
+                          _getInitials(user?.name, user?.email),
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: theme.colorScheme.onPrimary,
                             fontWeight: FontWeight.w600,

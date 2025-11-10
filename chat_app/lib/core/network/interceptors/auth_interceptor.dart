@@ -4,9 +4,7 @@ import '../../storage/storage_service.dart';
 
 /// Interceptor for adding authentication tokens to requests
 class AuthInterceptor extends Interceptor {
-  final StorageService _storageService;
-
-  AuthInterceptor(this._storageService);
+  AuthInterceptor();
 
   @override
   void onRequest(
@@ -14,7 +12,8 @@ class AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     // Get access token from storage
-    final accessToken = await _storageService.getString(AppConfig.accessTokenKey);
+    final prefs = StorageService.prefs;
+    final accessToken = prefs.getString(AppConfig.accessTokenKey);
 
     // Add authorization header if token exists
     if (accessToken != null && accessToken.isNotEmpty) {
@@ -22,7 +21,7 @@ class AuthInterceptor extends Interceptor {
     }
 
     // Get session ID from storage
-    final sessionId = await _storageService.getString(AppConfig.sessionIdKey);
+    final sessionId = prefs.getString(AppConfig.sessionIdKey);
 
     // Add session ID header if exists
     if (sessionId != null && sessionId.isNotEmpty) {
@@ -37,18 +36,19 @@ class AuthInterceptor extends Interceptor {
     // Handle 401 Unauthorized - token expired
     if (err.response?.statusCode == 401) {
       // Try to refresh token
-      final refreshToken = await _storageService.getString(AppConfig.refreshTokenKey);
+      final prefs = StorageService.prefs;
+      final refreshToken = prefs.getString(AppConfig.refreshTokenKey);
 
       if (refreshToken != null && refreshToken.isNotEmpty) {
         try {
           // TODO: Implement token refresh logic
           // For now, just clear tokens
-          await _storageService.remove(AppConfig.accessTokenKey);
-          await _storageService.remove(AppConfig.refreshTokenKey);
+          await prefs.remove(AppConfig.accessTokenKey);
+          await prefs.remove(AppConfig.refreshTokenKey);
         } catch (e) {
           // Refresh failed, clear tokens
-          await _storageService.remove(AppConfig.accessTokenKey);
-          await _storageService.remove(AppConfig.refreshTokenKey);
+          await prefs.remove(AppConfig.accessTokenKey);
+          await prefs.remove(AppConfig.refreshTokenKey);
         }
       }
     }

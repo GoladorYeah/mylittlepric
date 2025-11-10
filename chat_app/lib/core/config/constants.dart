@@ -69,4 +69,23 @@ class AppConstants {
   static const double fontSizeL = 20.0;
   static const double fontSizeXl = 24.0;
   static const double fontSizeXxl = 32.0;
+
+  // Available Countries (country code -> country name)
+  static const Map<String, String> availableCountries = {
+    'US': 'United States',
+    'GB': 'United Kingdom',
+    'DE': 'Germany',
+    'FR': 'France',
+    'ES': 'Spain',
+    'IT': 'Italy',
+    'CA': 'Canada',
+    'AU': 'Australia',
+    'JP': 'Japan',
+    'BR': 'Brazil',
+    'MX': 'Mexico',
+    'IN': 'India',
+    'CN': 'China',
+    'RU': 'Russia',
+    'KR': 'South Korea',
+  };
 }

@@ -20,8 +20,8 @@ class SavedSearch with _$SavedSearch {
 
   /// Get the first user query from messages
   String get query {
-    final userMessages = messages.where((m) => m.isUser);
-    return userMessages.isNotEmpty ? userMessages.first.message : '';
+    final userMessages = messages.where((m) => m.role == MessageRole.user);
+    return userMessages.isNotEmpty ? userMessages.first.content : '';
   }
 
   /// Get formatted date
@@ -43,9 +43,9 @@ class SavedSearch with _$SavedSearch {
 
   /// Get the number of products in the search
   int get productCount {
-    return messages.where((m) => m.products.isNotEmpty).fold(
+    return messages.where((m) => m.products?.isNotEmpty ?? false).fold(
       0,
-      (sum, message) => sum + message.products.length,
+      (sum, message) => sum + (message.products?.length ?? 0),
     );
   }
 }

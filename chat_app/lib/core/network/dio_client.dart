@@ -10,9 +10,8 @@ import 'api_exception.dart';
 /// HTTP client based on Dio with interceptors and error handling
 class DioClient {
   late final Dio _dio;
-  final StorageService _storageService;
 
-  DioClient(this._storageService) {
+  DioClient() {
     _dio = Dio(_baseOptions);
     _setupInterceptors();
   }
@@ -29,7 +28,7 @@ class DioClient {
 
   void _setupInterceptors() {
     _dio.interceptors.addAll([
-      AuthInterceptor(_storageService),
+      AuthInterceptor(),
       RetryInterceptor(_dio),
       if (AppConfig.enableLogging) LoggingInterceptor(),
     ]);
@@ -242,6 +241,5 @@ class DioClient {
 
 /// Provider for DioClient
 final dioClientProvider = Provider<DioClient>((ref) {
-  final storageService = ref.watch(storageServiceProvider);
-  return DioClient(storageService);
+  return DioClient();
 });
