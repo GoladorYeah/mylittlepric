@@ -33,7 +33,7 @@ class ChatApiService {
   }
 
   /// Get product details by page token
-  Future<ProductDetails> getProductDetails({
+  Future<ProductDetailsResponse> getProductDetails({
     required String pageToken,
     String? country,
     String? language,
@@ -47,7 +47,7 @@ class ChatApiService {
       },
     );
 
-    return ProductDetails.fromJson(response.data as Map<String, dynamic>);
+    return ProductDetailsResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Send quick reply

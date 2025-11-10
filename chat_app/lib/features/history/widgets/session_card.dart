@@ -84,7 +84,7 @@ class SessionCard extends StatelessWidget {
               // Message preview
               if (search.messages.length > 1)
                 Text(
-                  search.messages[1].message,
+                  search.messages[1].content,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context)
                             .colorScheme

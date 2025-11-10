@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/riverpod.dart';
 import '../../../core/network/services/session_api_service.dart';
 import '../../../shared/utils/logger.dart';
 import '../../../shared/models/saved_search.dart';

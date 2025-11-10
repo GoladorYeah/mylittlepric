@@ -4,6 +4,7 @@ import 'package:chat_app/features/chat/providers/chat_provider.dart';
 import 'package:chat_app/features/chat/widgets/message_list_widget.dart';
 import 'package:chat_app/features/chat/widgets/chat_input_widget.dart';
 import 'package:chat_app/features/chat/widgets/saved_search_prompt.dart';
+import 'package:chat_app/core/network/websocket_client.dart';
 
 /// Main chat screen with messages, input, and saved search prompt
 class ChatScreen extends ConsumerStatefulWidget {
@@ -86,9 +87,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     // Determine connection status text
     String connectionStatus = 'Disconnected';
-    if (chatState.connectionState == ConnectionState.connecting) {
+    if (chatState.wsState == WebSocketState.connecting) {
       connectionStatus = 'Connecting';
-    } else if (chatState.connectionState == ConnectionState.connected) {
+    } else if (chatState.wsState == WebSocketState.connected) {
       connectionStatus = 'Connected';
     }
 

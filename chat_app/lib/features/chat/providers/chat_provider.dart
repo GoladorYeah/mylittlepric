@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod/riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/network/services/chat_api_service.dart';
 import '../../../core/network/websocket_client.dart';

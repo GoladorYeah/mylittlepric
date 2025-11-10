@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/models/saved_search.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../providers/session_provider.dart';
+import '../providers/session_state.dart';
 import '../widgets/widgets.dart';
 
 /// History screen showing saved searches

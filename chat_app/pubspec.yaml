@@ -12,6 +12,7 @@ dependencies:
 
   # State Management (Riverpod 3.0 with code generation support)
   flutter_riverpod: ^3.0.3
+  riverpod: ^2.6.1
   riverpod_annotation: ^3.0.0
 
   # Networking
