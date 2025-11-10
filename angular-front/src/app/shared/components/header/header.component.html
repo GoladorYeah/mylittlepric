@@ -1,73 +1,54 @@
-<header class="header">
-  <div class="header-container">
-    <div class="header-logo">
-      <a routerLink="/" class="logo-link">
-        <span class="logo-text">MyLittlePrice</span>
+<mat-toolbar class="bg-card border-b border-border">
+  <div class="w-full max-w-7xl mx-auto flex items-center justify-between px-4">
+    <!-- Logo -->
+    <div class="flex items-center gap-3">
+      <a routerLink="/" class="flex items-center gap-2 text-foreground hover:text-primary transition-colors no-underline">
+        <mat-icon class="text-primary">shopping_cart</mat-icon>
+        <span class="font-bold text-lg">MyLittlePrice</span>
       </a>
     </div>
 
-    <nav class="header-nav">
-      <a routerLink="/chat" class="nav-link">Chat</a>
+    <!-- Navigation -->
+    <nav class="hidden md:flex items-center gap-2">
+      <a routerLink="/chat" mat-button class="text-foreground hover:text-primary">
+        <mat-icon>chat</mat-icon>
+        <span>Chat</span>
+      </a>
     </nav>
 
-    <div class="header-actions">
-      <!-- Theme toggle -->
-      <button class="icon-button" (click)="toggleTheme()" aria-label="Toggle theme">
-        @if (themeService.actualTheme() === 'light') {
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-        } @else {
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
-        }
-      </button>
+    <!-- Actions -->
+    <div class="flex items-center gap-2">
+      <!-- Theme Toggle -->
+      <app-theme-toggle />
 
-      <!-- Auth buttons -->
+      <!-- Auth -->
       @if (authStore.isAuthenticated()) {
-        <div class="user-menu">
+        <button mat-icon-button [matMenuTriggerFor]="userMenu">
           @if (authStore.userPicture()) {
-            <img [src]="authStore.userPicture()!" [alt]="authStore.userName() || 'User'" class="user-avatar" />
+            <img
+              [src]="authStore.userPicture()!"
+              [alt]="authStore.userName() || 'User'"
+              class="w-8 h-8 rounded-full"
+            />
+          } @else {
+            <mat-icon>account_circle</mat-icon>
           }
-          <span class="user-name">{{ authStore.userName() }}</span>
-          <app-button variant="ghost" size="sm" (click)="onLogout()">
-            Logout
-          </app-button>
-        </div>
+        </button>
+        <mat-menu #userMenu="matMenu">
+          <div class="px-4 py-2 border-b border-border">
+            <p class="font-semibold text-foreground">{{ authStore.userName() }}</p>
+            <p class="text-xs text-muted-foreground">{{ authStore.userEmail() }}</p>
+          </div>
+          <button mat-menu-item (click)="onLogout()">
+            <mat-icon>logout</mat-icon>
+            <span>Logout</span>
+          </button>
+        </mat-menu>
       } @else {
-        <app-button variant="primary" size="sm" (click)="onLogin()">
+        <button mat-flat-button color="primary" (click)="onLogin()">
           Sign in
-        </app-button>
+        </button>
       }
     </div>
   </div>
-</header>
+</mat-toolbar>

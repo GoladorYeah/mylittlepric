@@ -1,0 +1,246 @@
+@use '@angular/material' as mat;
+
+// Include the common styles for Angular Material
+@include mat.core();
+
+// Define the light theme palette
+$light-primary: mat.define-palette((
+  50: #e3f2fd,
+  100: #bbdefb,
+  200: #90caf9,
+  300: #64b5f6,
+  400: #42a5f5,
+  500: #3b82f6,  // Primary color from Next.js
+  600: #1e88e5,
+  700: #1976d2,
+  800: #1565c0,
+  900: #0d47a1,
+  A100: #82b1ff,
+  A200: #448aff,
+  A400: #2979ff,
+  A700: #2962ff,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: rgba(0, 0, 0, 0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(0, 0, 0, 0.87),
+    A200: white,
+    A400: white,
+    A700: white,
+  )
+));
+
+$light-accent: mat.define-palette((
+  50: #f3f4f6,
+  100: #e5e7eb,
+  200: #d1d5db,
+  300: #9ca3af,
+  400: #6b7280,
+  500: #4b5563,
+  600: #374151,
+  700: #1f2937,
+  800: #111827,
+  900: #030712,
+  A100: #f3f4f6,
+  A200: #e5e7eb,
+  A400: #9ca3af,
+  A700: #6b7280,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(0, 0, 0, 0.87),
+    A200: rgba(0, 0, 0, 0.87),
+    A400: white,
+    A700: white,
+  )
+));
+
+$light-warn: mat.define-palette((
+  50: #fef2f2,
+  100: #fee2e2,
+  200: #fecaca,
+  300: #fca5a5,
+  400: #f87171,
+  500: #ef4444,
+  600: #dc2626,
+  700: #b91c1c,
+  800: #991b1b,
+  900: #7f1d1d,
+  A100: #fef2f2,
+  A200: #fecaca,
+  A400: #f87171,
+  A700: #dc2626,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(0, 0, 0, 0.87),
+    A200: rgba(0, 0, 0, 0.87),
+    A400: white,
+    A700: white,
+  )
+));
+
+// Create the light theme
+$light-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: $light-primary,
+    tertiary: $light-accent,
+  ),
+  typography: (
+    plain-family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    brand-family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  ),
+  density: (
+    scale: 0,
+  )
+));
+
+// Define the dark theme palette
+$dark-primary: mat.define-palette((
+  50: #e0f2f7,
+  100: #b3dfec,
+  200: #80cae0,
+  300: #4db5d4,
+  400: #3ba5cb,
+  500: #3b9fd9,  // Primary color from Next.js dark mode
+  600: #2a8bbf,
+  700: #2273a5,
+  800: #1a5c8b,
+  900: #0f3c5e,
+  A100: #80cae0,
+  A200: #4db5d4,
+  A400: #2a8bbf,
+  A700: #2273a5,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(0, 0, 0, 0.87),
+    A200: rgba(0, 0, 0, 0.87),
+    A400: white,
+    A700: white,
+  )
+));
+
+$dark-accent: mat.define-palette((
+  50: #293344,
+  100: #34404d,
+  200: #3f4d5a,
+  300: #4a5967,
+  400: #556674,
+  500: #607281,
+  600: #6b7f8e,
+  700: #768b9b,
+  800: #8198a8,
+  900: #8ca4b5,
+  A100: #293344,
+  A200: #3f4d5a,
+  A400: #6b7f8e,
+  A700: #8198a8,
+  contrast: (
+    50: white,
+    100: white,
+    200: white,
+    300: white,
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: rgba(0, 0, 0, 0.87),
+    900: rgba(0, 0, 0, 0.87),
+    A100: white,
+    A200: white,
+    A400: white,
+    A700: rgba(0, 0, 0, 0.87),
+  )
+));
+
+$dark-warn: mat.define-palette((
+  50: #fef2f2,
+  100: #fee2e2,
+  200: #fecaca,
+  300: #fca5a5,
+  400: #f87171,
+  500: #f87171,
+  600: #ef4444,
+  700: #dc2626,
+  800: #b91c1c,
+  900: #991b1b,
+  A100: #fef2f2,
+  A200: #fecaca,
+  A400: #f87171,
+  A700: #ef4444,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(0, 0, 0, 0.87),
+    A200: rgba(0, 0, 0, 0.87),
+    A400: white,
+    A700: white,
+  )
+));
+
+// Create the dark theme
+$dark-theme: mat.define-theme((
+  color: (
+    theme-type: dark,
+    primary: $dark-primary,
+    tertiary: $dark-accent,
+  ),
+  typography: (
+    plain-family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    brand-family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  ),
+  density: (
+    scale: 0,
+  )
+));
+
+// Apply the light theme by default
+:root {
+  @include mat.all-component-themes($light-theme);
+}
+
+// Apply the dark theme when .dark class is present
+.dark {
+  @include mat.all-component-colors($dark-theme);
+}

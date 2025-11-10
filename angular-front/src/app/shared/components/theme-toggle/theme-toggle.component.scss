@@ -1,0 +1,19 @@
+:host {
+  display: inline-block;
+}
+
+.theme-toggle-button {
+  color: var(--color-foreground);
+
+  &:hover {
+    background-color: var(--color-accent);
+  }
+
+  ::ng-deep mat-icon {
+    transition: transform 0.3s ease;
+  }
+
+  &:hover ::ng-deep mat-icon {
+    transform: rotate(15deg);
+  }
+}

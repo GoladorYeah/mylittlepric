@@ -1,19 +1,28 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { AuthStore } from '../../../core/stores/auth.store';
-import { ThemeService } from '../../../core/services/theme.service';
-import { ButtonComponent } from '../button/button.component';
+import { ThemeToggleComponent } from '../theme-toggle/theme-toggle.component';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [RouterLink, ButtonComponent],
+  imports: [
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatMenuModule,
+    MatToolbarModule,
+    ThemeToggleComponent,
+  ],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
 })
 export class HeaderComponent {
   readonly authStore = inject(AuthStore);
-  readonly themeService = inject(ThemeService);
 
   onLogin(): void {
     this.authStore.login('google');
@@ -21,9 +30,5 @@ export class HeaderComponent {
 
   onLogout(): void {
     this.authStore.logout();
-  }
-
-  toggleTheme(): void {
-    this.themeService.toggleTheme();
   }
 }

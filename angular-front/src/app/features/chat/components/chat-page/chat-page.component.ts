@@ -10,13 +10,17 @@ import {
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ChatStore } from '../../../../core/stores/chat.store';
 import { AuthStore } from '../../../../core/stores/auth.store';
 import { WebSocketService } from '../../../../core/services/websocket.service';
 import { HeaderComponent } from '../../../../shared/components/header/header.component';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ChatMessageComponent } from '../chat-message/chat-message.component';
-import { ProductCardComponent } from '../../../products/components/product-card/product-card.component';
 import { Product } from '../../../../shared/types';
 import { detectCountry, detectLanguage, getCurrencyForCountry } from '../../../../shared/utils/locale';
 
@@ -24,11 +28,15 @@ import { detectCountry, detectLanguage, getCurrencyForCountry } from '../../../.
   selector: 'app-chat-page',
   standalone: true,
   imports: [
+    CommonModule,
     FormsModule,
+    MatButtonModule,
+    MatIconModule,
+    MatInputModule,
+    MatFormFieldModule,
+    MatProgressSpinnerModule,
     HeaderComponent,
-    ButtonComponent,
     ChatMessageComponent,
-    ProductCardComponent,
   ],
   templateUrl: './chat-page.component.html',
   styleUrl: './chat-page.component.scss',

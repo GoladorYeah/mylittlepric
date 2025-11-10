@@ -1,24 +1,107 @@
-<div [class]="'message message-' + message().role">
-  <div class="message-content">
-    <div class="message-bubble">
-      <p class="message-text">{{ message().content }}</p>
-      @if (message().timestamp) {
-        <span class="message-time">{{ formatTime(message().timestamp) }}</span>
-      }
-    </div>
+<div>
+  <div [class]="message().products && message().products!.length > 0 ? 'w-full space-y-3' : 'max-w-[80%] space-y-3'">
+    @if (message().content && message().content!.trim() !== '') {
+      <div [class]="message().role === 'user'
+        ? 'rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground flex items-start gap-3'
+        : 'text-foreground'">
+        @if (message().role === 'user') {
+          <div class="shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
+            {{ getUserInitials() }}
+          </div>
+        }
+        <p class="whitespace-pre-wrap flex-1">{{ message().content }}</p>
+      </div>
+    }
 
     <!-- Quick replies for assistant messages -->
-    @if (message().role === 'assistant' && message().quick_replies && message().quick_replies!.length > 0) {
-      <div class="quick-replies">
+    @if (message().quick_replies && message().quick_replies!.length > 0) {
+      <div class="flex flex-wrap gap-2">
         @for (reply of message().quick_replies!; track reply) {
-          <app-button
-            variant="outline"
-            size="sm"
+          @let parsed = parseQuickReply(reply);
+          <button
+            mat-stroked-button
             (click)="handleQuickReply(reply)"
+            class="px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-sm border border-border/50 hover:border-primary/30 flex items-center gap-2 cursor-pointer"
           >
-            {{ reply }}
-          </app-button>
+            <span class="font-medium text-foreground">{{ parsed.text }}</span>
+            @if (parsed.price) {
+              <span class="text-xs px-2 py-0.5 rounded bg-primary/15 text-primary font-bold border border-primary/20">
+                {{ parsed.price }}
+              </span>
+            }
+          </button>
         }
+      </div>
+    }
+
+    <!-- Products Section -->
+    @if (message().products && message().products!.length > 0) {
+      <div class="w-full">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="h-8 w-1 bg-gradient-to-b from-primary to-primary/50 rounded-full"></div>
+            <div>
+              <h3 class="text-lg font-bold text-foreground">
+                {{ message().products!.length }} {{ message().products!.length === 1 ? 'Product' : 'Products' }} Found
+              </h3>
+              <p class="text-xs text-muted-foreground">Swipe to explore more options</p>
+            </div>
+          </div>
+
+          <!-- Navigation Arrows - Desktop only -->
+          @if (message().products!.length > 3) {
+            <div class="hidden md:flex items-center gap-2">
+              <button
+                mat-icon-button
+                (click)="scrollToProduct('left', productsContainer)"
+                class="group p-2 rounded-full bg-secondary hover:bg-primary/10 border border-border hover:border-primary/30 cursor-pointer"
+                aria-label="Scroll left"
+              >
+                <mat-icon class="text-muted-foreground group-hover:text-primary">chevron_left</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                (click)="scrollToProduct('right', productsContainer)"
+                class="group p-2 rounded-full bg-secondary hover:bg-primary/10 border border-border hover:border-primary/30 cursor-pointer"
+                aria-label="Scroll right"
+              >
+                <mat-icon class="text-muted-foreground group-hover:text-primary">chevron_right</mat-icon>
+              </button>
+            </div>
+          }
+        </div>
+
+        <!-- Products Slider -->
+        <div class="relative group/slider overflow-hidden">
+          <!-- Gradient Overlays -->
+          <div class="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity"></div>
+          <div class="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none opacity-0 group-hover/slider:opacity-100 transition-opacity"></div>
+
+          <!-- Slider Container -->
+          <div
+            #productsContainer
+            class="flex gap-3.5 overflow-x-auto overflow-y-visible pb-6 pt-2 px-2 snap-x snap-mandatory hide-scrollbar"
+            style="scrollbar-width: none; -ms-overflow-style: none;"
+          >
+            @for (product of message().products!; track product.position; let idx = $index) {
+              <div class="flex-none w-[210px] snap-start first:ml-1">
+                <app-product-card [product]="product" [index]="idx + 1" />
+              </div>
+            }
+          </div>
+
+          <!-- Scroll Indicator -->
+          <div class="flex justify-center gap-1.5 mt-3">
+            @for (_ of [].constructor(Math.min(message().products!.length, 10)); track $index) {
+              <div
+                class="h-1 rounded-full bg-muted transition-all duration-300"
+                [style.width]="$index < Math.min(3, message().products!.length) ? '24px' : '8px'"
+                [style.opacity]="$index < Math.min(3, message().products!.length) ? 1 : 0.3"
+              ></div>
+            }
+          </div>
+        </div>
       </div>
     }
   </div>
