@@ -1,9 +1,9 @@
 // Reset and base styles
-@import './styles/variables';
-@import './styles/mixins';
-@import './styles/animations';
-@import './styles/utilities';
-@import './styles/components';
+@use './styles/variables';
+@use './styles/mixins';
+@use './styles/animations';
+@use './styles/utilities';
+@use './styles/components';
 
 * {
   box-sizing: border-box;
