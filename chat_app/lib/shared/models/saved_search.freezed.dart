@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SavedSearch {
 
- List<ChatMessage> get messages;@JsonKey(name: 'session_id') String get sessionId; String get category; int get timestamp;
+ String get id; List<ChatMessage> get messages;@JsonKey(name: 'session_id') String get sessionId; String get category; int get timestamp;
 /// Create a copy of SavedSearch
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $SavedSearchCopyWith<SavedSearch> get copyWith => _$SavedSearchCopyWithImpl<Save
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedSearch&&const DeepCollectionEquality().equals(other.messages, messages)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.category, category) || other.category == category)&&(identical(other.timestamp, timestamp) || other.timestamp == timestamp));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SavedSearch&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other.messages, messages)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.category, category) || other.category == category)&&(identical(other.timestamp, timestamp) || other.timestamp == timestamp));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(messages),sessionId,category,timestamp);
+int get hashCode => Object.hash(runtimeType,id,const DeepCollectionEquality().hash(messages),sessionId,category,timestamp);
 
 @override
 String toString() {
-  return 'SavedSearch(messages: $messages, sessionId: $sessionId, category: $category, timestamp: $timestamp)';
+  return 'SavedSearch(id: $id, messages: $messages, sessionId: $sessionId, category: $category, timestamp: $timestamp)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $SavedSearchCopyWith<$Res>  {
   factory $SavedSearchCopyWith(SavedSearch value, $Res Function(SavedSearch) _then) = _$SavedSearchCopyWithImpl;
 @useResult
 $Res call({
- List<ChatMessage> messages,@JsonKey(name: 'session_id') String sessionId, String category, int timestamp
+ String id, List<ChatMessage> messages,@JsonKey(name: 'session_id') String sessionId, String category, int timestamp
 });
 
 
@@ -65,9 +65,10 @@ class _$SavedSearchCopyWithImpl<$Res>
 
 /// Create a copy of SavedSearch
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? messages = null,Object? sessionId = null,Object? category = null,Object? timestamp = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? messages = null,Object? sessionId = null,Object? category = null,Object? timestamp = null,}) {
   return _then(_self.copyWith(
-messages: null == messages ? _self.messages : messages // ignore: cast_nullable_to_non_nullable
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,messages: null == messages ? _self.messages : messages // ignore: cast_nullable_to_non_nullable
 as List<ChatMessage>,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as String,timestamp: null == timestamp ? _self.timestamp : timestamp // ignore: cast_nullable_to_non_nullable
@@ -156,10 +157,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<ChatMessage> messages, @JsonKey(name: 'session_id')  String sessionId,  String category,  int timestamp)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  List<ChatMessage> messages, @JsonKey(name: 'session_id')  String sessionId,  String category,  int timestamp)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SavedSearch() when $default != null:
-return $default(_that.messages,_that.sessionId,_that.category,_that.timestamp);case _:
+return $default(_that.id,_that.messages,_that.sessionId,_that.category,_that.timestamp);case _:
   return orElse();
 
 }
@@ -177,10 +178,10 @@ return $default(_that.messages,_that.sessionId,_that.category,_that.timestamp);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<ChatMessage> messages, @JsonKey(name: 'session_id')  String sessionId,  String category,  int timestamp)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  List<ChatMessage> messages, @JsonKey(name: 'session_id')  String sessionId,  String category,  int timestamp)  $default,) {final _that = this;
 switch (_that) {
 case _SavedSearch():
-return $default(_that.messages,_that.sessionId,_that.category,_that.timestamp);case _:
+return $default(_that.id,_that.messages,_that.sessionId,_that.category,_that.timestamp);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +198,10 @@ return $default(_that.messages,_that.sessionId,_that.category,_that.timestamp);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<ChatMessage> messages, @JsonKey(name: 'session_id')  String sessionId,  String category,  int timestamp)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  List<ChatMessage> messages, @JsonKey(name: 'session_id')  String sessionId,  String category,  int timestamp)?  $default,) {final _that = this;
 switch (_that) {
 case _SavedSearch() when $default != null:
-return $default(_that.messages,_that.sessionId,_that.category,_that.timestamp);case _:
+return $default(_that.id,_that.messages,_that.sessionId,_that.category,_that.timestamp);case _:
   return null;
 
 }
@@ -211,10 +212,11 @@ return $default(_that.messages,_that.sessionId,_that.category,_that.timestamp);c
 /// @nodoc
 @JsonSerializable()
 
-class _SavedSearch implements SavedSearch {
-  const _SavedSearch({required final  List<ChatMessage> messages, @JsonKey(name: 'session_id') required this.sessionId, required this.category, required this.timestamp}): _messages = messages;
+class _SavedSearch extends SavedSearch {
+  const _SavedSearch({required this.id, required final  List<ChatMessage> messages, @JsonKey(name: 'session_id') required this.sessionId, required this.category, required this.timestamp}): _messages = messages,super._();
   factory _SavedSearch.fromJson(Map<String, dynamic> json) => _$SavedSearchFromJson(json);
 
+@override final  String id;
  final  List<ChatMessage> _messages;
 @override List<ChatMessage> get messages {
   if (_messages is EqualUnmodifiableListView) return _messages;
@@ -239,16 +241,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedSearch&&const DeepCollectionEquality().equals(other._messages, _messages)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.category, category) || other.category == category)&&(identical(other.timestamp, timestamp) || other.timestamp == timestamp));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SavedSearch&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other._messages, _messages)&&(identical(other.sessionId, sessionId) || other.sessionId == sessionId)&&(identical(other.category, category) || other.category == category)&&(identical(other.timestamp, timestamp) || other.timestamp == timestamp));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_messages),sessionId,category,timestamp);
+int get hashCode => Object.hash(runtimeType,id,const DeepCollectionEquality().hash(_messages),sessionId,category,timestamp);
 
 @override
 String toString() {
-  return 'SavedSearch(messages: $messages, sessionId: $sessionId, category: $category, timestamp: $timestamp)';
+  return 'SavedSearch(id: $id, messages: $messages, sessionId: $sessionId, category: $category, timestamp: $timestamp)';
 }
 
 
@@ -259,7 +261,7 @@ abstract mixin class _$SavedSearchCopyWith<$Res> implements $SavedSearchCopyWith
   factory _$SavedSearchCopyWith(_SavedSearch value, $Res Function(_SavedSearch) _then) = __$SavedSearchCopyWithImpl;
 @override @useResult
 $Res call({
- List<ChatMessage> messages,@JsonKey(name: 'session_id') String sessionId, String category, int timestamp
+ String id, List<ChatMessage> messages,@JsonKey(name: 'session_id') String sessionId, String category, int timestamp
 });
 
 
@@ -276,9 +278,10 @@ class __$SavedSearchCopyWithImpl<$Res>
 
 /// Create a copy of SavedSearch
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? messages = null,Object? sessionId = null,Object? category = null,Object? timestamp = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? messages = null,Object? sessionId = null,Object? category = null,Object? timestamp = null,}) {
   return _then(_SavedSearch(
-messages: null == messages ? _self._messages : messages // ignore: cast_nullable_to_non_nullable
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,messages: null == messages ? _self._messages : messages // ignore: cast_nullable_to_non_nullable
 as List<ChatMessage>,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as String,timestamp: null == timestamp ? _self.timestamp : timestamp // ignore: cast_nullable_to_non_nullable

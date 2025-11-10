@@ -7,6 +7,7 @@ part of 'saved_search.dart';
 // **************************************************************************
 
 _SavedSearch _$SavedSearchFromJson(Map<String, dynamic> json) => _SavedSearch(
+  id: json['id'] as String,
   messages: (json['messages'] as List<dynamic>)
       .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
       .toList(),
@@ -17,6 +18,7 @@ _SavedSearch _$SavedSearchFromJson(Map<String, dynamic> json) => _SavedSearch(
 
 Map<String, dynamic> _$SavedSearchToJson(_SavedSearch instance) =>
     <String, dynamic>{
+      'id': instance.id,
       'messages': instance.messages,
       'session_id': instance.sessionId,
       'category': instance.category,
