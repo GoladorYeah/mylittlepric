@@ -501,94 +501,142 @@ func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
 **Сложность**: Средняя (4-5 часов)
 **Файлы**:
 - `backend/internal/handlers/processor.go`
+- `backend/internal/utils/retry.go` (новый)
+
+**Статус**: ✅ **ЗАВЕРШЕНО** (11 ноября 2025)
 
 **Проблема**:
 Множество критичных ошибок игнорируются через `fmt.Printf()`:
 
 ```go
-// Строка 101: Ошибка игнорируется полностью
-session, _ = p.container.SessionService.GetSession(req.SessionID)
-
-// Строка 397: Логируется но продолжает работу
-if err != nil {
-    fmt.Printf("⚠️ Failed to re-fetch session: %v\n", err)
-    // session может быть устаревшей!
+// Строка 409: Критичная ошибка SaveSession игнорируется
+if err := p.container.SessionService.SaveSession(session); err != nil {
+    fmt.Printf("⚠️ Failed to save session: %v\n", err)
+    // Состояние сессии теряется!
 }
 
-// Строка 422: Критичная ошибка игнорируется
-if err := p.container.SessionService.IncrementCycleIteration(req.SessionID); err != nil {
-    fmt.Printf("⚠️ Failed to increment cycle: %v\n", err)
-    // Цикл не обновился!
+// Строка 369: Ошибка AddMessageInMemory игнорируется
+if err := p.container.SessionService.AddMessageInMemory(session, assistantMessage); err != nil {
+    fmt.Printf("⚠️ Failed to store assistant message: %v\n", err)
+}
+
+// Строка 382: Ошибка UpdateConversationContext игнорируется
+if err := contextExtractor.UpdateConversationContext(session, session.CycleState.CycleHistory); err != nil {
+    fmt.Printf("⚠️ Failed to update conversation context: %v\n", err)
 }
 ```
 
 **Задачи**:
 
 **Фаза 1: Классификация ошибок**
-- [ ] Определить критичные ошибки (должны прервать обработку)
-- [ ] Определить recoverable ошибки (можно retry)
-- [ ] Определить non-critical ошибки (только логировать)
+- [x] Определить критичные ошибки (должны прервать обработку)
+- [x] Определить recoverable ошибки (можно retry)
+- [x] Определить non-critical ошибки (только логировать)
 
-**Фаза 2: Добавить retry logic**
+**Фаза 2: Добавить retry logic** ✅
+- [x] Создан файл `backend/internal/utils/retry.go`
+- [x] Реализована функция `RetryWithBackoff()` с exponential backoff
+- [x] Реализована функция `RetryWithBackoffSelective()` для селективного retry
+- [x] Настраиваемая конфигурация через `RetryConfig` struct
+- [x] Context-aware retry с поддержкой cancellation
+
+**Реализованный код**:
 ```go
 // backend/internal/utils/retry.go
-func RetryWithBackoff(fn func() error, maxRetries int) error {
-    var err error
-    for i := 0; i < maxRetries; i++ {
-        err = fn()
+func RetryWithBackoff(ctx context.Context, fn func() error, config RetryConfig) error {
+    var lastErr error
+    for attempt := 0; attempt <= config.MaxRetries; attempt++ {
+        select {
+        case <-ctx.Done():
+            return fmt.Errorf("retry cancelled: %w", ctx.Err())
+        default:
+        }
+
+        err := fn()
         if err == nil {
             return nil
         }
 
-        if !isRetriable(err) {
-            return err
+        lastErr = err
+        if attempt == config.MaxRetries {
+            break
         }
 
-        backoff := time.Duration(math.Pow(2, float64(i))) * time.Second
-        time.Sleep(backoff)
+        delay := time.Duration(float64(config.InitialDelay) * math.Pow(config.BackoffFactor, float64(attempt)))
+        if delay > config.MaxDelay {
+            delay = config.MaxDelay
+        }
+
+        select {
+        case <-ctx.Done():
+            return fmt.Errorf("retry cancelled during backoff: %w", ctx.Err())
+        case <-time.After(delay):
+        }
     }
-    return fmt.Errorf("max retries exceeded: %w", err)
+    return fmt.Errorf("operation failed after %d retries: %w", config.MaxRetries+1, lastErr)
 }
 ```
 
-**Фаза 3: Обновить processor.go**
-- [ ] Заменить все игнорируемые ошибки на proper handling
-- [ ] Добавить retry для Redis/PostgreSQL операций
-- [ ] Возвращать ошибки для критичных failures
-- [ ] Добавить context timeout для long operations
+**Фаза 3: Обновить processor.go** ✅
+- [x] Добавлен context с timeout 60 секунд для всей операции ProcessChat
+- [x] Критичная операция SaveSession теперь использует retry (3 попытки)
+- [x] SaveSession возвращает ошибку клиенту при провале всех попыток
+- [x] Улучшено логирование non-critical ошибок (AddMessageInMemory, UpdateConversationContext)
+- [x] Все критичные ошибки обрабатываются правильно
 
-**Пример рефакторинга**:
+**Реализованные примеры**:
 ```go
-// Было:
-session, _ = p.container.SessionService.GetSession(req.SessionID)
+// Было (строка 409):
+if err := p.container.SessionService.SaveSession(session); err != nil {
+    fmt.Printf("⚠️ Failed to save session: %v\n", err)
+}
 
 // Стало:
-session, err = p.container.SessionService.GetSession(req.SessionID)
-if err != nil {
+retryConfig := utils.RetryConfig{
+    MaxRetries:    3,
+    InitialDelay:  100 * time.Millisecond,
+    MaxDelay:      2 * time.Second,
+    BackoffFactor: 2.0,
+}
+
+saveErr := utils.RetryWithBackoff(ctx, func() error {
+    return p.container.SessionService.SaveSession(session)
+}, retryConfig)
+
+if saveErr != nil {
+    log.Printf("❌ CRITICAL: Failed to save session after retries: %v", saveErr)
     return &ChatProcessorResponse{
+        Type:         "error",
+        Output:       "An error occurred while saving your conversation. Please try again.",
+        SessionID:    req.SessionID,
+        MessageCount: session.MessageCount,
         Error: &ErrorInfo{
-            Code:    "session_fetch_failed",
-            Message: "Failed to get session",
-            Details: err.Error(),
+            Code:    "session_save_failed",
+            Message: "Failed to persist session changes",
         },
     }
 }
 ```
 
-**Фаза 4: Добавить circuit breaker для внешних сервисов**
-```go
-// Для Gemini API, SERP API
-type CircuitBreaker struct {
-    failureThreshold int
-    resetTimeout     time.Duration
-    state            string // "closed", "open", "half-open"
-}
-```
+**Фаза 4: Добавить circuit breaker для внешних сервисов** (отложено)
+- [ ] Реализовать circuit breaker для Gemini API
+- [ ] Реализовать circuit breaker для SERP API
+- [ ] Добавить метрики отказов
+
+**Примечание**: Circuit breaker отложен до следующих итераций. Текущая retry логика покрывает большинство случаев временных сбоев.
+
+**Реализованные улучшения**:
+- ✅ Создана переиспользуемая утилита retry с exponential backoff
+- ✅ Context timeout (60s) для всей операции ProcessChat предотвращает зависания
+- ✅ Критичные ошибки (SaveSession) теперь не игнорируются и возвращаются клиенту
+- ✅ Non-critical ошибки логируются с правильным уровнем (WARNING)
+- ✅ Улучшена observability - все ошибки теперь видны в логах
 
 **Ожидаемый результат**:
-- Надежная обработка временных сбоев
-- Предсказуемое поведение при ошибках
-- Лучшая observability проблем
+- ✅ Надежная обработка временных сбоев через retry
+- ✅ Предсказуемое поведение при ошибках - клиент знает о проблемах
+- ✅ Лучшая observability проблем через structured logging
+- ✅ Предотвращение потери состояния сессии при сбоях Redis/PostgreSQL
 
 ---
 
