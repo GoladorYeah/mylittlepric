@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"mylittleprice/internal/metrics"
 	"mylittleprice/internal/services"
 	"mylittleprice/internal/utils"
 )
@@ -54,15 +55,28 @@ func (j *CleanupJob) Start() {
 // runCleanup executes the cleanup operation
 func (j *CleanupJob) runCleanup() {
 	startTime := time.Now()
+
+	// Record cleanup job run
+	metrics.CleanupJobRunsTotal.Inc()
+
 	count, err := j.searchHistoryService.CleanupExpiredAnonymousHistory(j.ctx)
 	duration := time.Since(startTime)
 
+	// Record cleanup duration
+	metrics.CleanupJobDuration.Observe(duration.Seconds())
+
 	if err != nil {
+		// Record error
+		metrics.ErrorsTotal.WithLabelValues("cleanup", "search_history").Inc()
+
 		utils.LogError(j.ctx, "cleanup job failed", err,
 			slog.Duration("duration", duration),
 		)
 	} else {
+		// Record deleted records count
 		if count > 0 {
+			metrics.CleanupJobRecordsDeleted.Add(float64(count))
+
 			utils.LogInfo(j.ctx, "cleanup job completed",
 				slog.Duration("duration", duration),
 				slog.Int64("records_deleted", count),

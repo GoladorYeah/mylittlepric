@@ -12,6 +12,7 @@ import (
 	"google.golang.org/genai"
 
 	"mylittleprice/internal/config"
+	"mylittleprice/internal/metrics"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/utils"
 )
@@ -368,6 +369,11 @@ func (g *GeminiService) updateTokenStats(metadata *genai.GenerateContentResponse
 
 	g.tokenStats.AverageInputTokens = float64(g.tokenStats.TotalInputTokens) / float64(g.tokenStats.TotalRequests)
 	g.tokenStats.AverageOutputTokens = float64(g.tokenStats.TotalOutputTokens) / float64(g.tokenStats.TotalRequests)
+
+	// Record token metrics for Prometheus
+	modelName := g.config.GeminiModel
+	metrics.AITokensUsed.WithLabelValues("gemini", modelName, "input").Add(float64(metadata.PromptTokenCount))
+	metrics.AITokensUsed.WithLabelValues("gemini", modelName, "output").Add(float64(outputTokens))
 }
 
 func (g *GeminiService) GetTokenStats() *TokenStats {
@@ -399,7 +405,22 @@ func (g *GeminiService) executeWithRetryAndModel(
 	modelName string,
 	isFallback bool,
 ) (*genai.GenerateContentResponse, error) {
+	// Track metrics for AI request
+	start := time.Now()
 	var lastErr error
+
+	defer func() {
+		duration := time.Since(start).Seconds()
+		status := "success"
+		if lastErr != nil {
+			status = "error"
+			metrics.ErrorsTotal.WithLabelValues("ai", "gemini").Inc()
+		}
+
+		// Record request count and duration
+		metrics.AIRequestsTotal.WithLabelValues("gemini", modelName, status).Inc()
+		metrics.AIRequestDuration.WithLabelValues("gemini", modelName).Observe(duration)
+	}()
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
