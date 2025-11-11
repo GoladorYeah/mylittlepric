@@ -35,7 +35,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-4 pb-8">
+    <div className="w-full max-w-4xl mx-auto px-4 py-4 pb-2">
       <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary border border-border focus-within:border-primary transition-colors">
         <CountrySelector />
         <input
