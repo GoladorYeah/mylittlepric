@@ -17,26 +17,26 @@ import (
 )
 
 type SessionService struct {
-	redis              *redis.Client
-	client             *ent.Client
-	authService        *AuthService
-	ctx                context.Context
-	ttl                time.Duration
-	maxMsgs            int
-	maxSearches        int
-	universalPromptMgr *UniversalPromptManager
+	redis        *redis.Client
+	client       *ent.Client
+	authService  *AuthService
+	cycleService *CycleService
+	ctx          context.Context
+	ttl          time.Duration
+	maxMsgs      int
+	maxSearches  int
 }
 
-func NewSessionService(redisClient *redis.Client, client *ent.Client, sessionTTL int, maxMessages int) *SessionService {
+func NewSessionService(redisClient *redis.Client, client *ent.Client, cycleService *CycleService, sessionTTL int, maxMessages int) *SessionService {
 	return &SessionService{
-		redis:              redisClient,
-		client:             client,
-		authService:        nil, // Will be set later via SetAuthService
-		ctx:                context.Background(),
-		ttl:                time.Duration(sessionTTL) * time.Second,
-		maxMsgs:            maxMessages,
-		maxSearches:        999999,
-		universalPromptMgr: NewUniversalPromptManager(),
+		redis:        redisClient,
+		client:       client,
+		authService:  nil, // Will be set later via SetAuthService
+		cycleService: cycleService,
+		ctx:          context.Background(),
+		ttl:          time.Duration(sessionTTL) * time.Second,
+		maxMsgs:      maxMessages,
+		maxSearches:  999999,
 	}
 }
 
@@ -64,7 +64,7 @@ func (s *SessionService) CreateSessionWithUser(sessionID, country, language, cur
 			SearchCount: 0,
 			LastProduct: nil,
 		},
-		CycleState: s.universalPromptMgr.InitializeCycleState(),
+		CycleState: s.cycleService.InitializeCycleState(),
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 		ExpiresAt:  time.Now().Add(s.ttl),
@@ -350,116 +350,8 @@ func (s *SessionService) GetSessionInfo(sessionID string) map[string]interface{}
 	return info
 }
 
-func (s *SessionService) IncrementMessageCount(sessionID string) error {
-	session, err := s.GetSession(sessionID)
-	if err != nil {
-		return err
-	}
-
-	session.MessageCount++
-	return s.UpdateSession(session)
-}
-
-// IncrementMessageCountInMemory increments message count in an in-memory session (avoids N+1)
-func (s *SessionService) IncrementMessageCountInMemory(session *models.ChatSession) {
-	session.MessageCount++
-}
-
-func (s *SessionService) AddMessage(sessionID string, message *models.Message) error {
-	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
-
-	data, err := json.Marshal(message)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
-	}
-
-	pipe := s.redis.Pipeline()
-	pipe.RPush(s.ctx, key, data)
-	pipe.Expire(s.ctx, key, s.ttl)
-
-	_, err = pipe.Exec(s.ctx)
-	return err
-}
-
-// AddMessageInMemory adds a message using session object (still requires Redis for message storage)
-// This method doesn't reload the session, so it avoids N+1 when used with in-memory session
-func (s *SessionService) AddMessageInMemory(session *models.ChatSession, message *models.Message) error {
-	key := fmt.Sprintf(constants.CachePrefixMessages, session.SessionID)
-
-	data, err := json.Marshal(message)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
-	}
-
-	pipe := s.redis.Pipeline()
-	pipe.RPush(s.ctx, key, data)
-	pipe.Expire(s.ctx, key, s.ttl)
-
-	_, err = pipe.Exec(s.ctx)
-	return err
-}
-
-func (s *SessionService) GetMessages(sessionID string) ([]*models.Message, error) {
-	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
-
-	data, err := s.redis.LRange(s.ctx, key, 0, -1).Result()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get messages: %w", err)
-	}
-
-	messages := make([]*models.Message, 0, len(data))
-	for _, msgData := range data {
-		var msg models.Message
-		err = json.Unmarshal([]byte(msgData), &msg)
-		if err != nil {
-			fmt.Printf("⚠️ Failed to unmarshal message in session %s: %v\n", sessionID, err)
-			continue
-		}
-		messages = append(messages, &msg)
-	}
-
-	return messages, nil
-}
-
-func (s *SessionService) GetConversationHistory(sessionID string) ([]map[string]string, error) {
-	messages, err := s.GetMessages(sessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	history := make([]map[string]string, 0, len(messages))
-	for _, msg := range messages {
-		history = append(history, map[string]string{
-			"role":    msg.Role,
-			"content": msg.Content,
-		})
-	}
-
-	return history, nil
-}
-
-func (s *SessionService) GetRecentMessages(sessionID string, count int) ([]*models.Message, error) {
-	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
-
-	start := -int64(count)
-	data, err := s.redis.LRange(s.ctx, key, start, -1).Result()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get recent messages: %w", err)
-	}
-
-	messages := make([]*models.Message, 0, len(data))
-	for _, msgData := range data {
-		var msg models.Message
-		err = json.Unmarshal([]byte(msgData), &msg)
-		if err != nil {
-			fmt.Printf("⚠️ Failed to unmarshal recent message in session %s: %v\n", sessionID, err)
-			continue
-		}
-		messages = append(messages, &msg)
-	}
-
-	return messages, nil
-}
+// Message-related methods have been moved to MessageService
+// Use container.MessageService instead
 
 func (s *SessionService) DeleteSession(sessionID string) error {
 	sessionKey := fmt.Sprintf(constants.CachePrefixSession+"%s", sessionID)
@@ -481,13 +373,13 @@ func (s *SessionService) GetMaxSearches() int {
 	return s.maxSearches
 }
 
-func (s *SessionService) GetSessionStats(sessionID string) (map[string]interface{}, error) {
+func (s *SessionService) GetSessionStats(sessionID string, messageService *MessageService) (map[string]interface{}, error) {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
 		return nil, err
 	}
 
-	messages, _ := s.GetMessages(sessionID)
+	messages, _ := messageService.GetMessages(sessionID)
 
 	stats := map[string]interface{}{
 		"session_id":     session.SessionID,
@@ -511,68 +403,8 @@ func (s *SessionService) GetSessionStats(sessionID string) (map[string]interface
 	return stats, nil
 }
 
-// GetUniversalPromptManager returns the universal prompt manager
-func (s *SessionService) GetUniversalPromptManager() *UniversalPromptManager {
-	return s.universalPromptMgr
-}
-
-// IncrementCycleIteration increments the iteration and checks if we need a new cycle
-// Returns true if we should start a new cycle
-func (s *SessionService) IncrementCycleIteration(sessionID string) (bool, error) {
-	session, err := s.GetSession(sessionID)
-	if err != nil {
-		return false, err
-	}
-
-	shouldStartNew := !s.universalPromptMgr.IncrementIteration(&session.CycleState)
-
-	if err := s.UpdateSession(session); err != nil {
-		return false, err
-	}
-
-	return shouldStartNew, nil
-}
-
-// IncrementCycleIterationInMemory increments the iteration using an in-memory session (avoids N+1)
-// Returns true if we should start a new cycle
-func (s *SessionService) IncrementCycleIterationInMemory(session *models.ChatSession) bool {
-	shouldStartNew := !s.universalPromptMgr.IncrementIteration(&session.CycleState)
-	return shouldStartNew
-}
-
-// StartNewCycle starts a new cycle with context carryover
-func (s *SessionService) StartNewCycle(sessionID, lastRequest string, products []models.ProductInfo) error {
-	session, err := s.GetSession(sessionID)
-	if err != nil {
-		return err
-	}
-
-	s.universalPromptMgr.StartNewCycle(&session.CycleState, lastRequest, products)
-
-	return s.UpdateSession(session)
-}
-
-// StartNewCycleInMemory starts a new cycle using an in-memory session (avoids N+1)
-func (s *SessionService) StartNewCycleInMemory(session *models.ChatSession, lastRequest string, products []models.ProductInfo) {
-	s.universalPromptMgr.StartNewCycle(&session.CycleState, lastRequest, products)
-}
-
-// AddToCycleHistory adds a message to the current cycle history
-func (s *SessionService) AddToCycleHistory(sessionID, role, content string) error {
-	session, err := s.GetSession(sessionID)
-	if err != nil {
-		return err
-	}
-
-	s.universalPromptMgr.AddToCycleHistory(&session.CycleState, role, content)
-
-	return s.UpdateSession(session)
-}
-
-// AddToCycleHistoryInMemory adds a message to cycle history using an in-memory session (avoids N+1)
-func (s *SessionService) AddToCycleHistoryInMemory(session *models.ChatSession, role, content string) {
-	s.universalPromptMgr.AddToCycleHistory(&session.CycleState, role, content)
-}
+// Cycle-related methods have been moved to CycleService
+// Use container.CycleService instead
 
 // GetActiveSessionForUser returns the most recent active session for a user
 // Returns nil if no active session found (not an error - user can start a new session)

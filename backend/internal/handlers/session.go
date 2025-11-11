@@ -49,7 +49,7 @@ func (h *SessionHandler) GetActiveSession(c *fiber.Ctx) error {
 	}
 
 	// Get message count from Redis
-	messages, err := h.container.SessionService.GetMessages(session.SessionID)
+	messages, err := h.container.MessageService.GetMessages(session.SessionID)
 	if err != nil {
 		fmt.Printf("⚠️ Failed to get message count for session %s: %v\n", session.SessionID, err)
 		messages = []*models.Message{} // Empty array
@@ -120,7 +120,7 @@ func (h *SessionHandler) GetActiveSearchSession(c *fiber.Ctx) error {
 	}
 
 	// Get messages for context
-	messages, err := h.container.SessionService.GetMessages(session.SessionID)
+	messages, err := h.container.MessageService.GetMessages(session.SessionID)
 	if err != nil {
 		fmt.Printf("⚠️ Failed to get messages for session %s: %v\n", session.SessionID, err)
 		messages = []*models.Message{}

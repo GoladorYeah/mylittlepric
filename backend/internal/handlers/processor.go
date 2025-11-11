@@ -136,7 +136,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		CreatedAt: time.Now(),
 	}
 
-	if err := p.container.SessionService.AddMessageInMemory(session, userMessage); err != nil {
+	if err := p.container.MessageService.AddMessageInMemory(session, userMessage); err != nil {
 		return &ChatProcessorResponse{
 			Error: &ErrorInfo{
 				Code:    "storage_error",
@@ -145,10 +145,10 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		}
 	}
 
-	p.container.SessionService.IncrementMessageCountInMemory(session)
+	p.container.MessageService.IncrementMessageCountInMemory(session)
 
 	// Add user message to cycle history
-	p.container.SessionService.AddToCycleHistoryInMemory(session, "user", req.Message)
+	p.container.CycleService.AddToCycleHistoryInMemory(session, "user", req.Message)
 
 	// Process with Universal Prompt System with retry logic
 	var geminiResponse *models.GeminiResponse
@@ -371,13 +371,13 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	}
 
 	// Save assistant message (now with products if it was a search)
-	if err := p.container.SessionService.AddMessageInMemory(session, assistantMessage); err != nil {
+	if err := p.container.MessageService.AddMessageInMemory(session, assistantMessage); err != nil {
 		log.Printf("⚠️ WARNING: Failed to store assistant message (non-critical): %v", err)
 		// This is not critical - the session will still be saved with other state
 	}
 
 	// Add assistant response to cycle history
-	p.container.SessionService.AddToCycleHistoryInMemory(session, "assistant", geminiResponse.Output)
+	p.container.CycleService.AddToCycleHistoryInMemory(session, "assistant", geminiResponse.Output)
 
 	// NEW: Update conversation context periodically
 	contextExtractor := p.container.GeminiService.GetContextExtractor()
@@ -396,7 +396,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	// Check if we need to start a new cycle (iteration limit reached)
 	// This checks BEFORE incrementing, so iteration 6 will trigger a new cycle
-	shouldStartNewCycle := p.container.SessionService.IncrementCycleIterationInMemory(session)
+	shouldStartNewCycle := p.container.CycleService.IncrementCycleIterationInMemory(session)
 
 	if shouldStartNewCycle {
 		fmt.Printf("🔄 Iteration limit reached (%d), starting new cycle\n", services.MaxIterations)
@@ -408,7 +408,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		}
 
 		// Start new cycle with context carryover
-		p.container.SessionService.StartNewCycleInMemory(session, req.Message, products)
+		p.container.CycleService.StartNewCycleInMemory(session, req.Message, products)
 	}
 
 	// Update session state

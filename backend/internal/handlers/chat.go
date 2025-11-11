@@ -86,7 +86,7 @@ func (h *ChatHandler) GetSessionMessages(c *fiber.Ctx) error {
 	}
 
 	// Get messages from session
-	messages, err := h.container.SessionService.GetMessages(sessionID)
+	messages, err := h.container.MessageService.GetMessages(sessionID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
 			Error:   "server_error",
