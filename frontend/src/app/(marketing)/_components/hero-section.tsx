@@ -52,6 +52,15 @@ export function HeroSection() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
         </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/login")}
+            className="px-6 py-2 rounded-full font-medium text-sm hover:bg-secondary transition-colors"
+          >
+            Sign In
+          </button>
+        </div>
       </div>
     </header>
   );

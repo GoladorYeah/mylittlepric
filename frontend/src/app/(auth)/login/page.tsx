@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import { useAuthStore } from '@/shared/lib';
 import { AuthAPI } from '@/shared/lib/api/auth';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
@@ -56,7 +57,7 @@ export default function LoginPage() {
       router.push(returnUrl || '/chat');
     } catch (error) {
       console.error('Login failed:', error);
-      alert(error instanceof Error ? error.message : 'Failed to login with Google');
+      setError(error instanceof Error ? error.message : 'Failed to login with Google');
     } finally {
       setLoading(false);
     }
@@ -98,31 +99,77 @@ export default function LoginPage() {
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
-        <div className="max-w-md w-full">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 space-y-6">
-            {/* Header */}
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                {isSignup ? 'Create Account' : 'Welcome Back'}
+      <div className="min-h-screen flex flex-col bg-background">
+        {/* Header with back button */}
+        <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
+          <div className="container mx-auto px-4 h-16 flex items-center">
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Back</span>
+            </Link>
+          </div>
+        </header>
+
+        {/* Main content */}
+        <div className="flex-1 flex items-center justify-center px-4 pt-24 pb-8">
+          <div className="w-full max-w-md space-y-8">
+            {/* Logo and title */}
+            <div className="text-center space-y-3">
+              <h1 className="text-4xl font-semibold tracking-tight">
+                {isSignup ? 'Create your account' : 'Welcome back'}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {isSignup ? 'Sign up to start finding deals' : 'Sign in to continue'}
+              <p className="text-muted-foreground">
+                {isSignup
+                  ? 'Start finding the best deals today'
+                  : 'Continue to your account'}
               </p>
             </div>
 
-            {/* Error Message */}
+            {/* Error message */}
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg text-sm">
-                {error}
+              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
+                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
               </div>
             )}
 
-            {/* Email/Password Form */}
+            {/* Google login */}
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="outline"
+                  size="large"
+                  text={isSignup ? "signup_with" : "signin_with"}
+                  shape="rectangular"
+                  width="384"
+                />
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with email
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Email/Password form */}
             <form onSubmit={handleEmailSubmit} className="space-y-4">
               {isSignup && (
-                <div>
-                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="fullName"
+                    className="block text-sm font-medium"
+                  >
                     Full Name
                   </label>
                   <input
@@ -130,36 +177,43 @@ export default function LoginPage() {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="John Doe"
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    placeholder="Enter your name"
+                    required={isSignup}
                   />
                 </div>
               )}
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <div className="space-y-2">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium"
+                >
                   Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full pl-10 pr-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                     placeholder="you@example.com"
                   />
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <div className="space-y-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium"
+                >
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -167,19 +221,19 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
-                    className="w-full pl-11 pr-11 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full pl-10 pr-10 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                     placeholder="••••••••"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
                 {isSignup && (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-muted-foreground">
                     Must be at least 8 characters
                   </p>
                 )}
@@ -187,54 +241,41 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 rounded-lg transition-colors"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 rounded-lg transition-colors"
               >
-                {isSignup ? 'Sign Up' : 'Sign In'}
+                {isSignup ? 'Create account' : 'Continue'}
               </button>
             </form>
 
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            {/* Google Login Button */}
-            <div className="flex justify-center">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                theme="outline"
-                size="large"
-                text="signin_with"
-                shape="rectangular"
-                width="320"
-              />
-            </div>
-
-            {/* Toggle Sign Up/Sign In */}
+            {/* Toggle sign up/sign in */}
             <div className="text-center">
               <button
                 onClick={() => {
                   setIsSignup(!isSignup);
                   setError('');
                 }}
-                className="text-sm text-primary hover:underline"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                {isSignup ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                {isSignup
+                  ? 'Already have an account? '
+                  : "Don't have an account? "}
+                <span className="font-medium text-primary">
+                  {isSignup ? 'Sign in' : 'Sign up'}
+                </span>
               </button>
             </div>
 
-            {/* Info */}
-            <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-              By continuing, you agree to our Terms of Service and Privacy Policy
-            </div>
+            {/* Terms */}
+            <p className="text-center text-xs text-muted-foreground">
+              By continuing, you agree to our{' '}
+              <Link href="/terms-of-use" className="underline hover:text-foreground">
+                Terms of Service
+              </Link>
+              {' '}and{' '}
+              <Link href="/privacy-policy" className="underline hover:text-foreground">
+                Privacy Policy
+              </Link>
+            </p>
           </div>
         </div>
       </div>
