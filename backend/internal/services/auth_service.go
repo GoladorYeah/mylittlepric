@@ -9,10 +9,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
+	"mylittleprice/ent"
+	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/searchhistory"
+	"mylittleprice/ent/user"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/utils"
 )
@@ -25,16 +28,16 @@ var (
 )
 
 type AuthService struct {
-	db          *sqlx.DB
+	client      *ent.Client
 	redis       *redis.Client
 	jwtService  *utils.JWTService
 	googleOAuth *GoogleOAuthService
 	ctx         context.Context
 }
 
-func NewAuthService(db *sqlx.DB, redis *redis.Client, jwtService *utils.JWTService, googleOAuth *GoogleOAuthService) *AuthService {
+func NewAuthService(client *ent.Client, redis *redis.Client, jwtService *utils.JWTService, googleOAuth *GoogleOAuthService) *AuthService {
 	return &AuthService{
-		db:          db,
+		client:      client,
 		redis:       redis,
 		jwtService:  jwtService,
 		googleOAuth: googleOAuth,
@@ -233,34 +236,46 @@ func (s *AuthService) ClaimSessions(userID uuid.UUID, sessionIDs []string) error
 			// Continue to PostgreSQL even if Redis fails
 		}
 
-		// 2. Update chat_sessions in PostgreSQL (primary source of truth)
+		// 2. Update chat_sessions in PostgreSQL using Ent
 		// This enables cross-device session synchronization
-		sessionQuery := `UPDATE chat_sessions SET user_id = $1, updated_at = NOW() WHERE session_id = $2`
-		sessionResult, err := s.db.ExecContext(s.ctx, sessionQuery, userID, sessionID)
+		sessionRows, err := s.client.ChatSession.Update().
+			Where(chatsession.SessionIDEQ(sessionID)).
+			SetUserID(userID).
+			SetUpdatedAt(time.Now()).
+			Save(s.ctx)
+
 		if err != nil {
 			fmt.Printf("⚠️ Failed to claim session %s in PostgreSQL: %v\n", sessionID, err)
 			continue
 		}
 
 		// Check if session was updated
-		if rows, _ := sessionResult.RowsAffected(); rows > 0 {
+		if sessionRows > 0 {
 			sessionCount++
 			fmt.Printf("✅ Claimed session %s for user %s\n", sessionID, userID.String())
 		}
 
-		// 3. Update search_history in PostgreSQL
+		// 3. Update search_history in PostgreSQL using Ent
 		// Link all anonymous search history from this session to the user
-		historyQuery := `UPDATE search_history SET user_id = $1 WHERE session_id = $2 AND user_id IS NULL`
-		historyResult, err := s.db.ExecContext(s.ctx, historyQuery, userID, sessionID)
+		historyRows, err := s.client.SearchHistory.Update().
+			Where(
+				searchhistory.And(
+					searchhistory.SessionIDEQ(sessionID),
+					searchhistory.UserIDIsNil(),
+				),
+			).
+			SetUserID(userID).
+			Save(s.ctx)
+
 		if err != nil {
 			fmt.Printf("⚠️ Failed to claim search history for session %s: %v\n", sessionID, err)
 			continue
 		}
 
 		// Check how many history records were updated
-		if rows, _ := historyResult.RowsAffected(); rows > 0 {
-			historyCount += int(rows)
-			fmt.Printf("✅ Claimed %d search history records for session %s\n", rows, sessionID)
+		if historyRows > 0 {
+			historyCount += historyRows
+			fmt.Printf("✅ Claimed %d search history records for session %s\n", historyRows, sessionID)
 		}
 	}
 
@@ -361,36 +376,62 @@ func (s *AuthService) saveUser(user *models.User) error {
 	return nil
 }
 
-// SaveUserToPostgres saves a user to PostgreSQL (exported for use by other services)
-func (s *AuthService) SaveUserToPostgres(user *models.User) error {
-	query := `
-		INSERT INTO users (id, email, password_hash, full_name, picture, provider, provider_id, created_at, updated_at, last_login_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		ON CONFLICT (id) DO UPDATE SET
-			email = EXCLUDED.email,
-			password_hash = EXCLUDED.password_hash,
-			full_name = EXCLUDED.full_name,
-			picture = EXCLUDED.picture,
-			provider = EXCLUDED.provider,
-			provider_id = EXCLUDED.provider_id,
-			updated_at = EXCLUDED.updated_at,
-			last_login_at = EXCLUDED.last_login_at
-	`
+// SaveUserToPostgres saves a user to PostgreSQL using Ent (exported for use by other services)
+func (s *AuthService) SaveUserToPostgres(userModel *models.User) error {
+	// Check if user exists
+	exists, err := s.client.User.Query().
+		Where(user.IDEQ(userModel.ID)).
+		Exist(s.ctx)
 
-	_, err := s.db.ExecContext(s.ctx, query,
-		user.ID,
-		user.Email,
-		user.PasswordHash,
-		user.FullName,
-		user.Picture,
-		user.Provider,
-		user.ProviderID,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.LastLoginAt,
-	)
+	if err != nil {
+		return fmt.Errorf("failed to check user existence: %w", err)
+	}
 
-	return err
+	if exists {
+		// Update existing user
+		updateBuilder := s.client.User.UpdateOneID(userModel.ID).
+			SetEmail(userModel.Email).
+			SetPasswordHash(userModel.PasswordHash).
+			SetName(userModel.FullName).
+			SetAvatarURL(userModel.Picture).
+			SetProvider(userModel.Provider).
+			SetGoogleID(userModel.ProviderID).
+			SetUpdatedAt(userModel.UpdatedAt)
+
+		// Set optional last_login
+		if userModel.LastLoginAt != nil {
+			updateBuilder.SetLastLogin(*userModel.LastLoginAt)
+		}
+
+		_, err = updateBuilder.Save(s.ctx)
+		if err != nil {
+			return fmt.Errorf("failed to update user: %w", err)
+		}
+	} else {
+		// Create new user
+		createBuilder := s.client.User.Create().
+			SetID(userModel.ID).
+			SetEmail(userModel.Email).
+			SetPasswordHash(userModel.PasswordHash).
+			SetName(userModel.FullName).
+			SetAvatarURL(userModel.Picture).
+			SetProvider(userModel.Provider).
+			SetGoogleID(userModel.ProviderID).
+			SetCreatedAt(userModel.CreatedAt).
+			SetUpdatedAt(userModel.UpdatedAt)
+
+		// Set optional last_login
+		if userModel.LastLoginAt != nil {
+			createBuilder.SetLastLogin(*userModel.LastLoginAt)
+		}
+
+		_, err = createBuilder.Save(s.ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create user: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *AuthService) getUserByEmail(email string) (*models.User, error) {

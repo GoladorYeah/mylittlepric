@@ -1,13 +1,13 @@
 package services
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
-
+	"mylittleprice/ent"
+	"mylittleprice/ent/userpreference"
 	"mylittleprice/internal/models"
 )
 
@@ -16,38 +16,36 @@ var (
 )
 
 type PreferencesService struct {
-	db          *sqlx.DB
+	client      *ent.Client
 	authService *AuthService
+	ctx         context.Context
 }
 
-func NewPreferencesService(db *sqlx.DB, authService *AuthService) *PreferencesService {
+func NewPreferencesService(client *ent.Client, authService *AuthService) *PreferencesService {
 	return &PreferencesService{
-		db:          db,
+		client:      client,
 		authService: authService,
+		ctx:         context.Background(),
 	}
 }
 
 // GetUserPreferences retrieves user preferences from PostgreSQL
 // Returns nil if preferences not found (first time user)
 func (s *PreferencesService) GetUserPreferences(userID uuid.UUID) (*models.UserPreferences, error) {
-	var prefs models.UserPreferences
+	prefs, err := s.client.UserPreference.Query().
+		Where(userpreference.UserIDEQ(userID)).
+		Only(s.ctx)
 
-	query := `
-		SELECT user_id, country, currency, language, theme, sidebar_open, last_active_session_id, saved_search, created_at, updated_at
-		FROM user_preferences
-		WHERE user_id = $1
-	`
-
-	err := s.db.Get(&prefs, query, userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if ent.IsNotFound(err) {
 			// Not found is OK - return nil (user hasn't set preferences yet)
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get user preferences: %w", err)
 	}
 
-	return &prefs, nil
+	// Convert Ent entity to models
+	return convertEntPreferencesToModel(prefs), nil
 }
 
 // UpsertUserPreferences creates or updates user preferences
@@ -70,27 +68,37 @@ func (s *PreferencesService) UpsertUserPreferences(userID uuid.UUID, update *mod
 
 // createPreferences inserts new preferences row
 func (s *PreferencesService) createPreferences(userID uuid.UUID, update *models.UserPreferencesUpdate) (*models.UserPreferences, error) {
-	query := `
-		INSERT INTO user_preferences (user_id, country, currency, language, theme, sidebar_open, last_active_session_id, saved_search)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING user_id, country, currency, language, theme, sidebar_open, last_active_session_id, saved_search, created_at, updated_at
-	`
+	builder := s.client.UserPreference.Create().
+		SetUserID(userID)
 
-	var prefs models.UserPreferences
-	err := s.db.QueryRowx(query,
-		userID,
-		update.Country,
-		update.Currency,
-		update.Language,
-		update.Theme,
-		update.SidebarOpen,
-		update.LastActiveSessionID,
-		update.SavedSearch,
-	).StructScan(&prefs)
+	// Set optional fields
+	if update.Country != nil {
+		builder.SetCountry(*update.Country)
+	}
+	if update.Currency != nil {
+		builder.SetCurrency(*update.Currency)
+	}
+	if update.Language != nil {
+		builder.SetLanguage(*update.Language)
+	}
+	if update.Theme != nil {
+		builder.SetTheme(*update.Theme)
+	}
+	if update.SidebarOpen != nil {
+		builder.SetSidebarOpen(*update.SidebarOpen)
+	}
+	if update.LastActiveSessionID != nil {
+		builder.SetLastActiveSessionID(*update.LastActiveSessionID)
+	}
+	if update.SavedSearch != nil {
+		// Convert SavedSearch to map[string]interface{}
+		savedSearchMap := savedSearchToMap(update.SavedSearch)
+		builder.SetSavedSearch(savedSearchMap)
+	}
 
+	prefs, err := builder.Save(s.ctx)
 	if err != nil {
 		// Check if it's a foreign key constraint error (user doesn't exist in PostgreSQL)
-		// This can happen if Redis has the user data but PostgreSQL doesn't (e.g., after DB reset)
 		if isForeignKeyError(err) {
 			fmt.Printf("⚠️ User %s not found in PostgreSQL, attempting to sync from Redis...\n", userID.String())
 
@@ -100,118 +108,73 @@ func (s *PreferencesService) createPreferences(userID uuid.UUID, update *models.
 			}
 
 			// Retry the insert
-			err = s.db.QueryRowx(query,
-				userID,
-				update.Country,
-				update.Currency,
-				update.Language,
-				update.Theme,
-				update.SidebarOpen,
-				update.LastActiveSessionID,
-				update.SavedSearch,
-			).StructScan(&prefs)
-
+			prefs, err = builder.Save(s.ctx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create user preferences after sync: %w", err)
 			}
 
 			fmt.Printf("✅ Created preferences for user %s (after sync)\n", userID.String())
-			return &prefs, nil
+			return convertEntPreferencesToModel(prefs), nil
 		}
 
 		return nil, fmt.Errorf("failed to create user preferences: %w", err)
 	}
 
 	fmt.Printf("✅ Created preferences for user %s\n", userID.String())
-	return &prefs, nil
+	return convertEntPreferencesToModel(prefs), nil
 }
 
 // updatePreferences updates existing preferences (only provided fields)
 func (s *PreferencesService) updatePreferences(userID uuid.UUID, update *models.UserPreferencesUpdate) (*models.UserPreferences, error) {
-	// Build dynamic update query (only update provided fields)
-	query := `UPDATE user_preferences SET `
-	args := []interface{}{}
-	argCounter := 1
-	updates := []string{}
+	builder := s.client.UserPreference.Update().
+		Where(userpreference.UserIDEQ(userID))
 
+	// Only update provided fields
 	if update.Country != nil {
-		updates = append(updates, fmt.Sprintf("country = $%d", argCounter))
-		args = append(args, update.Country)
-		argCounter++
+		builder.SetCountry(*update.Country)
 	}
-
 	if update.Currency != nil {
-		updates = append(updates, fmt.Sprintf("currency = $%d", argCounter))
-		args = append(args, update.Currency)
-		argCounter++
+		builder.SetCurrency(*update.Currency)
 	}
-
 	if update.Language != nil {
-		updates = append(updates, fmt.Sprintf("language = $%d", argCounter))
-		args = append(args, update.Language)
-		argCounter++
+		builder.SetLanguage(*update.Language)
 	}
-
 	if update.Theme != nil {
-		updates = append(updates, fmt.Sprintf("theme = $%d", argCounter))
-		args = append(args, update.Theme)
-		argCounter++
+		builder.SetTheme(*update.Theme)
 	}
-
 	if update.SidebarOpen != nil {
-		updates = append(updates, fmt.Sprintf("sidebar_open = $%d", argCounter))
-		args = append(args, update.SidebarOpen)
-		argCounter++
+		builder.SetSidebarOpen(*update.SidebarOpen)
 	}
-
 	if update.LastActiveSessionID != nil {
-		updates = append(updates, fmt.Sprintf("last_active_session_id = $%d", argCounter))
-		args = append(args, update.LastActiveSessionID)
-		argCounter++
+		builder.SetLastActiveSessionID(*update.LastActiveSessionID)
 	}
-
 	if update.SavedSearch != nil {
-		updates = append(updates, fmt.Sprintf("saved_search = $%d", argCounter))
-		args = append(args, update.SavedSearch)
-		argCounter++
+		// Convert SavedSearch to map[string]interface{}
+		savedSearchMap := savedSearchToMap(update.SavedSearch)
+		builder.SetSavedSearch(savedSearchMap)
 	}
 
-	// No fields to update
-	if len(updates) == 0 {
-		return s.GetUserPreferences(userID)
-	}
-
-	// Finish query
-	for i, update := range updates {
-		if i > 0 {
-			query += ", "
-		}
-		query += update
-	}
-	query += fmt.Sprintf(" WHERE user_id = $%d RETURNING user_id, country, currency, language, theme, sidebar_open, last_active_session_id, saved_search, created_at, updated_at", argCounter)
-	args = append(args, userID)
-
-	// Execute update
-	var prefs models.UserPreferences
-	err := s.db.QueryRowx(query, args...).StructScan(&prefs)
+	_, err := builder.Save(s.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update user preferences: %w", err)
 	}
 
 	fmt.Printf("✅ Updated preferences for user %s\n", userID.String())
-	return &prefs, nil
+
+	// Return updated preferences
+	return s.GetUserPreferences(userID)
 }
 
 // DeleteUserPreferences removes user preferences (e.g., on account deletion)
 func (s *PreferencesService) DeleteUserPreferences(userID uuid.UUID) error {
-	query := `DELETE FROM user_preferences WHERE user_id = $1`
+	rowsAffected, err := s.client.UserPreference.Delete().
+		Where(userpreference.UserIDEQ(userID)).
+		Exec(s.ctx)
 
-	result, err := s.db.Exec(query, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete user preferences: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		return ErrPreferencesNotFound
 	}
@@ -223,10 +186,6 @@ func (s *PreferencesService) DeleteUserPreferences(userID uuid.UUID) error {
 // ==================== Search Synchronization ====================
 
 // UpdateLastActiveSession updates the last active session ID for cross-device search continuity
-// This should be called when:
-// - A user starts a search (status: in_progress)
-// - A user completes a search (status: completed)
-// Pass empty string to clear the active session (when search is completed/abandoned)
 func (s *PreferencesService) UpdateLastActiveSession(userID uuid.UUID, sessionID string) error {
 	var sessionIDPtr *string
 	if sessionID != "" {
@@ -251,7 +210,6 @@ func (s *PreferencesService) UpdateLastActiveSession(userID uuid.UUID, sessionID
 }
 
 // GetLastActiveSession retrieves the session ID with an ongoing search
-// Returns empty string if no active session exists
 func (s *PreferencesService) GetLastActiveSession(userID uuid.UUID) (string, error) {
 	prefs, err := s.GetUserPreferences(userID)
 	if err != nil {
@@ -268,10 +226,6 @@ func (s *PreferencesService) GetLastActiveSession(userID uuid.UUID) (string, err
 // ==================== Saved Search Synchronization ====================
 
 // UpdateSavedSearch updates the saved search for cross-device synchronization
-// This should be called when:
-// - A user clicks "New Search" (to save current search)
-// - A user clears saved search
-// Pass nil to clear the saved search
 func (s *PreferencesService) UpdateSavedSearch(userID uuid.UUID, savedSearch *models.SavedSearch) error {
 	update := &models.UserPreferencesUpdate{
 		SavedSearch: savedSearch,
@@ -292,7 +246,6 @@ func (s *PreferencesService) UpdateSavedSearch(userID uuid.UUID, savedSearch *mo
 }
 
 // GetSavedSearch retrieves the saved search
-// Returns nil if no saved search exists
 func (s *PreferencesService) GetSavedSearch(userID uuid.UUID) (*models.SavedSearch, error) {
 	prefs, err := s.GetUserPreferences(userID)
 	if err != nil {
@@ -308,18 +261,139 @@ func (s *PreferencesService) GetSavedSearch(userID uuid.UUID) (*models.SavedSear
 
 // ==================== Helper Methods ====================
 
+// Convert Ent UserPreference to models.UserPreferences
+func convertEntPreferencesToModel(prefs *ent.UserPreference) *models.UserPreferences {
+	if prefs == nil {
+		return nil
+	}
+
+	var country, currency, language, theme *string
+	var sidebarOpen *bool
+	var lastActiveSessionID *string
+
+	if prefs.Country != nil {
+		country = prefs.Country
+	}
+	if prefs.Currency != nil {
+		currency = prefs.Currency
+	}
+	if prefs.Language != nil {
+		language = prefs.Language
+	}
+	if prefs.Theme != nil {
+		theme = prefs.Theme
+	}
+	if prefs.SidebarOpen != nil {
+		sidebarOpen = prefs.SidebarOpen
+	}
+	if prefs.LastActiveSessionID != nil {
+		lastActiveSessionID = prefs.LastActiveSessionID
+	}
+
+	// Convert saved_search from map to SavedSearch model
+	var savedSearch *models.SavedSearch
+	if prefs.SavedSearch != nil {
+		savedSearch = mapToSavedSearch(prefs.SavedSearch)
+	}
+
+	return &models.UserPreferences{
+		UserID:              prefs.UserID,
+		Country:             country,
+		Currency:            currency,
+		Language:            language,
+		Theme:               theme,
+		SidebarOpen:         sidebarOpen,
+		LastActiveSessionID: lastActiveSessionID,
+		SavedSearch:         savedSearch,
+		CreatedAt:           prefs.CreatedAt,
+		UpdatedAt:           prefs.UpdatedAt,
+	}
+}
+
+// Convert SavedSearch to map[string]interface{}
+func savedSearchToMap(ss *models.SavedSearch) map[string]interface{} {
+	if ss == nil {
+		return nil
+	}
+
+	messages := make([]interface{}, len(ss.Messages))
+	for i, msg := range ss.Messages {
+		messages[i] = map[string]interface{}{
+			"id":            msg.ID,
+			"role":          msg.Role,
+			"content":       msg.Content,
+			"timestamp":     msg.Timestamp,
+			"quick_replies": msg.QuickReplies,
+			"products":      msg.Products,
+			"search_type":   msg.SearchType,
+		}
+	}
+
+	return map[string]interface{}{
+		"session_id": ss.SessionID,
+		"category":   ss.Category,
+		"timestamp":  ss.Timestamp,
+		"messages":   messages,
+	}
+}
+
+// Convert map[string]interface{} to SavedSearch
+func mapToSavedSearch(m map[string]interface{}) *models.SavedSearch {
+	if m == nil {
+		return nil
+	}
+
+	ss := &models.SavedSearch{}
+
+	if v, ok := m["session_id"].(string); ok {
+		ss.SessionID = v
+	}
+	if v, ok := m["category"].(string); ok {
+		ss.Category = v
+	}
+	if v, ok := m["timestamp"].(float64); ok {
+		ss.Timestamp = int64(v)
+	}
+
+	if messagesRaw, ok := m["messages"].([]interface{}); ok {
+		ss.Messages = make([]models.SavedMessage, len(messagesRaw))
+		for i, msgRaw := range messagesRaw {
+			if msgMap, ok := msgRaw.(map[string]interface{}); ok {
+				msg := models.SavedMessage{}
+				if v, ok := msgMap["id"].(string); ok {
+					msg.ID = v
+				}
+				if v, ok := msgMap["role"].(string); ok {
+					msg.Role = v
+				}
+				if v, ok := msgMap["content"].(string); ok {
+					msg.Content = v
+				}
+				if v, ok := msgMap["timestamp"].(float64); ok {
+					msg.Timestamp = int64(v)
+				}
+				if v, ok := msgMap["search_type"].(string); ok {
+					msg.SearchType = v
+				}
+				// TODO: Handle quick_replies and products if needed
+				ss.Messages[i] = msg
+			}
+		}
+	}
+
+	return ss
+}
+
 // isForeignKeyError checks if an error is a PostgreSQL foreign key constraint violation
 func isForeignKeyError(err error) bool {
 	if err == nil {
 		return false
 	}
-	// PostgreSQL foreign key constraint error code is 23503
-	// Error message contains: "violates foreign key constraint"
 	errMsg := err.Error()
 	return contains(errMsg, "violates foreign key constraint") || contains(errMsg, "23503")
 }
 
-// contains checks if a string contains a substring (case-insensitive)
+// contains checks if a string contains a substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		(len(s) > 0 && len(substr) > 0 && stringContains(s, substr)))
@@ -335,7 +409,6 @@ func stringContains(s, substr string) bool {
 }
 
 // ensureUserExistsInPostgres fetches user from Redis and saves to PostgreSQL if missing
-// This handles the case where Redis has user data but PostgreSQL doesn't
 func (s *PreferencesService) ensureUserExistsInPostgres(userID uuid.UUID) error {
 	// Get user from Redis (via AuthService)
 	user, err := s.authService.GetUserByID(userID)
@@ -343,7 +416,7 @@ func (s *PreferencesService) ensureUserExistsInPostgres(userID uuid.UUID) error 
 		return fmt.Errorf("failed to fetch user from Redis: %w", err)
 	}
 
-	// Save user to PostgreSQL (this uses ON CONFLICT to handle race conditions)
+	// Save user to PostgreSQL
 	if err := s.authService.SaveUserToPostgres(user); err != nil {
 		return fmt.Errorf("failed to save user to PostgreSQL: %w", err)
 	}

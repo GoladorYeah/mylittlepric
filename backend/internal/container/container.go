@@ -2,15 +2,19 @@ package container
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
 	"google.golang.org/genai"
 
+	"mylittleprice/ent"
 	"mylittleprice/internal/config"
 	"mylittleprice/internal/services"
 	"mylittleprice/internal/utils"
@@ -19,6 +23,8 @@ import (
 type Container struct {
 	Config *config.Config
 	DB     *sqlx.DB
+	EntDB  *sql.DB      // SQL DB for Ent
+	Ent    *ent.Client  // Ent ORM client
 	Redis  *redis.Client
 	ctx    context.Context
 
@@ -64,6 +70,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 }
 
 func (c *Container) initDatabase() error {
+	// Initialize sqlx DB (для существующего кода)
 	db, err := sqlx.Connect("postgres", c.Config.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
@@ -72,9 +79,30 @@ func (c *Container) initDatabase() error {
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
-
 	c.DB = db
-	log.Println("✅ Connected to PostgreSQL")
+
+	// Initialize Ent client
+	sqlDB, err := sql.Open("postgres", c.Config.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to open database for Ent: %w", err)
+	}
+
+	// Set connection pool settings for Ent DB
+	sqlDB.SetMaxOpenConns(25)
+	sqlDB.SetMaxIdleConns(5)
+	c.EntDB = sqlDB
+
+	// Create Ent client with the SQL driver
+	drv := entsql.OpenDB(dialect.Postgres, sqlDB)
+	entClient := ent.NewClient(ent.Driver(drv))
+
+	// Run auto migrations
+	if err := entClient.Schema.Create(c.ctx); err != nil {
+		log.Printf("⚠️ Failed to create Ent schema (tables may already exist): %v", err)
+	}
+
+	c.Ent = entClient
+	log.Println("✅ Connected to PostgreSQL (sqlx + Ent)")
 	return nil
 }
 
@@ -133,15 +161,16 @@ func (c *Container) initServices() error {
 	log.Println("🔑 Google OAuth Service initialized")
 
 	// Initialize Auth Service
-	c.AuthService = services.NewAuthService(c.DB, c.Redis, c.JWTService, c.GoogleOAuthService)
+	c.AuthService = services.NewAuthService(c.Ent, c.Redis, c.JWTService, c.GoogleOAuthService)
 	log.Println("🔑 Auth Service initialized")
 
 	c.SessionService = services.NewSessionService(
 		c.Redis,
-		c.DB,
+		c.Ent,
 		c.Config.SessionTTL,
 		c.Config.MaxMessagesPerSession,
 	)
+	c.SessionService.SetAuthService(c.AuthService)
 
 	apiKey, _, _ := c.GeminiRotator.GetNextKey()
 	geminiClient, _ := genai.NewClient(c.ctx, &genai.ClientConfig{
@@ -164,10 +193,10 @@ func (c *Container) initServices() error {
 
 	c.SerpService = services.NewSerpService(c.SerpRotator, c.Config)
 
-	c.SearchHistoryService = services.NewSearchHistoryService(c.DB)
+	c.SearchHistoryService = services.NewSearchHistoryService(c.Ent)
 	log.Println("📜 Search History Service initialized")
 
-	c.PreferencesService = services.NewPreferencesService(c.DB, c.AuthService)
+	c.PreferencesService = services.NewPreferencesService(c.Ent, c.AuthService)
 	log.Println("⚙️ Preferences Service initialized")
 
 	log.Println("✅ All services initialized")
@@ -177,6 +206,21 @@ func (c *Container) initServices() error {
 func (c *Container) Close() error {
 	log.Println("🛑 Shutting down container...")
 
+	// Close Ent client
+	if c.Ent != nil {
+		if err := c.Ent.Close(); err != nil {
+			log.Printf("⚠️ Failed to close Ent client: %v", err)
+		}
+	}
+
+	// Close EntDB connection
+	if c.EntDB != nil {
+		if err := c.EntDB.Close(); err != nil {
+			log.Printf("⚠️ Failed to close Ent database: %v", err)
+		}
+	}
+
+	// Close sqlx DB
 	if c.DB != nil {
 		if err := c.DB.Close(); err != nil {
 			log.Printf("⚠️ Failed to close database: %v", err)

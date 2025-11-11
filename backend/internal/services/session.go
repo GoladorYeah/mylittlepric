@@ -2,22 +2,24 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
 
+	"mylittleprice/ent"
+	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/user"
 	"mylittleprice/internal/constants"
 	"mylittleprice/internal/models"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 )
 
 type SessionService struct {
 	redis              *redis.Client
-	db                 *sqlx.DB
+	client             *ent.Client
+	authService        *AuthService
 	ctx                context.Context
 	ttl                time.Duration
 	maxMsgs            int
@@ -25,16 +27,22 @@ type SessionService struct {
 	universalPromptMgr *UniversalPromptManager
 }
 
-func NewSessionService(redisClient *redis.Client, db *sqlx.DB, sessionTTL int, maxMessages int) *SessionService {
+func NewSessionService(redisClient *redis.Client, client *ent.Client, sessionTTL int, maxMessages int) *SessionService {
 	return &SessionService{
 		redis:              redisClient,
-		db:                 db,
+		client:             client,
+		authService:        nil, // Will be set later via SetAuthService
 		ctx:                context.Background(),
 		ttl:                time.Duration(sessionTTL) * time.Second,
 		maxMsgs:            maxMessages,
 		maxSearches:        999999,
 		universalPromptMgr: NewUniversalPromptManager(),
 	}
+}
+
+// SetAuthService sets the AuthService (used to avoid circular dependency)
+func (s *SessionService) SetAuthService(authService *AuthService) {
+	s.authService = authService
 }
 
 func (s *SessionService) CreateSession(sessionID, country, language, currency string) (*models.ChatSession, error) {
@@ -110,23 +118,20 @@ func (s *SessionService) GetSession(sessionID string) (*models.ChatSession, erro
 	return session, nil
 }
 
-// getSessionFromDB retrieves session from PostgreSQL
+// getSessionFromDB retrieves session from PostgreSQL using Ent
 func (s *SessionService) getSessionFromDB(sessionID string) (*models.ChatSession, error) {
-	var session models.ChatSession
+	entSession, err := s.client.ChatSession.Query().
+		Where(chatsession.SessionIDEQ(sessionID)).
+		Only(s.ctx)
 
-	query := `SELECT id, session_id, user_id, country_code, language_code, currency, message_count,
-	          search_state, cycle_state, conversation_context, created_at, updated_at, expires_at
-	          FROM chat_sessions WHERE session_id = $1`
-
-	err := s.db.Get(&session, query, sessionID)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("session not found in database")
-	}
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, fmt.Errorf("session not found in database")
+		}
 		return nil, fmt.Errorf("failed to get session from database: %w", err)
 	}
 
-	return &session, nil
+	return convertEntSessionToModel(entSession)
 }
 
 // saveSessionToRedis saves session to Redis only
@@ -146,65 +151,105 @@ func (s *SessionService) saveSessionToRedis(session *models.ChatSession) error {
 	return nil
 }
 
-// saveSessionToDB saves or updates session in PostgreSQL
+// saveSessionToDB saves or updates session in PostgreSQL using Ent
 func (s *SessionService) saveSessionToDB(session *models.ChatSession) error {
-	query := `INSERT INTO chat_sessions
-	          (id, session_id, user_id, country_code, language_code, currency, message_count,
-	           search_state, cycle_state, conversation_context, created_at, updated_at, expires_at)
-	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-	          ON CONFLICT (session_id) DO UPDATE SET
-	            user_id = EXCLUDED.user_id,
-	            country_code = EXCLUDED.country_code,
-	            language_code = EXCLUDED.language_code,
-	            currency = EXCLUDED.currency,
-	            message_count = EXCLUDED.message_count,
-	            search_state = EXCLUDED.search_state,
-	            cycle_state = EXCLUDED.cycle_state,
-	            conversation_context = EXCLUDED.conversation_context,
-	            updated_at = EXCLUDED.updated_at,
-	            expires_at = EXCLUDED.expires_at`
-
-	// Convert structs to JSONB
-	searchStateJSON, err := json.Marshal(session.SearchState)
-	if err != nil {
-		return fmt.Errorf("failed to marshal search_state: %w", err)
-	}
-
-	cycleStateJSON, err := json.Marshal(session.CycleState)
-	if err != nil {
-		return fmt.Errorf("failed to marshal cycle_state: %w", err)
-	}
-
-	// Handle conversation_context as nullable JSONB
-	var conversationContextParam interface{}
-	if session.ConversationContext != nil {
-		conversationContextJSON, err := json.Marshal(session.ConversationContext)
-		if err != nil {
-			return fmt.Errorf("failed to marshal conversation_context: %w", err)
+	// If session has a user_id, ensure user exists in PostgreSQL first
+	if session.UserID != nil {
+		if err := s.ensureUserExistsInPostgres(*session.UserID); err != nil {
+			return fmt.Errorf("failed to ensure user exists: %w", err)
 		}
-		conversationContextParam = conversationContextJSON
-	} else {
-		conversationContextParam = nil
 	}
 
-	_, err = s.db.Exec(query,
-		session.ID,
-		session.SessionID,
-		session.UserID,
-		session.CountryCode,
-		session.LanguageCode,
-		session.Currency,
-		session.MessageCount,
-		searchStateJSON,
-		cycleStateJSON,
-		conversationContextParam,
-		session.CreatedAt,
-		session.UpdatedAt,
-		session.ExpiresAt,
-	)
+	// Convert SearchState to map
+	searchStateMap, err := structToMap(session.SearchState)
+	if err != nil {
+		return fmt.Errorf("failed to convert search_state: %w", err)
+	}
+
+	// Convert CycleState to map
+	cycleStateMap, err := structToMap(session.CycleState)
+	if err != nil {
+		return fmt.Errorf("failed to convert cycle_state: %w", err)
+	}
+
+	// Convert ConversationContext to map (if present)
+	var conversationContextMap map[string]interface{}
+	if session.ConversationContext != nil {
+		conversationContextMap, err = structToMap(session.ConversationContext)
+		if err != nil {
+			return fmt.Errorf("failed to convert conversation_context: %w", err)
+		}
+	}
+
+	// Check if session exists
+	exists, err := s.client.ChatSession.Query().
+		Where(chatsession.SessionIDEQ(session.SessionID)).
+		Exist(s.ctx)
 
 	if err != nil {
-		return fmt.Errorf("failed to save session to database: %w", err)
+		return fmt.Errorf("failed to check session existence: %w", err)
+	}
+
+	if exists {
+		// Update existing session
+		updateBuilder := s.client.ChatSession.Update().
+			Where(chatsession.SessionIDEQ(session.SessionID)).
+			SetCountryCode(session.CountryCode).
+			SetLanguageCode(session.LanguageCode).
+			SetCurrency(session.Currency).
+			SetMessageCount(session.MessageCount).
+			SetSearchState(searchStateMap).
+			SetCycleState(cycleStateMap).
+			SetUpdatedAt(session.UpdatedAt).
+			SetExpiresAt(session.ExpiresAt)
+
+		// Set optional user_id
+		if session.UserID != nil {
+			updateBuilder.SetUserID(*session.UserID)
+		} else {
+			updateBuilder.ClearUserID()
+		}
+
+		// Set optional conversation_context
+		if conversationContextMap != nil {
+			updateBuilder.SetConversationContext(conversationContextMap)
+		} else {
+			updateBuilder.ClearConversationContext()
+		}
+
+		_, err = updateBuilder.Save(s.ctx)
+		if err != nil {
+			return fmt.Errorf("failed to update session: %w", err)
+		}
+	} else {
+		// Create new session
+		createBuilder := s.client.ChatSession.Create().
+			SetID(session.ID).
+			SetSessionID(session.SessionID).
+			SetCountryCode(session.CountryCode).
+			SetLanguageCode(session.LanguageCode).
+			SetCurrency(session.Currency).
+			SetMessageCount(session.MessageCount).
+			SetSearchState(searchStateMap).
+			SetCycleState(cycleStateMap).
+			SetCreatedAt(session.CreatedAt).
+			SetUpdatedAt(session.UpdatedAt).
+			SetExpiresAt(session.ExpiresAt)
+
+		// Set optional user_id
+		if session.UserID != nil {
+			createBuilder.SetUserID(*session.UserID)
+		}
+
+		// Set optional conversation_context
+		if conversationContextMap != nil {
+			createBuilder.SetConversationContext(conversationContextMap)
+		}
+
+		_, err = createBuilder.Save(s.ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create session: %w", err)
+		}
 	}
 
 	return nil
@@ -476,32 +521,37 @@ func (s *SessionService) AddToCycleHistory(sessionID, role, content string) erro
 // GetActiveSessionForUser returns the most recent active session for a user
 // Returns nil if no active session found (not an error - user can start a new session)
 func (s *SessionService) GetActiveSessionForUser(userID uuid.UUID) (*models.ChatSession, error) {
-	var session models.ChatSession
-
 	// Get most recent session for this user that hasn't expired
 	// Order by updated_at DESC to get the latest active session
-	query := `SELECT id, session_id, user_id, country_code, language_code, currency, message_count,
-	          search_state, cycle_state, conversation_context, created_at, updated_at, expires_at
-	          FROM chat_sessions
-	          WHERE user_id = $1 AND expires_at > NOW()
-	          ORDER BY updated_at DESC
-	          LIMIT 1`
+	entSession, err := s.client.ChatSession.Query().
+		Where(
+			chatsession.And(
+				chatsession.UserIDEQ(userID),
+				chatsession.ExpiresAtGT(time.Now()),
+			),
+		).
+		Order(ent.Desc(chatsession.FieldUpdatedAt)).
+		First(s.ctx)
 
-	err := s.db.Get(&session, query, userID)
-	if err == sql.ErrNoRows {
-		// No active session found - this is OK, user can start fresh
-		return nil, nil
-	}
 	if err != nil {
+		if ent.IsNotFound(err) {
+			// No active session found - this is OK, user can start fresh
+			return nil, nil
+		}
 		return nil, fmt.Errorf("failed to get active session for user: %w", err)
 	}
 
+	session, err := convertEntSessionToModel(entSession)
+	if err != nil {
+		return nil, err
+	}
+
 	// Update Redis cache for faster subsequent access
-	if err := s.saveSessionToRedis(&session); err != nil {
+	if err := s.saveSessionToRedis(session); err != nil {
 		fmt.Printf("⚠️ Failed to cache active session to Redis: %v\n", err)
 	}
 
-	return &session, nil
+	return session, nil
 }
 
 // GetSessionWithOngoingSearch returns a specific session if it has an ongoing search
@@ -545,4 +595,122 @@ func (s *SessionService) LinkSessionToUser(sessionID string, userID uuid.UUID) e
 	// Session exists - link it to the user
 	session.UserID = &userID
 	return s.UpdateSession(session)
+}
+
+// ensureUserExistsInPostgres checks if user exists in PostgreSQL and syncs from Redis if needed
+// This prevents foreign key constraint violations when creating sessions for authenticated users
+func (s *SessionService) ensureUserExistsInPostgres(userID uuid.UUID) error {
+	if s.authService == nil {
+		return fmt.Errorf("authService not set in SessionService")
+	}
+
+	// Check if user exists in PostgreSQL using Ent
+	exists, err := s.client.User.Query().
+		Where(user.IDEQ(userID)).
+		Exist(s.ctx)
+
+	if err != nil {
+		return fmt.Errorf("failed to check if user exists: %w", err)
+	}
+
+	if exists {
+		// User already exists in PostgreSQL
+		return nil
+	}
+
+	// User doesn't exist in PostgreSQL - sync from Redis
+	fmt.Printf("⚠️ User %s not found in PostgreSQL, syncing from Redis...\n", userID.String())
+
+	userModel, err := s.authService.GetUserByID(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user from Redis: %w", err)
+	}
+
+	if err := s.authService.SaveUserToPostgres(userModel); err != nil {
+		return fmt.Errorf("failed to save user to PostgreSQL: %w", err)
+	}
+
+	fmt.Printf("✅ Synced user %s to PostgreSQL\n", userID.String())
+	return nil
+}
+
+// ==================== Helper Functions ====================
+
+// convertEntSessionToModel converts Ent ChatSession to models.ChatSession
+func convertEntSessionToModel(entSession *ent.ChatSession) (*models.ChatSession, error) {
+	if entSession == nil {
+		return nil, nil
+	}
+
+	// Convert search_state from map to SearchState
+	var searchState models.SearchState
+	if entSession.SearchState != nil {
+		if err := mapToStruct(entSession.SearchState, &searchState); err != nil {
+			return nil, fmt.Errorf("failed to convert search_state: %w", err)
+		}
+	}
+
+	// Convert cycle_state from map to CycleState
+	var cycleState models.CycleState
+	if entSession.CycleState != nil {
+		if err := mapToStruct(entSession.CycleState, &cycleState); err != nil {
+			return nil, fmt.Errorf("failed to convert cycle_state: %w", err)
+		}
+	}
+
+	// Convert conversation_context from map to ConversationContext (if present)
+	var conversationContext *models.ConversationContext
+	if entSession.ConversationContext != nil {
+		conversationContext = &models.ConversationContext{}
+		if err := mapToStruct(entSession.ConversationContext, conversationContext); err != nil {
+			return nil, fmt.Errorf("failed to convert conversation_context: %w", err)
+		}
+	}
+
+	// Convert user_id
+	var userID *uuid.UUID
+	if entSession.UserID != uuid.Nil {
+		userID = &entSession.UserID
+	}
+
+	return &models.ChatSession{
+		ID:                  entSession.ID,
+		SessionID:           entSession.SessionID,
+		UserID:              userID,
+		CountryCode:         entSession.CountryCode,
+		LanguageCode:        entSession.LanguageCode,
+		Currency:            entSession.Currency,
+		MessageCount:        entSession.MessageCount,
+		SearchState:         searchState,
+		CycleState:          cycleState,
+		ConversationContext: conversationContext,
+		CreatedAt:           entSession.CreatedAt,
+		UpdatedAt:           entSession.UpdatedAt,
+		ExpiresAt:           entSession.ExpiresAt,
+	}, nil
+}
+
+// structToMap converts a struct to map[string]interface{} via JSON
+func structToMap(v interface{}) (map[string]interface{}, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// mapToStruct converts map[string]interface{} to a struct via JSON
+func mapToStruct(m map[string]interface{}, v interface{}) error {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(data, v)
 }

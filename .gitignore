@@ -1,44 +1,63 @@
+# ===================================
 # Environment variables
+# ===================================
 .env
 .env.local
 .env.*.local
+.env.production
 
-# Backend
+# ===================================
+# Backend (Go)
+# ===================================
 backend/.env
+backend/.env.local
+backend/.env.development
+
+# Build artifacts
 backend/main
-backend/tmp/
-backend/vendor/
-backend/bin/
+backend/api.exe
 backend/*.exe
 backend/*.dll
 backend/*.so
 backend/*.dylib
 backend/*.test
+backend/bin/
+backend/dist/
+backend/build/
+
+# Temporary files
+backend/tmp/
 backend/.cache
 backend/*.log
-backend/.env.local
-backend/.env.development
-backend/.DS_Store
-backend/Thumbs.db
+
+# Vendor (if not using Go modules)
+backend/vendor/
+
+# Test coverage
+backend/coverage/
+backend/*.out
+
+# Database files (local development)
+backend/*.db
+backend/*.sqlite
+
+# IDE specific
 backend/.vscode/
 backend/.idea/
 backend/*.swp
 backend/*.swo
-backend/.git
-backend/.gitignore
-backend/.gitattributes
-backend/*.db
-backend/*.sqlite
-backend/tmp/
-backend/.dockerignore
-backend/coverage/
-backend/*.out
-backend/dist/
-backend/build/
-backend/go.sum
-backend/go.mod
+backend/*~
 
-# Frontend
+# Docker (but keep .dockerignore)
+backend/.dockerignore
+
+# OS specific
+backend/.DS_Store
+backend/Thumbs.db
+
+# ===================================
+# Frontend (Next.js)
+# ===================================
 frontend/.next/
 frontend/out/
 frontend/node_modules/
@@ -47,11 +66,15 @@ frontend/.env.production.local
 frontend/.env.development.local
 frontend/.env.test.local
 
+# ===================================
+# Global ignores
+# ===================================
+
 # Logs
 *.log
 logs/
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
@@ -62,15 +85,6 @@ Thumbs.db
 *.swo
 *~
 
-# Database
-*.db
-*.sqlite
-
-# Docker
-# Don't ignore .dockerignore files
-# *.dockerignore
-.env.production
-
 # Test coverage
 coverage/
 *.out
@@ -78,4 +92,8 @@ coverage/
 # Build artifacts
 dist/
 build/
-bin/
+
+# Temporary files
+tmp/
+temp/
+nul
