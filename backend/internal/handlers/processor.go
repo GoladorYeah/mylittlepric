@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 
 	"mylittleprice/internal/container"
-	"mylittleprice/internal/metrics"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
 	"mylittleprice/internal/utils"
@@ -73,16 +72,11 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	defer func() {
 		// Record processing duration
 		duration := time.Since(start).Seconds()
-		metrics.MessageProcessingDuration.Observe(duration)
 
 		// Determine status based on response
 		if response != nil && response.Error != nil {
 			status = "error"
-			metrics.ErrorsTotal.WithLabelValues("processing", "processor").Inc()
 		}
-
-		// Record message processed
-		metrics.MessagesProcessedTotal.WithLabelValues(status).Inc()
 
 		utils.LogInfo(ctx, "message processing completed",
 			slog.String("session_id", req.SessionID),
