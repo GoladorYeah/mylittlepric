@@ -15,6 +15,7 @@ import (
 	"mylittleprice/internal/app"
 	"mylittleprice/internal/config"
 	"mylittleprice/internal/container"
+	"mylittleprice/internal/jobs"
 )
 
 func main() {
@@ -28,6 +29,11 @@ func main() {
 		log.Fatalf("Failed to initialize container: %v", err)
 	}
 	defer c.Close()
+
+	// Initialize and start cleanup job
+	cleanupJob := jobs.NewCleanupJob(c.SearchHistoryService)
+	cleanupJob.Start()
+	defer cleanupJob.Stop()
 
 	fiberApp := fiber.New(fiber.Config{
 		AppName:      "MyLittlePrice API",
@@ -80,6 +86,9 @@ func main() {
 	go func() {
 		<-quit
 		log.Println("🛑 Shutting down server...")
+
+		// Stop cleanup job first
+		cleanupJob.Stop()
 
 		if err := fiberApp.Shutdown(); err != nil {
 			log.Printf("❌ Server shutdown error: %v", err)

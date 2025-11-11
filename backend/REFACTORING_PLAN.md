@@ -106,17 +106,19 @@ backend/
 - `backend/internal/jobs/cleanup.go` (новый)
 - `backend/cmd/api/main.go`
 
+**Статус**: ✅ **ЗАВЕРШЕНО** (11 ноября 2025)
+
 **Проблема**:
 Функция `CleanupExpiredAnonymousHistory()` определена в `search_history_service.go:287`, но никогда не вызывается. Это приводит к бесконечному накоплению истории анонимных пользователей в БД.
 
 **Задачи**:
-- [ ] Создать новый пакет `backend/internal/jobs/`
-- [ ] Создать файл `cleanup.go` с CleanupJob
-- [ ] Реализовать ticker для запуска каждые 24 часа
-- [ ] Вызывать `SearchHistoryService.CleanupExpiredAnonymousHistory()`
-- [ ] Добавить логирование результатов (сколько записей удалено)
-- [ ] Запустить goroutine в `main.go`
-- [ ] Добавить graceful shutdown для cleanup job
+- [x] Создать новый пакет `backend/internal/jobs/`
+- [x] Создать файл `cleanup.go` с CleanupJob
+- [x] Реализовать ticker для запуска каждые 24 часа
+- [x] Вызывать `SearchHistoryService.CleanupExpiredAnonymousHistory()`
+- [x] Добавить логирование результатов (сколько записей удалено)
+- [x] Запустить goroutine в `main.go`
+- [x] Добавить graceful shutdown для cleanup job
 - [ ] Добавить метрики (опционально)
 
 **Пример кода**:
@@ -193,6 +195,13 @@ defer cleanupJob.Stop()
 - Автоматическая очистка старых данных каждые 24 часа
 - Предотвращение неограниченного роста таблицы `search_history`
 - Логи с информацией о количестве удаленных записей
+
+**Реализованные улучшения**:
+- ✅ Создан пакет `internal/jobs/` с CleanupJob
+- ✅ Cleanup запускается немедленно при старте приложения, затем каждые 24 часа
+- ✅ Добавлено подробное логирование: количество удаленных записей, время выполнения
+- ✅ Graceful shutdown: cleanup job корректно останавливается при завершении приложения
+- ✅ Context-based cancellation для безопасной остановки ticker
 
 ---
 
