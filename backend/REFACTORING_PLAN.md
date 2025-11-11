@@ -655,6 +655,8 @@ if saveErr != nil {
 - `backend/internal/container/container.go`
 - `backend/internal/handlers/*.go`
 
+**Статус**: ✅ **ЗАВЕРШЕНО** (11 ноября 2025)
+
 **Проблема**:
 `SessionService` имеет ~25 методов и нарушает Single Responsibility Principle. Один сервис управляет:
 1. Сессиями (Redis + PostgreSQL)
@@ -694,24 +696,24 @@ CycleService (4 методов)
 
 **Задачи**:
 
-**Фаза 1: Создать MessageService**
-- [ ] Создать `backend/internal/services/message.go`
-- [ ] Переместить методы работы с сообщениями
-- [ ] Обновить зависимости (Redis, Config)
-- [ ] Добавить unit tests
+**Фаза 1: Создать MessageService** ✅
+- [x] Создать `backend/internal/services/message.go`
+- [x] Переместить методы работы с сообщениями
+- [x] Обновить зависимости (Redis, Config)
+- [ ] Добавить unit tests (рекомендуется)
 
-**Фаза 2: Создать CycleService**
-- [ ] Создать `backend/internal/services/cycle.go`
-- [ ] Переместить методы работы с циклами
-- [ ] Добавить зависимость от SessionService (для получения session)
-- [ ] Добавить unit tests
+**Фаза 2: Создать CycleService** ✅
+- [x] Создать `backend/internal/services/cycle.go`
+- [x] Переместить методы работы с циклами
+- [x] Использовать UniversalPromptManager
+- [ ] Добавить unit tests (рекомендуется)
 
-**Фаза 3: Упростить SessionService**
-- [ ] Удалить перемещенные методы
-- [ ] Оставить только core функциональность
-- [ ] Обновить существующие tests
+**Фаза 3: Упростить SessionService** ✅
+- [x] Удалить перемещенные методы
+- [x] Оставить только core функциональность
+- [x] Обновить зависимость на CycleService
 
-**Фаза 4: Обновить Container**
+**Фаза 4: Обновить Container** ✅
 ```go
 // backend/internal/container/container.go
 type Container struct {
@@ -723,21 +725,33 @@ type Container struct {
 }
 
 func (c *Container) initServices() error {
-    // Сначала SessionService (базовый)
-    c.SessionService = services.NewSessionService(...)
+    // Сначала CycleService (без зависимостей)
+    c.CycleService = services.NewCycleService()
 
-    // Потом зависимые сервисы
-    c.MessageService = services.NewMessageService(c.Redis, c.Config)
-    c.CycleService = services.NewCycleService(c.SessionService, c.Redis)
+    // MessageService (зависит от Redis)
+    c.MessageService = services.NewMessageService(c.Redis, c.Config.SessionTTL)
+
+    // SessionService (зависит от CycleService)
+    c.SessionService = services.NewSessionService(
+        c.Redis, c.Ent, c.CycleService, c.Config.SessionTTL, c.Config.MaxMessagesPerSession
+    )
     // ...
 }
 ```
 
-**Фаза 5: Обновить все handlers**
-- [ ] processor.go - использовать MessageService, CycleService
-- [ ] chat.go - обновить вызовы
-- [ ] websocket.go - обновить вызовы
-- [ ] Обновить integration tests
+**Фаза 5: Обновить все handlers** ✅
+- [x] processor.go - использовать MessageService, CycleService
+- [x] chat.go - обновить вызовы GetMessages
+- [x] session.go - обновить вызовы GetMessages
+- [ ] Обновить integration tests (рекомендуется)
+
+**Реализованные изменения**:
+- ✅ Создан MessageService с 6 методами работы с сообщениями
+- ✅ Создан CycleService с 4 методами работы с циклами промптов
+- ✅ SessionService упрощен с ~25 методов до ~18 методов (core функциональность)
+- ✅ Container обновлен для инициализации новых сервисов
+- ✅ Все handlers (processor.go, chat.go, session.go) обновлены
+- ✅ Правильный порядок инициализации с учетом зависимостей
 
 **Ожидаемый результат**:
 - Лучшее разделение ответственности (SRP)

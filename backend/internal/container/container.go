@@ -35,6 +35,8 @@ type Container struct {
 	SerpService          *services.SerpService
 	CacheService         *services.CacheService
 	SessionService       *services.SessionService
+	MessageService       *services.MessageService
+	CycleService         *services.CycleService
 	GoogleOAuthService   *services.GoogleOAuthService
 	AuthService          *services.AuthService
 	SearchHistoryService *services.SearchHistoryService
@@ -151,13 +153,24 @@ func (c *Container) initServices() error {
 	c.AuthService = services.NewAuthService(c.Ent, c.Redis, c.JWTService, c.GoogleOAuthService)
 	log.Println("🔑 Auth Service initialized")
 
+	// Initialize CycleService (no dependencies)
+	c.CycleService = services.NewCycleService()
+	log.Println("🔄 Cycle Service initialized")
+
+	// Initialize MessageService (depends on Redis)
+	c.MessageService = services.NewMessageService(c.Redis, c.Config.SessionTTL)
+	log.Println("💬 Message Service initialized")
+
+	// Initialize SessionService (depends on CycleService)
 	c.SessionService = services.NewSessionService(
 		c.Redis,
 		c.Ent,
+		c.CycleService,
 		c.Config.SessionTTL,
 		c.Config.MaxMessagesPerSession,
 	)
 	c.SessionService.SetAuthService(c.AuthService)
+	log.Println("📦 Session Service initialized")
 
 	apiKey, _, _ := c.GeminiRotator.GetNextKey()
 	geminiClient, _ := genai.NewClient(c.ctx, &genai.ClientConfig{
