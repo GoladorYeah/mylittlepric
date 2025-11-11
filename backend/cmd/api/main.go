@@ -1,21 +1,25 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"mylittleprice/internal/app"
 	"mylittleprice/internal/config"
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/jobs"
+	"mylittleprice/internal/middleware"
+	"mylittleprice/internal/utils"
 )
 
 func main() {
@@ -24,16 +28,33 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// Initialize structured logger
+	utils.InitLogger(cfg.LogLevel, cfg.LogFormat)
+	logger := utils.GetLogger()
+	ctx := context.Background()
+
+	logger.Info("Starting MyLittlePrice Backend",
+		slog.String("version", "1.0.0"),
+		slog.String("env", cfg.Env),
+		slog.String("log_level", cfg.LogLevel),
+		slog.String("log_format", cfg.LogFormat),
+	)
+
 	c, err := container.NewContainer(cfg)
 	if err != nil {
-		log.Fatalf("Failed to initialize container: %v", err)
+		logger.Error("Failed to initialize container", err)
+		os.Exit(1)
 	}
 	defer c.Close()
+
+	logger.Info("Container initialized successfully")
 
 	// Initialize and start cleanup job
 	cleanupJob := jobs.NewCleanupJob(c.SearchHistoryService)
 	cleanupJob.Start()
 	defer cleanupJob.Stop()
+
+	logger.Info("Cleanup job started")
 
 	fiberApp := fiber.New(fiber.Config{
 		AppName:      "MyLittlePrice API",
@@ -42,10 +63,11 @@ func main() {
 	})
 
 	fiberApp.Use(recover.New())
-	fiberApp.Use(logger.New(logger.Config{
+	fiberApp.Use(fiberlogger.New(fiberlogger.Config{
 		Format:     "${time} | ${status} | ${latency} | ${method} ${path}\n",
 		TimeFormat: "15:04:05",
 	}))
+	fiberApp.Use(middleware.RequestContext())
 
 	// CORS configuration with dynamic origin validation
 	fiberApp.Use(cors.New(cors.Config{
@@ -55,15 +77,17 @@ func main() {
 				if origin == allowedOrigin {
 					// Log successful CORS validation in development
 					if cfg.Env == "development" {
-						log.Printf("✅ CORS allowed origin: %s", origin)
+						logger.Debug("CORS allowed origin", slog.String("origin", origin))
 					}
 					return true
 				}
 			}
 
 			// Always log rejected origins for debugging (even in production)
-			log.Printf("❌ CORS REJECTED - Origin: '%s' not in allowed list: %v", origin, cfg.CORSOrigins)
-			log.Printf("💡 Fix: Add '%s' to CORS_ORIGINS environment variable", origin)
+			logger.Warn("CORS rejected - origin not in allowed list",
+				slog.String("origin", origin),
+				slog.Any("allowed_origins", cfg.CORSOrigins),
+			)
 
 			return false
 		},
@@ -76,29 +100,32 @@ func main() {
 	app.SetupRoutes(fiberApp, c)
 
 	port := cfg.Port
-	log.Printf("🚀 Server starting on port %s", port)
-	log.Printf("🔒 Environment: %s", cfg.Env)
-	log.Printf("🌍 Allowed origins: %v", cfg.CORSOrigins)
+	logger.Info("Server starting",
+		slog.String("port", port),
+		slog.String("env", cfg.Env),
+		slog.Any("allowed_origins", cfg.CORSOrigins),
+	)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		<-quit
-		log.Println("🛑 Shutting down server...")
+		logger.Info("Shutting down server...")
 
 		// Stop cleanup job first
 		cleanupJob.Stop()
 
 		if err := fiberApp.Shutdown(); err != nil {
-			log.Printf("❌ Server shutdown error: %v", err)
+			utils.LogError(ctx, "Server shutdown error", err)
 		}
 
-		log.Println("✅ Server stopped gracefully")
+		logger.Info("Server stopped gracefully")
 	}()
 
 	if err := fiberApp.Listen(fmt.Sprintf(":%s", port)); err != nil {
-		log.Fatalf("❌ Failed to start server: %v", err)
+		logger.Error("Failed to start server", err)
+		os.Exit(1)
 	}
 }
 

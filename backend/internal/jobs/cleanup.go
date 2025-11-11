@@ -2,10 +2,11 @@ package jobs
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	"mylittleprice/internal/services"
+	"mylittleprice/internal/utils"
 )
 
 // CleanupJob handles periodic cleanup of expired anonymous search history
@@ -32,7 +33,7 @@ func (j *CleanupJob) Start() {
 	ticker := time.NewTicker(j.interval)
 	go func() {
 		// Run cleanup immediately on start
-		log.Println("🧹 Running initial cleanup...")
+		utils.LogInfo(j.ctx, "running initial cleanup")
 		j.runCleanup()
 
 		// Then run on schedule
@@ -42,12 +43,12 @@ func (j *CleanupJob) Start() {
 				j.runCleanup()
 			case <-j.ctx.Done():
 				ticker.Stop()
-				log.Println("🛑 Cleanup job ticker stopped")
+				utils.LogInfo(j.ctx, "cleanup job ticker stopped")
 				return
 			}
 		}
 	}()
-	log.Println("🧹 Cleanup job started (runs every 24h)")
+	utils.LogInfo(j.ctx, "cleanup job started", slog.Duration("interval", j.interval))
 }
 
 // runCleanup executes the cleanup operation
@@ -57,12 +58,19 @@ func (j *CleanupJob) runCleanup() {
 	duration := time.Since(startTime)
 
 	if err != nil {
-		log.Printf("❌ Cleanup job failed after %v: %v", duration, err)
+		utils.LogError(j.ctx, "cleanup job failed", err,
+			slog.Duration("duration", duration),
+		)
 	} else {
 		if count > 0 {
-			log.Printf("✅ Cleanup job completed in %v: %d records deleted", duration, count)
+			utils.LogInfo(j.ctx, "cleanup job completed",
+				slog.Duration("duration", duration),
+				slog.Int64("records_deleted", count),
+			)
 		} else {
-			log.Printf("✅ Cleanup job completed in %v: no expired records found", duration)
+			utils.LogInfo(j.ctx, "cleanup job completed - no expired records found",
+				slog.Duration("duration", duration),
+			)
 		}
 	}
 }
@@ -70,5 +78,5 @@ func (j *CleanupJob) runCleanup() {
 // Stop gracefully stops the cleanup job
 func (j *CleanupJob) Stop() {
 	j.cancel()
-	log.Println("🛑 Cleanup job stopped")
+	utils.LogInfo(j.ctx, "cleanup job stopped")
 }

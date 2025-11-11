@@ -2,8 +2,7 @@ package handlers
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -99,7 +98,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	// Handle new search
 	if req.NewSearch {
-		fmt.Printf("🔄 New search for session %s\n", req.SessionID)
+		utils.LogInfo(ctx, "new search started", slog.String("session_id", req.SessionID))
 		p.container.SessionService.StartNewSearchInMemory(session)
 	}
 
@@ -157,7 +156,10 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	for attempt := 0; attempt <= maxProcessingRetries; attempt++ {
 		if attempt > 0 {
-			log.Printf("🔄 Retry processing attempt %d/%d", attempt+1, maxProcessingRetries+1)
+			utils.LogInfo(ctx, "retry processing attempt",
+				slog.Int("attempt", attempt+1),
+				slog.Int("max_attempts", maxProcessingRetries+1),
+			)
 		}
 
 		geminiResponse, geminiErr = p.container.GeminiService.ProcessWithUniversalPrompt(
@@ -168,19 +170,24 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		// Success - break out of retry loop
 		if geminiErr == nil && geminiResponse != nil {
 			if attempt > 0 {
-				log.Printf("✅ Processing succeeded on retry attempt %d", attempt+1)
+				utils.LogInfo(ctx, "processing succeeded on retry",
+					slog.Int("attempt", attempt+1),
+				)
 			}
 			break
 		}
 
 		// Log the error
 		if geminiErr != nil {
-			log.Printf("❌ Gemini processing error (attempt %d/%d): %v", attempt+1, maxProcessingRetries+1, geminiErr)
+			utils.LogError(ctx, "gemini processing error", geminiErr,
+				slog.Int("attempt", attempt+1),
+				slog.Int("max_attempts", maxProcessingRetries+1),
+			)
 		}
 
 		// If this is the last attempt, use fallback response
 		if attempt == maxProcessingRetries {
-			log.Printf("⚠️ All processing attempts failed, using fallback response")
+			utils.LogWarn(ctx, "all processing attempts failed, using fallback response")
 
 			// Return helpful fallback response instead of error
 			return &ChatProcessorResponse{
@@ -208,12 +215,18 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	}
 
 	// Log the Gemini response for debugging
-	priceInfo := ""
-	if geminiResponse.MinPrice != nil || geminiResponse.MaxPrice != nil {
-		priceInfo = fmt.Sprintf(", price_range=%v-%v", geminiResponse.MinPrice, geminiResponse.MaxPrice)
+	logAttrs := []any{
+		slog.String("response_type", geminiResponse.ResponseType),
+		slog.String("category", geminiResponse.Category),
+		slog.String("search_phrase", geminiResponse.SearchPhrase),
 	}
-	fmt.Printf("📥 Gemini response: type=%s, category=%s, search_phrase=%s%s\n",
-		geminiResponse.ResponseType, geminiResponse.Category, geminiResponse.SearchPhrase, priceInfo)
+	if geminiResponse.MinPrice != nil {
+		logAttrs = append(logAttrs, slog.Any("min_price", geminiResponse.MinPrice))
+	}
+	if geminiResponse.MaxPrice != nil {
+		logAttrs = append(logAttrs, slog.Any("max_price", geminiResponse.MaxPrice))
+	}
+	utils.LogInfo(ctx, "gemini response received", logAttrs...)
 
 	// Update category
 	if geminiResponse.Category != "" {
@@ -242,22 +255,27 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	// Handle search (intermediate search for verification/grounding)
 	if geminiResponse.ResponseType == "search" {
-		priceRangeStr := ""
-		if geminiResponse.MinPrice != nil || geminiResponse.MaxPrice != nil {
-			priceRangeStr = fmt.Sprintf(", price_range=%v-%v", geminiResponse.MinPrice, geminiResponse.MaxPrice)
+		searchLogAttrs := []any{
+			slog.String("phrase", geminiResponse.SearchPhrase),
+			slog.String("search_type", geminiResponse.SearchType),
 		}
-		fmt.Printf("�� Search request detected: phrase='%s', type='%s'%s\n",
-			geminiResponse.SearchPhrase, geminiResponse.SearchType, priceRangeStr)
+		if geminiResponse.MinPrice != nil {
+			searchLogAttrs = append(searchLogAttrs, slog.Any("min_price", geminiResponse.MinPrice))
+		}
+		if geminiResponse.MaxPrice != nil {
+			searchLogAttrs = append(searchLogAttrs, slog.Any("max_price", geminiResponse.MaxPrice))
+		}
+		utils.LogInfo(ctx, "search request detected", searchLogAttrs...)
 
 		// Validate search phrase
 		if geminiResponse.SearchPhrase == "" {
-			fmt.Printf("⚠️ Empty search phrase in search request\n")
+			utils.LogWarn(ctx, "empty search phrase in search request")
 			response.Output = "I need more details about what product you're looking for. Could you be more specific?"
 			response.Type = "dialogue"
 		} else {
 			products, translatedQuery, searchErr := p.performSearch(geminiResponse, req.Country, req.Language)
 			if searchErr != nil {
-				log.Printf("⚠️ Search failed: %v", searchErr)
+				utils.LogWarn(ctx, "search failed", slog.Any("error", searchErr))
 				response.Output = "Sorry, I couldn't find any products. Please try different keywords."
 				response.Type = "text"
 			} else if len(products) > 0 {
@@ -297,19 +315,21 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	// Handle api_request (final product search to complete cycle)
 	if geminiResponse.ResponseType == "api_request" {
-		fmt.Printf("🎯 API request detected: api='%s', params=%+v\n",
-			geminiResponse.API, geminiResponse.Params)
+		utils.LogInfo(ctx, "API request detected",
+			slog.String("api", geminiResponse.API),
+			slog.Any("params", geminiResponse.Params),
+		)
 
 		if geminiResponse.API == "google_shopping" && geminiResponse.Params != nil {
 			// Extract query from params
 			query, ok := geminiResponse.Params["q"].(string)
 			if !ok || query == "" {
-				fmt.Printf("⚠️ Missing or invalid 'q' parameter in api_request\n")
+				utils.LogWarn(ctx, "missing or invalid 'q' parameter in api_request")
 				response.Output = "I need more details about what product you're looking for. Could you be more specific?"
 				response.Type = "dialogue"
 			} else {
 				// Perform the final search
-				fmt.Printf("🛍️ Final product search: '%s'\n", query)
+				utils.LogInfo(ctx, "final product search", slog.String("query", query))
 
 				// Create a temporary GeminiResponse for search
 				searchResp := &models.GeminiResponse{
@@ -321,7 +341,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 				products, translatedQuery, searchErr := p.performSearch(searchResp, req.Country, req.Language)
 				if searchErr != nil {
-					log.Printf("⚠️ Final search failed: %v", searchErr)
+					utils.LogWarn(ctx, "final search failed", slog.Any("error", searchErr))
 					response.Output = "Sorry, I couldn't find any products. Please try different keywords."
 					response.Type = "text"
 				} else if len(products) > 0 {
@@ -357,14 +377,14 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 					// Save search history
 					p.saveSearchHistory(req, session, searchResp, translatedQuery, products)
 
-					fmt.Printf("✅ Cycle completed with %d products\n", len(products))
+					utils.LogInfo(ctx, "cycle completed", slog.Int("product_count", len(products)))
 				} else {
 					response.Output = "I couldn't find that exact product. Would you like to see similar alternatives?"
 					response.Type = "dialogue"
 				}
 			}
 		} else {
-			fmt.Printf("⚠️ Unsupported API: %s\n", geminiResponse.API)
+			utils.LogWarn(ctx, "unsupported API", slog.String("api", geminiResponse.API))
 			response.Output = "I encountered an error processing your request. Please try again."
 			response.Type = "dialogue"
 		}
@@ -372,7 +392,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	// Save assistant message (now with products if it was a search)
 	if err := p.container.MessageService.AddMessageInMemory(session, assistantMessage); err != nil {
-		log.Printf("⚠️ WARNING: Failed to store assistant message (non-critical): %v", err)
+		utils.LogWarn(ctx, "failed to store assistant message (non-critical)", slog.Any("error", err))
 		// This is not critical - the session will still be saved with other state
 	}
 
@@ -384,12 +404,12 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	contextOptimizer := p.container.GeminiService.GetContextOptimizer()
 
 	if contextOptimizer.ShouldUpdateContext(session) {
-		fmt.Printf("🧠 Updating conversation context...\n")
+		utils.LogInfo(ctx, "updating conversation context")
 		if err := contextExtractor.UpdateConversationContext(session, session.CycleState.CycleHistory); err != nil {
-			log.Printf("⚠️ WARNING: Failed to update conversation context (non-critical): %v", err)
+			utils.LogWarn(ctx, "failed to update conversation context (non-critical)", slog.Any("error", err))
 			// This is not critical - conversation will continue with existing context
 		} else {
-			fmt.Printf("✅ Conversation context updated successfully\n")
+			utils.LogInfo(ctx, "conversation context updated successfully")
 		}
 		// Context is updated in-memory, will be saved at the end
 	}
@@ -399,7 +419,9 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	shouldStartNewCycle := p.container.CycleService.IncrementCycleIterationInMemory(session)
 
 	if shouldStartNewCycle {
-		fmt.Printf("🔄 Iteration limit reached (%d), starting new cycle\n", services.MaxIterations)
+		utils.LogInfo(ctx, "iteration limit reached, starting new cycle",
+			slog.Int("max_iterations", services.MaxIterations),
+		)
 
 		// Collect products from last cycle
 		products := []models.ProductInfo{}
@@ -427,7 +449,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	}, retryConfig)
 
 	if saveErr != nil {
-		log.Printf("❌ CRITICAL: Failed to save session after retries: %v", saveErr)
+		utils.LogError(ctx, "CRITICAL: failed to save session after retries", saveErr)
 		// This is critical - session state is lost!
 		// Return error to client so they know something went wrong
 		return &ChatProcessorResponse{
@@ -464,7 +486,9 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 		session, err = p.container.SessionService.GetSession(req.SessionID)
 		if err != nil {
 			// Session not found - create new one with the SAME ID
-			fmt.Printf("⚠️ Session %s not found in Redis, creating new session with same ID\n", req.SessionID)
+			utils.LogInfo(context.Background(), "session not found in Redis, creating new session with same ID",
+				slog.String("session_id", req.SessionID),
+			)
 			session, err = p.container.SessionService.CreateSessionWithUser(req.SessionID, req.Country, req.Language, req.Currency, req.UserID)
 			if err != nil {
 				return nil, err
@@ -475,25 +499,36 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 
 			// Update user_id if provided and different (user logged in)
 			if req.UserID != nil && (session.UserID == nil || *session.UserID != *req.UserID) {
-				fmt.Printf("👤 Linking session to user: %s\n", req.UserID.String())
+				utils.LogInfo(context.Background(), "linking session to user",
+					slog.String("user_id", req.UserID.String()),
+				)
 				session.UserID = req.UserID
 			}
 
 			// Update language if changed and not empty
 			if req.Language != "" && req.Language != session.LanguageCode {
-				fmt.Printf("🗣️ Updating session language from %s to %s\n", session.LanguageCode, req.Language)
+				utils.LogInfo(context.Background(), "updating session language",
+					slog.String("from", session.LanguageCode),
+					slog.String("to", req.Language),
+				)
 				session.LanguageCode = req.Language
 			}
 
 			// Update currency if changed and not empty
 			if req.Currency != "" && req.Currency != session.Currency {
-				fmt.Printf("💱 Updating session currency from %s to %s\n", session.Currency, req.Currency)
+				utils.LogInfo(context.Background(), "updating session currency",
+					slog.String("from", session.Currency),
+					slog.String("to", req.Currency),
+				)
 				session.Currency = req.Currency
 			}
 
 			// Update country if changed and not empty
 			if req.Country != "" && req.Country != session.CountryCode {
-				fmt.Printf("🌍 Updating session country from %s to %s\n", session.CountryCode, req.Country)
+				utils.LogInfo(context.Background(), "updating session country",
+					slog.String("from", session.CountryCode),
+					slog.String("to", req.Country),
+				)
 				session.CountryCode = req.Country
 			}
 
@@ -519,25 +554,33 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 
 // performSearch executes product search with translation
 func (p *ChatProcessor) performSearch(geminiResp *models.GeminiResponse, country, language string) ([]models.ProductCard, string, error) {
+	ctx := context.Background()
+
 	// Translate query to English for better search results
-	fmt.Printf("🔤 Translation check: '%s'\n", geminiResp.SearchPhrase)
+	utils.LogInfo(ctx, "translation check", slog.String("search_phrase", geminiResp.SearchPhrase))
 
 	translatedQuery, err := p.container.GeminiService.TranslateToEnglish(geminiResp.SearchPhrase)
 	if err != nil {
-		fmt.Printf("⚠️ Translation failed: %v, using original query\n", err)
+		utils.LogWarn(ctx, "translation failed, using original query", slog.Any("error", err))
 		translatedQuery = geminiResp.SearchPhrase
 	} else if translatedQuery != geminiResp.SearchPhrase {
-		fmt.Printf("🌐 Translated: '%s' → '%s'\n", geminiResp.SearchPhrase, translatedQuery)
+		utils.LogInfo(ctx, "query translated",
+			slog.String("original", geminiResp.SearchPhrase),
+			slog.String("translated", translatedQuery),
+		)
 	} else {
-		fmt.Printf("✓ Query already in English: '%s'\n", translatedQuery)
+		utils.LogInfo(ctx, "query already in English", slog.String("query", translatedQuery))
 	}
 
 	// Log price range if provided
 	if geminiResp.MinPrice != nil || geminiResp.MaxPrice != nil {
-		fmt.Printf("💰 Price range: %v - %v\n", geminiResp.MinPrice, geminiResp.MaxPrice)
+		utils.LogInfo(ctx, "price range specified",
+			slog.Any("min_price", geminiResp.MinPrice),
+			slog.Any("max_price", geminiResp.MaxPrice),
+		)
 	}
 
-	fmt.Printf("📤 Sending to SERP: '%s'\n", translatedQuery)
+	utils.LogInfo(ctx, "sending to SERP", slog.String("query", translatedQuery))
 
 	products, _, err := p.container.SerpService.SearchWithCache(
 		translatedQuery,
@@ -587,9 +630,12 @@ func (p *ChatProcessor) saveSearchHistory(req *ChatRequest, session *models.Chat
 	go func() {
 		ctx := context.Background()
 		if err := p.container.SearchHistoryService.SaveSearchHistory(ctx, history); err != nil {
-			log.Printf("⚠️ Failed to save search history: %v", err)
+			utils.LogWarn(ctx, "failed to save search history", slog.Any("error", err))
 		} else {
-			log.Printf("📜 Search history saved: '%s' (%d results)", geminiResp.SearchPhrase, len(products))
+			utils.LogInfo(ctx, "search history saved",
+				slog.String("search_query", geminiResp.SearchPhrase),
+				slog.Int("result_count", len(products)),
+			)
 		}
 	}()
 }
