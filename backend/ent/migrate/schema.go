@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -35,6 +36,23 @@ var (
 				Columns:    []*schema.Column{ChatSessionsColumns[12]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "chatsession_user_id_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatSessionsColumns[12], ChatSessionsColumns[11]},
+			},
+			{
+				Name:    "chatsession_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatSessionsColumns[11]},
+			},
+			{
+				Name:    "chatsession_session_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChatSessionsColumns[1]},
 			},
 		},
 	}
@@ -95,6 +113,26 @@ var (
 				OnDelete:   schema.SetNull,
 			},
 		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "searchhistory_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SearchHistoriesColumns[14], SearchHistoriesColumns[12]},
+			},
+			{
+				Name:    "searchhistory_session_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SearchHistoriesColumns[1], SearchHistoriesColumns[12]},
+			},
+			{
+				Name:    "searchhistory_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{SearchHistoriesColumns[13]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "user_id IS NULL",
+				},
+			},
+		},
 	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
@@ -114,6 +152,18 @@ var (
 		Name:       "users",
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "user_email",
+				Unique:  false,
+				Columns: []*schema.Column{UsersColumns[1]},
+			},
+			{
+				Name:    "user_provider_google_id",
+				Unique:  false,
+				Columns: []*schema.Column{UsersColumns[6], UsersColumns[3]},
+			},
+		},
 	}
 	// UserPreferencesColumns holds the columns for the "user_preferences" table.
 	UserPreferencesColumns = []*schema.Column{
