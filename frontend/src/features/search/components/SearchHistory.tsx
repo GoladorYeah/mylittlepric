@@ -77,17 +77,6 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
 
   return (
     <>
-      {/* Mobile Toggle Button - Only when sidebar closed on mobile */}
-      <button
-        onClick={toggleSidebar}
-        className={`fixed left-4 top-4 z-50 bg-primary text-primary-foreground p-2 rounded-lg shadow-lg hover:opacity-90 transition-opacity duration-300 cursor-pointer lg:hidden ${
-          isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
-        }`}
-        aria-label="Open sidebar"
-      >
-        <PanelLeft className="w-5 h-5" />
-      </button>
-
       {/* Sidebar Panel */}
       <div
         className={`fixed left-0 top-0 bottom-0 backdrop-blur-xl border-r border-border shadow-2xl transform transition-[width,transform,background-color] duration-300 ease-in-out z-40 will-change-[width,transform] ${
