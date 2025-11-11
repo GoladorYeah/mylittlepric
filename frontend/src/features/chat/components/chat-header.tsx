@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw, Wifi, WifiOff, Coins } from "lucide-react";
+import { RotateCcw, Wifi, WifiOff, Coins, PanelLeft } from "lucide-react";
 
 import { Logo } from "@/shared/components/ui";
 import { UserMenu } from "@/features/auth";
@@ -19,12 +19,22 @@ export function ChatHeader({
   connectionStatus,
   onNewSearch,
 }: ChatHeaderProps) {
-  const { currency, country } = useChatStore();
+  const { currency, country, isSidebarOpen, toggleSidebar } = useChatStore();
 
   return (
     <header className="border-b border-border bg-background sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {/* Mobile Sidebar Toggle Button */}
+          <button
+            onClick={toggleSidebar}
+            className={`p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity lg:hidden ${
+              isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
+            aria-label="Open sidebar"
+          >
+            <PanelLeft className="w-5 h-5" />
+          </button>
           <Logo className="h-6 md:h-8" width={84.24} height={32} />
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
