@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v9/maintnotifications"
 	"google.golang.org/genai"
 
 	"mylittleprice/internal/config"
@@ -82,6 +83,10 @@ func (c *Container) initRedis() error {
 		Addr:     c.Config.RedisURL,
 		Password: c.Config.RedisPassword,
 		DB:       c.Config.RedisDB,
+		// Disable maintenance notifications (only needed for Redis Enterprise/Cloud)
+		MaintNotificationsConfig: &maintnotifications.Config{
+			Mode: maintnotifications.ModeDisabled,
+		},
 	})
 
 	if err := c.Redis.Ping(c.ctx).Err(); err != nil {

@@ -527,12 +527,22 @@ func (s *SessionService) GetSessionWithOngoingSearch(sessionID string) (*models.
 }
 
 // LinkSessionToUser links an existing session to a user (for when anonymous user logs in)
+// If the session doesn't exist, creates a new one with default preferences
 func (s *SessionService) LinkSessionToUser(sessionID string, userID uuid.UUID) error {
 	session, err := s.GetSession(sessionID)
 	if err != nil {
-		return err
+		// Session doesn't exist on backend - create it with default settings
+		fmt.Printf("📝 Session %s not found, creating new session for user %s\n", sessionID, userID.String())
+
+		// Use default locale settings (can be updated later via preferences)
+		_, err := s.CreateSessionWithUser(sessionID, "US", "en", "USD", &userID)
+		if err != nil {
+			return fmt.Errorf("failed to create session for user: %w", err)
+		}
+		return nil
 	}
 
+	// Session exists - link it to the user
 	session.UserID = &userID
 	return s.UpdateSession(session)
 }
