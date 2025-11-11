@@ -46,8 +46,9 @@ func (h *HealthHandler) Readiness(c *fiber.Ctx) error {
 	checks := make(map[string]Check)
 	healthy := true
 
-	// Check PostgreSQL
-	if err := h.container.Ent.DB().PingContext(ctx); err != nil {
+	// Check PostgreSQL via Ent
+	_, err := h.container.Ent.User.Query().Limit(1).Count(ctx)
+	if err != nil {
 		checks["postgresql"] = Check{Status: "unhealthy", Message: err.Error()}
 		healthy = false
 	} else {
@@ -86,8 +87,9 @@ func (h *HealthHandler) Health(c *fiber.Ctx) error {
 	checks := make(map[string]Check)
 	healthy := true
 
-	// Check PostgreSQL
-	if err := h.container.Ent.DB().PingContext(ctx); err != nil {
+	// Check PostgreSQL via Ent
+	_, err := h.container.Ent.User.Query().Limit(1).Count(ctx)
+	if err != nil {
 		checks["postgresql"] = Check{Status: "unhealthy", Message: err.Error()}
 		healthy = false
 	} else {
