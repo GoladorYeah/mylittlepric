@@ -7,6 +7,7 @@ import { generateId } from "@/shared/lib";
 import { SearchHistory } from "@/features/search";
 import { ChatMessages } from "./chat-messages";
 import { ChatInput } from "./chat-input";
+import { ChatHeader } from "./chat-header";
 import { SavedSearchPrompt } from "./SavedSearchPrompt";
 
 
@@ -64,6 +65,13 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
           isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
         }`}
       >
+        {/* Mobile Header */}
+        <ChatHeader
+          isConnected={isConnected}
+          connectionStatus={connectionStatus}
+          onNewSearch={handleNewSearch}
+        />
+
         {/* Saved Search Prompt - shown when user returns to app with incomplete search */}
         {showSavedSearchPrompt ? (
           <SavedSearchPrompt
