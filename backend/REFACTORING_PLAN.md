@@ -1222,20 +1222,20 @@ LOG_FORMAT=json # json, text
 **Сложность**: Низкая (1-2 часа)
 **Файлы**:
 - `backend/internal/container/container.go`
+- `backend/internal/config/config.go`
 - `backend/go.mod`
+
+**Статус**: ✅ **ЗАВЕРШЕНО** (11 ноября 2025)
 
 **Проблема**:
 Используется базовая конфигурация Redis без оптимизаций для high-throughput приложений.
 
 **Задачи**:
 
-**Фаза 1: Обновить go-redis**
-```bash
-go get github.com/redis/go-redis/v9@latest
-go mod tidy
-```
+**Фаза 1: Обновить go-redis** ✅
+- ✅ Проект уже использует `github.com/redis/go-redis/v9 v9.16.0` (последняя версия)
 
-**Фаза 2: Оптимизировать connection**
+**Фаза 2: Оптимизировать connection** ✅
 ```go
 // backend/internal/container/container.go
 func (c *Container) initRedis() error {
@@ -1283,45 +1283,58 @@ func (c *Container) initRedis() error {
 }
 ```
 
-**Фаза 3: Добавить OpenTelemetry (опционально)**
-```go
-import (
-    "github.com/redis/go-redis/extra/redisotel/v9"
-)
+**Фаза 3: Добавить OpenTelemetry (опционально)** (отложено)
+- [ ] Реализовать OpenTelemetry instrumentation для Redis
+- Примечание: Отложено до следующих итераций, текущая конфигурация достаточна
 
-func (c *Container) initRedis() error {
-    // ... создание клиента
+**Фаза 4: Добавить конфигурацию через env** ✅
+- ✅ Добавлены поля в `Config` struct для всех Redis настроек
+- ✅ Настройки загружаются из env переменных с разумными defaults
 
-    // Enable instrumentation
-    if err := redisotel.InstrumentTracing(c.Redis); err != nil {
-        log.Printf("⚠️ Failed to enable Redis tracing: %v", err)
-    }
+**Реализованные изменения**:
 
-    if err := redisotel.InstrumentMetrics(c.Redis); err != nil {
-        log.Printf("⚠️ Failed to enable Redis metrics: %v", err)
-    }
+**1. Добавлена конфигурация в config.go**:
+- ✅ `RedisPoolSize` (default: 50) - размер connection pool для high-throughput
+- ✅ `RedisMinIdle` (default: 10) - минимальное количество idle connections
+- ✅ `RedisMaxIdle` (default: 20) - максимальное количество idle connections
+- ✅ `RedisDialTimeout` (default: 5s) - timeout для установки соединения
+- ✅ `RedisReadTimeout` (default: 3s) - timeout для чтения
+- ✅ `RedisWriteTimeout` (default: 3s) - timeout для записи
+- ✅ `RedisPoolTimeout` (default: 4s) - timeout для получения connection из pool
+- ✅ `RedisMaxRetries` (default: 3) - количество retry попыток
+- ✅ `RedisMinRetryBackoff` (default: 8ms) - минимальная задержка между retry
+- ✅ `RedisMaxRetryBackoff` (default: 512ms) - максимальная задержка между retry
+- ✅ `RedisReadBufferSize` (default: 1 MiB) - размер буфера для чтения
+- ✅ `RedisWriteBufferSize` (default: 1 MiB) - размер буфера для записи
 
-    return nil
-}
-```
+**2. Обновлен container.go**:
+- ✅ Использует все новые настройки из config при инициализации Redis
+- ✅ Добавлен context с timeout для health check
+- ✅ Structured logging с информацией о конфигурации pool
 
-**Фаза 4: Добавить конфигурацию через env**
-```go
-// backend/internal/config/config.go
-type Config struct {
-    // ...
-    RedisPoolSize     int           `env:"REDIS_POOL_SIZE" envDefault:"50"`
-    RedisMinIdle      int           `env:"REDIS_MIN_IDLE" envDefault:"10"`
-    RedisReadTimeout  time.Duration `env:"REDIS_READ_TIMEOUT" envDefault:"3s"`
-    RedisWriteTimeout time.Duration `env:"REDIS_WRITE_TIMEOUT" envDefault:"3s"`
-}
+**3. Все настройки можно переопределить через env переменные**:
+```env
+REDIS_POOL_SIZE=50
+REDIS_MIN_IDLE=10
+REDIS_MAX_IDLE=20
+REDIS_DIAL_TIMEOUT=5
+REDIS_READ_TIMEOUT=3
+REDIS_WRITE_TIMEOUT=3
+REDIS_POOL_TIMEOUT=4
+REDIS_MAX_RETRIES=3
+REDIS_MIN_RETRY_BACKOFF=8
+REDIS_MAX_RETRY_BACKOFF=512
+REDIS_READ_BUFFER_SIZE=1048576
+REDIS_WRITE_BUFFER_SIZE=1048576
 ```
 
 **Ожидаемый результат**:
-- Лучшая производительность Redis операций
-- Правильные timeouts для production
-- Connection pooling для concurrency
-- Observability через OpenTelemetry (опционально)
+- ✅ Лучшая производительность Redis операций через optimized connection pool
+- ✅ Правильные timeouts для production окружения
+- ✅ Efficient connection pooling для высокой concurrency
+- ✅ Retry logic с exponential backoff для transient failures
+- ✅ Большие буферы (1 MiB) для high-throughput операций
+- ✅ Полная конфигурируемость через environment variables
 
 ---
 
@@ -1338,13 +1351,14 @@ type Config struct {
 - День 3-4: Этап 3.1 (Redis fallback)
 - День 5: Этап 3.2 (Обработка ошибок)
 
-**Неделя 3: Рефакторинг архитектуры**
-- День 1-3: Этап 4.1 (Разделить SessionService)
-- День 4: Этап 4.2 (Объединить getUserBy*)
-- День 5: Этап 5.1 (Structured logging)
+**Неделя 3: Рефакторинг архитектуры** ✅ ЗАВЕРШЕНО
+- ✅ День 1-3: Этап 4.1 (Разделить SessionService)
+- ✅ День 4: Этап 4.2 (Объединить getUserBy*)
+- ✅ День 5: Этап 5.1 (Structured logging)
+- ✅ День 5: Этап 5.2 (Оптимизация Redis)
 
 **Неделя 4: Долгосрочные улучшения (опционально)**
-- День 1-5: Этап 4.3 (JSONB → таблицы) - если нужно
+- День 1-5: Этап 4.3 (JSONB → таблицы) - если нужно (отложено)
 
 ---
 

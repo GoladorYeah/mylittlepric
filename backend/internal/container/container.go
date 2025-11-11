@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -100,17 +101,46 @@ func (c *Container) initRedis() error {
 		Addr:     c.Config.RedisURL,
 		Password: c.Config.RedisPassword,
 		DB:       c.Config.RedisDB,
+
+		// Connection pool settings
+		PoolSize:     c.Config.RedisPoolSize,
+		MinIdleConns: c.Config.RedisMinIdle,
+		MaxIdleConns: c.Config.RedisMaxIdle,
+
+		// Timeouts
+		DialTimeout:  c.Config.RedisDialTimeout,
+		ReadTimeout:  c.Config.RedisReadTimeout,
+		WriteTimeout: c.Config.RedisWriteTimeout,
+		PoolTimeout:  c.Config.RedisPoolTimeout,
+
+		// Buffer sizes (for high-throughput)
+		ReadBufferSize:  c.Config.RedisReadBufferSize,
+		WriteBufferSize: c.Config.RedisWriteBufferSize,
+
+		// Retry configuration
+		MaxRetries:      c.Config.RedisMaxRetries,
+		MinRetryBackoff: c.Config.RedisMinRetryBackoff,
+		MaxRetryBackoff: c.Config.RedisMaxRetryBackoff,
+
 		// Disable maintenance notifications (only needed for Redis Enterprise/Cloud)
 		MaintNotificationsConfig: &maintnotifications.Config{
 			Mode: maintnotifications.ModeDisabled,
 		},
 	})
 
-	if err := c.Redis.Ping(c.ctx).Err(); err != nil {
+	// Health check with context timeout
+	ctx, cancel := context.WithTimeout(c.ctx, 5*time.Second)
+	defer cancel()
+
+	if err := c.Redis.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("Redis ping failed: %w", err)
 	}
 
-	utils.LogInfo(c.ctx, "connected to Redis")
+	utils.LogInfo(c.ctx, "connected to Redis with optimized configuration",
+		slog.Int("pool_size", c.Config.RedisPoolSize),
+		slog.Int("min_idle", c.Config.RedisMinIdle),
+		slog.Int("max_idle", c.Config.RedisMaxIdle),
+	)
 	return nil
 }
 

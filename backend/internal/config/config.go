@@ -23,6 +23,24 @@ type Config struct {
 	RedisPassword string
 	RedisDB       int
 
+	// Redis Connection Pool Settings
+	RedisPoolSize     int
+	RedisMinIdle      int
+	RedisMaxIdle      int
+	RedisDialTimeout  time.Duration
+	RedisReadTimeout  time.Duration
+	RedisWriteTimeout time.Duration
+	RedisPoolTimeout  time.Duration
+
+	// Redis Retry Settings
+	RedisMaxRetries      int
+	RedisMinRetryBackoff time.Duration
+	RedisMaxRetryBackoff time.Duration
+
+	// Redis Buffer Settings
+	RedisReadBufferSize  int
+	RedisWriteBufferSize int
+
 	// JWT Authentication
 	JWTAccessSecret  string
 	JWTRefreshSecret string
@@ -136,6 +154,18 @@ func Load() (*Config, error) {
 		RedisURL:              getEnv("REDIS_URL", "localhost:6379"),
 		RedisPassword:         getEnv("REDIS_PASSWORD", ""),
 		RedisDB:               getEnvAsInt("REDIS_DB", 0),
+		RedisPoolSize:         getEnvAsInt("REDIS_POOL_SIZE", 50),
+		RedisMinIdle:          getEnvAsInt("REDIS_MIN_IDLE", 10),
+		RedisMaxIdle:          getEnvAsInt("REDIS_MAX_IDLE", 20),
+		RedisDialTimeout:      time.Duration(getEnvAsInt("REDIS_DIAL_TIMEOUT", 5)) * time.Second,
+		RedisReadTimeout:      time.Duration(getEnvAsInt("REDIS_READ_TIMEOUT", 3)) * time.Second,
+		RedisWriteTimeout:     time.Duration(getEnvAsInt("REDIS_WRITE_TIMEOUT", 3)) * time.Second,
+		RedisPoolTimeout:      time.Duration(getEnvAsInt("REDIS_POOL_TIMEOUT", 4)) * time.Second,
+		RedisMaxRetries:       getEnvAsInt("REDIS_MAX_RETRIES", 3),
+		RedisMinRetryBackoff:  time.Duration(getEnvAsInt("REDIS_MIN_RETRY_BACKOFF", 8)) * time.Millisecond,
+		RedisMaxRetryBackoff:  time.Duration(getEnvAsInt("REDIS_MAX_RETRY_BACKOFF", 512)) * time.Millisecond,
+		RedisReadBufferSize:   getEnvAsInt("REDIS_READ_BUFFER_SIZE", 1024*1024),   // 1 MiB
+		RedisWriteBufferSize:  getEnvAsInt("REDIS_WRITE_BUFFER_SIZE", 1024*1024),  // 1 MiB
 		JWTAccessSecret:       getEnv("JWT_ACCESS_SECRET", ""),
 		JWTRefreshSecret:      getEnv("JWT_REFRESH_SECRET", ""),
 		JWTAccessTTL:          time.Duration(getEnvAsInt("JWT_ACCESS_TTL", 900)) * time.Second,     // 15 minutes default
