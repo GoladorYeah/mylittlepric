@@ -277,7 +277,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	}
 
 	// Build response
-	response := &ChatProcessorResponse{
+	response = &ChatProcessorResponse{
 		Type:         geminiResponse.ResponseType,
 		Output:       geminiResponse.Output,
 		QuickReplies: geminiResponse.QuickReplies,
