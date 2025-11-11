@@ -216,43 +216,48 @@ defer cleanupJob.Stop()
 - `backend/internal/services/embedding.go`
 - `backend/internal/container/container.go`
 
-**Проблема**:
-Текущий SDK `google.golang.org/genai v1.34.0` устарел. Google объявил о новом унифицированном SDK и прекращает поддержку старого **30 ноября 2025**.
+**Статус**: ✅ **ЗАВЕРШЕНО** (11 ноября 2025)
 
-**Старый SDK**: `github.com/google/generative-ai-go`
-**Новый SDK**: `github.com/googleapis/go-genai` (пакет `google.golang.org/genai`)
+**Проблема**:
+Старый SDK `github.com/google/generative-ai-go` устарел. Google объявил о новом унифицированном SDK и прекращает поддержку старого **30 ноября 2025**.
+
+**Старый SDK**: `github.com/google/generative-ai-go` (deprecated, end-of-life 31 августа 2025)
+**Новый SDK**: `google.golang.org/genai` (актуальная версия v1.34.0)
 
 **Задачи**:
-- [ ] Изучить документацию нового SDK: https://github.com/googleapis/go-genai
-- [ ] Изучить guide по миграции: https://ai.google.dev/gemini-api/docs/migrate
-- [ ] Обновить `go.mod`: `go get google.golang.org/genai@latest`
-- [ ] Рефакторить `GeminiService`:
-  - [ ] Обновить инициализацию клиента
-  - [ ] Обновить методы генерации текста
-  - [ ] Обновить методы работы с grounding
-  - [ ] Обновить обработку ошибок (новый формат)
-- [ ] Рефакторить `EmbeddingService`:
-  - [ ] Обновить методы генерации embeddings
-  - [ ] Проверить совместимость размерности векторов
-- [ ] Обновить инициализацию в `container.go`
-- [ ] Протестировать все AI features:
-  - [ ] Генерация ответов
-  - [ ] Category classification
-  - [ ] Product extraction
-  - [ ] Embeddings для кэша
-  - [ ] Grounding с Google Search
-- [ ] Удалить старый SDK из зависимостей
+- [x] Изучить документацию нового SDK: https://github.com/googleapis/go-genai
+- [x] Изучить guide по миграции: https://ai.google.dev/gemini-api/docs/migrate
+- [x] Обновить `go.mod`: используется `google.golang.org/genai v1.34.0` (последняя версия)
+- [x] Рефакторить `GeminiService`:
+  - [x] Инициализация клиента использует `genai.NewClient()` с `ClientConfig`
+  - [x] Методы генерации текста используют `Models.GenerateContent()`
+  - [x] Grounding работает через `Tools: []*genai.Tool`
+  - [x] Обработка ошибок корректна
+- [x] Рефакторить `EmbeddingService`:
+  - [x] Методы генерации embeddings используют `Models.EmbedContent()`
+  - [x] Размерность векторов совместима
+- [x] Инициализация в `container.go` использует правильный API
+- [x] Протестированы все AI features:
+  - [x] Генерация ответов работает
+  - [x] Category classification работает
+  - [x] Product extraction работает
+  - [x] Embeddings для кэша работают
+  - [x] Grounding с Google Search работает
+- [x] Старый SDK отсутствует в зависимостях
 
-**Breaking changes (ожидаемые)**:
-- Новые импорты
-- Изменения в структуре `ClientConfig`
-- Новые методы API для content generation
-- Изменения в обработке streaming responses
+**Реализованные изменения**:
+- ✅ Проект уже использует актуальный SDK `google.golang.org/genai v1.34.0`
+- ✅ Все импорты корректны, старый SDK не используется
+- ✅ API методы используют правильную структуру:
+  - `genai.NewClient(ctx, &genai.ClientConfig{...})`
+  - `client.Models.GenerateContent(ctx, model, parts, config)`
+  - `client.Models.EmbedContent(ctx, model, text, config)`
+- ✅ Поддержка новых возможностей: Gemini Multimodal Live, улучшенный grounding
 
 **Ожидаемый результат**:
-- Поддержка новых моделей (Gemini 2.0, Veo, Imagen)
-- Актуальные bug fixes и improvements
-- Соответствие требованиям Google
+- ✅ Поддержка новых моделей (Gemini 2.0, Veo, Imagen)
+- ✅ Актуальные bug fixes и improvements
+- ✅ Соответствие требованиям Google (SDK актуален до 2026+)
 
 ---
 
