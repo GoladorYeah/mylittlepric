@@ -8,7 +8,6 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
@@ -22,9 +21,8 @@ import (
 
 type Container struct {
 	Config *config.Config
-	DB     *sqlx.DB
-	EntDB  *sql.DB      // SQL DB for Ent
-	Ent    *ent.Client  // Ent ORM client
+	EntDB  *sql.DB     // SQL DB for Ent
+	Ent    *ent.Client // Ent ORM client
 	Redis  *redis.Client
 	ctx    context.Context
 
@@ -70,17 +68,6 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 }
 
 func (c *Container) initDatabase() error {
-	// Initialize sqlx DB (для существующего кода)
-	db, err := sqlx.Connect("postgres", c.Config.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	c.DB = db
-
 	// Initialize Ent client
 	sqlDB, err := sql.Open("postgres", c.Config.DatabaseURL)
 	if err != nil {
@@ -102,7 +89,7 @@ func (c *Container) initDatabase() error {
 	}
 
 	c.Ent = entClient
-	log.Println("✅ Connected to PostgreSQL (sqlx + Ent)")
+	log.Println("✅ Connected to PostgreSQL (Ent ORM)")
 	return nil
 }
 
@@ -217,13 +204,6 @@ func (c *Container) Close() error {
 	if c.EntDB != nil {
 		if err := c.EntDB.Close(); err != nil {
 			log.Printf("⚠️ Failed to close Ent database: %v", err)
-		}
-	}
-
-	// Close sqlx DB
-	if c.DB != nil {
-		if err := c.DB.Close(); err != nil {
-			log.Printf("⚠️ Failed to close database: %v", err)
 		}
 	}
 
