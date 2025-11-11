@@ -435,68 +435,143 @@ func (s *AuthService) SaveUserToPostgres(userModel *models.User) error {
 }
 
 func (s *AuthService) getUserByEmail(email string) (*models.User, error) {
+	// 1. Try Redis first
 	emailKey := fmt.Sprintf("user:email:%s", email)
 	userIDStr, err := s.redis.Get(s.ctx, emailKey).Result()
-	if err != nil {
-		return nil, err
-	}
 
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.getUserByID(userID)
-}
-
-func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
-	userKey := fmt.Sprintf("user:id:%s", userID.String())
-	userData, err := s.redis.HGetAll(s.ctx, userKey).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(userData) == 0 {
-		return nil, redis.Nil
-	}
-
-	user := &models.User{}
-	user.ID = userID
-	user.Email = userData["email"]
-	user.PasswordHash = userData["password_hash"]
-	user.FullName = userData["full_name"]
-	user.Picture = userData["picture"]
-	user.Provider = userData["provider"]
-	user.ProviderID = userData["provider_id"]
-
-	if createdAt, err := time.Parse(time.RFC3339, userData["created_at"]); err == nil {
-		user.CreatedAt = createdAt
-	}
-	if updatedAt, err := time.Parse(time.RFC3339, userData["updated_at"]); err == nil {
-		user.UpdatedAt = updatedAt
-	}
-	if lastLoginStr, ok := userData["last_login_at"]; ok && lastLoginStr != "" {
-		if lastLogin, err := time.Parse(time.RFC3339, lastLoginStr); err == nil {
-			user.LastLoginAt = &lastLogin
+	if err == nil && userIDStr != "" {
+		// Redis hit - parse and get user
+		if userID, parseErr := uuid.Parse(userIDStr); parseErr == nil {
+			user, getUserErr := s.getUserByID(userID)
+			if getUserErr == nil {
+				return user, nil
+			}
 		}
 	}
 
-	return user, nil
+	// 2. Fallback to PostgreSQL through Ent
+	fmt.Printf("⚠️ Redis miss for user email %s, falling back to PostgreSQL\n", email)
+	entUser, err := s.client.User.Query().
+		Where(user.EmailEQ(email)).
+		Only(s.ctx)
+
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, redis.Nil // Maintain consistent error type
+		}
+		return nil, fmt.Errorf("user not found in PostgreSQL: %w", err)
+	}
+
+	// 3. Convert Ent user to model
+	userModel := s.entUserToModel(entUser)
+
+	// 4. Sync back to Redis for next requests
+	if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
+		fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
+		// Don't return error - user retrieved from DB successfully
+	}
+
+	return userModel, nil
+}
+
+func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
+	// 1. Try Redis first
+	userKey := fmt.Sprintf("user:id:%s", userID.String())
+	userData, err := s.redis.HGetAll(s.ctx, userKey).Result()
+
+	if err == nil && len(userData) > 0 {
+		// Redis hit - parse and return
+		user := &models.User{}
+		user.ID = userID
+		user.Email = userData["email"]
+		user.PasswordHash = userData["password_hash"]
+		user.FullName = userData["full_name"]
+		user.Picture = userData["picture"]
+		user.Provider = userData["provider"]
+		user.ProviderID = userData["provider_id"]
+
+		if createdAt, parseErr := time.Parse(time.RFC3339, userData["created_at"]); parseErr == nil {
+			user.CreatedAt = createdAt
+		}
+		if updatedAt, parseErr := time.Parse(time.RFC3339, userData["updated_at"]); parseErr == nil {
+			user.UpdatedAt = updatedAt
+		}
+		if lastLoginStr, ok := userData["last_login_at"]; ok && lastLoginStr != "" {
+			if lastLogin, parseErr := time.Parse(time.RFC3339, lastLoginStr); parseErr == nil {
+				user.LastLoginAt = &lastLogin
+			}
+		}
+
+		return user, nil
+	}
+
+	// 2. Fallback to PostgreSQL through Ent
+	fmt.Printf("⚠️ Redis miss for user %s, falling back to PostgreSQL\n", userID)
+	entUser, err := s.client.User.Get(s.ctx, userID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, redis.Nil // Maintain consistent error type
+		}
+		return nil, fmt.Errorf("user not found in PostgreSQL: %w", err)
+	}
+
+	// 3. Convert Ent user to model
+	userModel := s.entUserToModel(entUser)
+
+	// 4. Sync back to Redis for next requests
+	if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
+		fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
+		// Don't return error - user retrieved from DB successfully
+	}
+
+	return userModel, nil
 }
 
 func (s *AuthService) getUserByProviderID(provider, providerID string) (*models.User, error) {
+	// 1. Try Redis first
 	providerKey := fmt.Sprintf("user:provider:%s:%s", provider, providerID)
 	userIDStr, err := s.redis.Get(s.ctx, providerKey).Result()
-	if err != nil {
-		return nil, err
+
+	if err == nil && userIDStr != "" {
+		// Redis hit - parse and get user
+		if userID, parseErr := uuid.Parse(userIDStr); parseErr == nil {
+			user, getUserErr := s.getUserByID(userID)
+			if getUserErr == nil {
+				return user, nil
+			}
+		}
 	}
 
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		return nil, err
+	// 2. Fallback to PostgreSQL through Ent
+	fmt.Printf("⚠️ Redis miss for provider %s:%s, falling back to PostgreSQL\n", provider, providerID)
+
+	// Query based on provider type
+	var entUser *ent.User
+	if provider == "google" {
+		entUser, err = s.client.User.Query().
+			Where(user.GoogleIDEQ(providerID)).
+			Only(s.ctx)
+	} else {
+		return nil, fmt.Errorf("unsupported provider: %s", provider)
 	}
 
-	return s.getUserByID(userID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, redis.Nil // Maintain consistent error type
+		}
+		return nil, fmt.Errorf("user not found in PostgreSQL: %w", err)
+	}
+
+	// 3. Convert Ent user to model
+	userModel := s.entUserToModel(entUser)
+
+	// 4. Sync back to Redis for next requests
+	if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
+		fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
+		// Don't return error - user retrieved from DB successfully
+	}
+
+	return userModel, nil
 }
 
 func (s *AuthService) saveRefreshToken(token *models.RefreshToken) error {
@@ -560,6 +635,69 @@ func (s *AuthService) revokeRefreshToken(tokenHash string) error {
 func (s *AuthService) hashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
+}
+
+// entUserToModel converts an Ent User entity to a models.User
+func (s *AuthService) entUserToModel(entUser *ent.User) *models.User {
+	userModel := &models.User{
+		ID:           entUser.ID,
+		Email:        entUser.Email,
+		PasswordHash: entUser.PasswordHash,
+		FullName:     entUser.Name,
+		Picture:      entUser.AvatarURL,
+		Provider:     entUser.Provider,
+		ProviderID:   entUser.GoogleID,
+		CreatedAt:    entUser.CreatedAt,
+		UpdatedAt:    entUser.UpdatedAt,
+	}
+
+	// Handle optional last_login
+	if !entUser.LastLogin.IsZero() {
+		userModel.LastLoginAt = &entUser.LastLogin
+	}
+
+	return userModel
+}
+
+// syncUserToRedis syncs a user to Redis cache without touching PostgreSQL
+func (s *AuthService) syncUserToRedis(user *models.User) error {
+	// 1. Save user data
+	userKey := fmt.Sprintf("user:id:%s", user.ID.String())
+	userData := map[string]interface{}{
+		"id":            user.ID.String(),
+		"email":         user.Email,
+		"password_hash": user.PasswordHash,
+		"full_name":     user.FullName,
+		"picture":       user.Picture,
+		"provider":      user.Provider,
+		"provider_id":   user.ProviderID,
+		"created_at":    user.CreatedAt.Format(time.RFC3339),
+		"updated_at":    user.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if user.LastLoginAt != nil {
+		userData["last_login_at"] = user.LastLoginAt.Format(time.RFC3339)
+	}
+
+	if err := s.redis.HSet(s.ctx, userKey, userData).Err(); err != nil {
+		return fmt.Errorf("failed to sync user data to Redis: %w", err)
+	}
+
+	// 2. Create email -> ID mapping
+	emailKey := fmt.Sprintf("user:email:%s", user.Email)
+	if err := s.redis.Set(s.ctx, emailKey, user.ID.String(), 0).Err(); err != nil {
+		return fmt.Errorf("failed to sync email mapping to Redis: %w", err)
+	}
+
+	// 3. Create provider -> ID mapping for OAuth users
+	if user.Provider != "email" && user.ProviderID != "" {
+		providerKey := fmt.Sprintf("user:provider:%s:%s", user.Provider, user.ProviderID)
+		if err := s.redis.Set(s.ctx, providerKey, user.ID.String(), 0).Err(); err != nil {
+			return fmt.Errorf("failed to sync provider mapping to Redis: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *AuthService) toUserInfo(user *models.User) *models.UserInfo {
