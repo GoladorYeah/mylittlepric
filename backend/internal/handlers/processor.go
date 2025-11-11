@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"mylittleprice/internal/container"
+	"mylittleprice/internal/metrics"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
 	"mylittleprice/internal/utils"
@@ -64,14 +65,41 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	// Track metrics for message processing
+	start := time.Now()
+	status := "success"
+	var response *ChatProcessorResponse
+
+	defer func() {
+		// Record processing duration
+		duration := time.Since(start).Seconds()
+		metrics.MessageProcessingDuration.Observe(duration)
+
+		// Determine status based on response
+		if response != nil && response.Error != nil {
+			status = "error"
+			metrics.ErrorsTotal.WithLabelValues("processing", "processor").Inc()
+		}
+
+		// Record message processed
+		metrics.MessagesProcessedTotal.WithLabelValues(status).Inc()
+
+		utils.LogInfo(ctx, "message processing completed",
+			slog.String("session_id", req.SessionID),
+			slog.String("status", status),
+			slog.Float64("duration_seconds", duration),
+		)
+	}()
+
 	// Validate input
 	if req.Message == "" {
-		return &ChatProcessorResponse{
+		response = &ChatProcessorResponse{
 			Error: &ErrorInfo{
 				Code:    "validation_error",
 				Message: "Message is required",
 			},
 		}
+		return response
 	}
 
 	// Set defaults
@@ -88,12 +116,13 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	// Get or create session
 	session, err := p.getOrCreateSession(req)
 	if err != nil {
-		return &ChatProcessorResponse{
+		response = &ChatProcessorResponse{
 			Error: &ErrorInfo{
 				Code:    "session_error",
 				Message: "Failed to create session",
 			},
 		}
+		return response
 	}
 
 	// Handle new search
@@ -110,7 +139,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	// Check search limit
 	if session.SearchState.SearchCount >= p.container.SessionService.GetMaxSearches() {
-		return &ChatProcessorResponse{
+		response = &ChatProcessorResponse{
 			Type:         "text",
 			Output:       "You have reached the maximum number of searches. Please start a new search.",
 			SessionID:    req.SessionID,
@@ -124,6 +153,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 				Message:     "Search limit reached",
 			},
 		}
+		return response
 	}
 
 	// Store user message
@@ -136,12 +166,13 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	}
 
 	if err := p.container.MessageService.AddMessageInMemory(session, userMessage); err != nil {
-		return &ChatProcessorResponse{
+		response = &ChatProcessorResponse{
 			Error: &ErrorInfo{
 				Code:    "storage_error",
 				Message: "Failed to store message",
 			},
 		}
+		return response
 	}
 
 	p.container.MessageService.IncrementMessageCountInMemory(session)
@@ -190,7 +221,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 			utils.LogWarn(ctx, "all processing attempts failed, using fallback response")
 
 			// Return helpful fallback response instead of error
-			return &ChatProcessorResponse{
+			response = &ChatProcessorResponse{
 				Type:         "dialogue",
 				Output:       "I'm having trouble processing your request right now. Could you please rephrase your question or try again in a moment?",
 				QuickReplies: []string{"Start over", "Try again"},
@@ -205,6 +236,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 					Message:     "Temporary processing issue",
 				},
 			}
+			return response
 		}
 
 		// Wait a bit before retry (500ms, 1s)
@@ -452,7 +484,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		utils.LogError(ctx, "CRITICAL: failed to save session after retries", saveErr)
 		// This is critical - session state is lost!
 		// Return error to client so they know something went wrong
-		return &ChatProcessorResponse{
+		response = &ChatProcessorResponse{
 			Type:         "error",
 			Output:       "An error occurred while saving your conversation. Please try again.",
 			SessionID:    req.SessionID,
@@ -462,6 +494,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 				Message: "Failed to persist session changes",
 			},
 		}
+		return response
 	}
 
 	// Build search state response

@@ -115,6 +115,14 @@ var (
 		[]string{"status"}, // success/error
 	)
 
+	MessageProcessingDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "message_processing_duration_seconds",
+			Help:    "Message processing duration",
+			Buckets: []float64{0.1, 0.5, 1, 2, 5, 10, 30, 60},
+		},
+	)
+
 	// Cleanup job метрики
 	CleanupJobRunsTotal = promauto.NewCounter(
 		prometheus.CounterOpts{
