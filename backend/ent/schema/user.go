@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -53,5 +54,16 @@ func (User) Edges() []ent.Edge {
 		edge.To("search_history", SearchHistory.Type),
 		edge.To("preferences", UserPreference.Type).
 			Unique(), // One-to-one relationship
+	}
+}
+
+// Indexes of the User.
+func (User) Indexes() []ent.Index {
+	return []ent.Index{
+		// Index for email lookups during login
+		// Email is already unique, but this improves lookup performance
+		index.Fields("email"),
+		// Index for OAuth provider lookups (Google login)
+		index.Fields("provider", "google_id"),
 	}
 }
