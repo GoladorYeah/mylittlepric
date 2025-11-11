@@ -18,6 +18,19 @@ services:
       - monitoring
     restart: unless-stopped
 
+  loki:
+    image: grafana/loki:latest
+    container_name: mylittleprice_loki
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/tmp/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: mylittleprice_grafana
@@ -36,11 +49,13 @@ services:
       - monitoring
     depends_on:
       - prometheus
+      - loki
     restart: unless-stopped
 
 volumes:
   prometheus_data:
   grafana_data:
+  loki_data:
 
 networks:
   monitoring:
