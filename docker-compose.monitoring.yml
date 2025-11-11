@@ -31,6 +31,21 @@ services:
       - monitoring
     restart: unless-stopped
 
+  promtail:
+    image: grafana/promtail:latest
+    container_name: mylittleprice_promtail
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring
+      - mylittleprice
+    depends_on:
+      - loki
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: mylittleprice_grafana
@@ -60,3 +75,5 @@ volumes:
 networks:
   monitoring:
     driver: bridge
+  mylittleprice:
+    external: true
