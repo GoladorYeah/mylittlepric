@@ -41,7 +41,6 @@ services:
     command: -config.file=/etc/promtail/config.yml
     networks:
       - monitoring
-      - mylittleprice
     depends_on:
       - loki
     restart: unless-stopped
