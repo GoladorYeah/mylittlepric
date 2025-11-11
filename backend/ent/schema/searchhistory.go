@@ -5,8 +5,10 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -63,5 +65,19 @@ func (SearchHistory) Edges() []ent.Edge {
 			Ref("search_history").
 			Field("user_id").
 			Unique(),
+	}
+}
+
+// Indexes of the SearchHistory.
+func (SearchHistory) Indexes() []ent.Index {
+	return []ent.Index{
+		// Index for GetUserSearchHistory - filtering by user and ordering by date
+		index.Fields("user_id", "created_at"),
+		// Index for anonymous users - filtering by session and ordering by date
+		index.Fields("session_id", "created_at"),
+		// Partial index for cleanup job - only for anonymous users (user_id IS NULL)
+		// This optimizes the CleanupExpiredAnonymousHistory query
+		index.Fields("expires_at").
+			Annotations(entsql.IndexWhere("user_id IS NULL")),
 	}
 }

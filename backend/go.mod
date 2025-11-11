@@ -1,6 +1,6 @@
 module mylittleprice
 
-go 1.25
+go 1.24
 
 require (
 	entgo.io/ent v0.14.5

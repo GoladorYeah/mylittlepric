@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -71,5 +72,17 @@ func (ChatSession) Edges() []ent.Edge {
 			Field("user_id").
 			Unique(),
 		edge.To("messages", Message.Type),
+	}
+}
+
+// Indexes of the ChatSession.
+func (ChatSession) Indexes() []ent.Index {
+	return []ent.Index{
+		// Index for GetActiveSessionForUser - filtering by user and checking expiry
+		index.Fields("user_id", "expires_at"),
+		// Index for cleanup operations - finding expired sessions
+		index.Fields("expires_at"),
+		// Index for session_id lookups (frequently used in ProcessChat)
+		index.Fields("session_id"),
 	}
 }
