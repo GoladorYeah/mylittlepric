@@ -79,7 +79,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
     <>
       {/* Sidebar Panel */}
       <div
-        className={`fixed left-0 top-0 bottom-0 backdrop-blur-xl border-r border-border shadow-2xl transform transition-[width,transform,background-color] duration-300 ease-in-out z-40 will-change-[width,transform] ${
+        className={`fixed left-0 top-0 bottom-0 backdrop-blur-xl border-r border-border shadow-2xl transform transition-[width,transform,background-color] duration-300 ease-in-out z-60 will-change-[width,transform] ${
           isSidebarOpen
             ? "w-80 translate-x-0 bg-card/95"
             : "w-16 -translate-x-full lg:translate-x-0 lg:bg-background"
@@ -239,7 +239,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
 
       {/* Overlay for mobile - only show when sidebar is open */}
       <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:hidden transition-opacity duration-300 ${
           isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={toggleSidebar}
