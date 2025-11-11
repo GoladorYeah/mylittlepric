@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 )
@@ -18,10 +19,13 @@ const (
 	SessionIDKey ContextKey = "session_id"
 )
 
-var logger *slog.Logger
+var (
+	logger     *slog.Logger
+	lokiWriter *LokiWriter
+)
 
 // InitLogger initializes the global logger with the specified level and format
-func InitLogger(level string, format string) {
+func InitLogger(level string, format string, lokiEnabled bool, lokiURL string, serviceName string) {
 	var logLevel slog.Level
 	switch level {
 	case "debug":
@@ -41,21 +45,43 @@ func InitLogger(level string, format string) {
 		Level: logLevel,
 	}
 
+	// Create output writer
+	var output io.Writer = os.Stdout
+
+	// If Loki is enabled, create a MultiWriter
+	if lokiEnabled && lokiURL != "" {
+		labels := map[string]string{
+			"service": serviceName,
+			"job":     serviceName,
+			"level":   level,
+		}
+		lokiWriter = NewLokiWriter(lokiURL, labels)
+		output = io.MultiWriter(os.Stdout, lokiWriter)
+	}
+
 	if format == "json" {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		handler = slog.NewJSONHandler(output, opts)
 	} else {
-		handler = slog.NewTextHandler(os.Stdout, opts)
+		handler = slog.NewTextHandler(output, opts)
 	}
 
 	logger = slog.New(handler)
 	slog.SetDefault(logger)
 }
 
+// CloseLoki closes the Loki writer and flushes remaining logs
+func CloseLoki() error {
+	if lokiWriter != nil {
+		return lokiWriter.Close()
+	}
+	return nil
+}
+
 // GetLogger returns the global logger instance
 func GetLogger() *slog.Logger {
 	if logger == nil {
 		// Initialize with defaults if not initialized
-		InitLogger("info", "json")
+		InitLogger("info", "json", false, "", "")
 	}
 	return logger
 }
