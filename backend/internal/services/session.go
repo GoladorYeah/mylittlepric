@@ -260,6 +260,12 @@ func (s *SessionService) UpdateSession(session *models.ChatSession) error {
 	return s.saveSession(session)
 }
 
+// SaveSession explicitly saves a session (alias for UpdateSession for clarity in ProcessChat)
+func (s *SessionService) SaveSession(session *models.ChatSession) error {
+	session.UpdatedAt = time.Now()
+	return s.saveSession(session)
+}
+
 func (s *SessionService) saveSession(session *models.ChatSession) error {
 	// Save to both Redis (cache) and PostgreSQL (persistent storage)
 
@@ -290,6 +296,16 @@ func (s *SessionService) StartNewSearch(sessionID string) error {
 	}
 
 	return s.UpdateSession(session)
+}
+
+// StartNewSearchInMemory starts a new search using an in-memory session object (avoids N+1)
+func (s *SessionService) StartNewSearchInMemory(session *models.ChatSession) {
+	session.SearchState = models.SearchState{
+		Status:      models.SearchStatusIdle,
+		Category:    "",
+		SearchCount: 0,
+		LastProduct: nil,
+	}
 }
 
 func (s *SessionService) SetCategory(sessionID, category string) error {
@@ -344,8 +360,31 @@ func (s *SessionService) IncrementMessageCount(sessionID string) error {
 	return s.UpdateSession(session)
 }
 
+// IncrementMessageCountInMemory increments message count in an in-memory session (avoids N+1)
+func (s *SessionService) IncrementMessageCountInMemory(session *models.ChatSession) {
+	session.MessageCount++
+}
+
 func (s *SessionService) AddMessage(sessionID string, message *models.Message) error {
 	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
+
+	data, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	pipe := s.redis.Pipeline()
+	pipe.RPush(s.ctx, key, data)
+	pipe.Expire(s.ctx, key, s.ttl)
+
+	_, err = pipe.Exec(s.ctx)
+	return err
+}
+
+// AddMessageInMemory adds a message using session object (still requires Redis for message storage)
+// This method doesn't reload the session, so it avoids N+1 when used with in-memory session
+func (s *SessionService) AddMessageInMemory(session *models.ChatSession, message *models.Message) error {
+	key := fmt.Sprintf(constants.CachePrefixMessages, session.SessionID)
 
 	data, err := json.Marshal(message)
 	if err != nil {
@@ -494,6 +533,13 @@ func (s *SessionService) IncrementCycleIteration(sessionID string) (bool, error)
 	return shouldStartNew, nil
 }
 
+// IncrementCycleIterationInMemory increments the iteration using an in-memory session (avoids N+1)
+// Returns true if we should start a new cycle
+func (s *SessionService) IncrementCycleIterationInMemory(session *models.ChatSession) bool {
+	shouldStartNew := !s.universalPromptMgr.IncrementIteration(&session.CycleState)
+	return shouldStartNew
+}
+
 // StartNewCycle starts a new cycle with context carryover
 func (s *SessionService) StartNewCycle(sessionID, lastRequest string, products []models.ProductInfo) error {
 	session, err := s.GetSession(sessionID)
@@ -506,6 +552,11 @@ func (s *SessionService) StartNewCycle(sessionID, lastRequest string, products [
 	return s.UpdateSession(session)
 }
 
+// StartNewCycleInMemory starts a new cycle using an in-memory session (avoids N+1)
+func (s *SessionService) StartNewCycleInMemory(session *models.ChatSession, lastRequest string, products []models.ProductInfo) {
+	s.universalPromptMgr.StartNewCycle(&session.CycleState, lastRequest, products)
+}
+
 // AddToCycleHistory adds a message to the current cycle history
 func (s *SessionService) AddToCycleHistory(sessionID, role, content string) error {
 	session, err := s.GetSession(sessionID)
@@ -516,6 +567,11 @@ func (s *SessionService) AddToCycleHistory(sessionID, role, content string) erro
 	s.universalPromptMgr.AddToCycleHistory(&session.CycleState, role, content)
 
 	return s.UpdateSession(session)
+}
+
+// AddToCycleHistoryInMemory adds a message to cycle history using an in-memory session (avoids N+1)
+func (s *SessionService) AddToCycleHistoryInMemory(session *models.ChatSession, role, content string) {
+	s.universalPromptMgr.AddToCycleHistory(&session.CycleState, role, content)
 }
 
 // GetActiveSessionForUser returns the most recent active session for a user

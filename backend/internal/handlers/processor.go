@@ -95,16 +95,13 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	// Handle new search
 	if req.NewSearch {
 		fmt.Printf("🔄 New search for session %s\n", req.SessionID)
-		if err := p.container.SessionService.StartNewSearch(req.SessionID); err != nil {
-			fmt.Printf("⚠️ Failed to start new search: %v\n", err)
-		}
-		session, _ = p.container.SessionService.GetSession(req.SessionID)
+		p.container.SessionService.StartNewSearchInMemory(session)
 	}
 
 	// Handle category update
 	if req.CurrentCategory != "" && req.CurrentCategory != session.SearchState.Category {
 		session.SearchState.Category = req.CurrentCategory
-		p.container.SessionService.UpdateSession(session)
+		// Will be saved at the end with SaveSession()
 	}
 
 	// Check search limit
@@ -134,7 +131,7 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		CreatedAt: time.Now(),
 	}
 
-	if err := p.container.SessionService.AddMessage(req.SessionID, userMessage); err != nil {
+	if err := p.container.SessionService.AddMessageInMemory(session, userMessage); err != nil {
 		return &ChatProcessorResponse{
 			Error: &ErrorInfo{
 				Code:    "storage_error",
@@ -143,25 +140,10 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		}
 	}
 
-	if err := p.container.SessionService.IncrementMessageCount(req.SessionID); err != nil {
-		fmt.Printf("⚠️ Failed to increment message count: %v\n", err)
-	}
+	p.container.SessionService.IncrementMessageCountInMemory(session)
 
 	// Add user message to cycle history
-	if err := p.container.SessionService.AddToCycleHistory(req.SessionID, "user", req.Message); err != nil {
-		fmt.Printf("⚠️ Failed to add to cycle history: %v\n", err)
-	}
-
-	// Re-fetch session after updating cycle history
-	session, err = p.container.SessionService.GetSession(req.SessionID)
-	if err != nil {
-		return &ChatProcessorResponse{
-			Error: &ErrorInfo{
-				Code:    "session_error",
-				Message: "Failed to get session after update",
-			},
-		}
-	}
+	p.container.SessionService.AddToCycleHistoryInMemory(session, "user", req.Message)
 
 	// Process with Universal Prompt System with retry logic
 	var geminiResponse *models.GeminiResponse
@@ -384,20 +366,12 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	}
 
 	// Save assistant message (now with products if it was a search)
-	if err := p.container.SessionService.AddMessage(req.SessionID, assistantMessage); err != nil {
+	if err := p.container.SessionService.AddMessageInMemory(session, assistantMessage); err != nil {
 		fmt.Printf("⚠️ Failed to store assistant message: %v\n", err)
 	}
 
 	// Add assistant response to cycle history
-	if err := p.container.SessionService.AddToCycleHistory(req.SessionID, "assistant", geminiResponse.Output); err != nil {
-		fmt.Printf("⚠️ Failed to add assistant response to cycle history: %v\n", err)
-	}
-
-	// Re-fetch session to get updated cycle history
-	session, err = p.container.SessionService.GetSession(req.SessionID)
-	if err != nil {
-		fmt.Printf("⚠️ Failed to re-fetch session after adding to history: %v\n", err)
-	}
+	p.container.SessionService.AddToCycleHistoryInMemory(session, "assistant", geminiResponse.Output)
 
 	// NEW: Update conversation context periodically
 	contextExtractor := p.container.GeminiService.GetContextExtractor()
@@ -407,20 +381,13 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		fmt.Printf("🧠 Updating conversation context...\n")
 		if err := contextExtractor.UpdateConversationContext(session, session.CycleState.CycleHistory); err != nil {
 			fmt.Printf("⚠️ Failed to update conversation context: %v\n", err)
-		} else {
-			// Save updated context
-			if err := p.container.SessionService.UpdateSession(session); err != nil {
-				fmt.Printf("⚠️ Failed to save updated context: %v\n", err)
-			}
 		}
+		// Context is updated in-memory, will be saved at the end
 	}
 
 	// Check if we need to start a new cycle (iteration limit reached)
 	// This checks BEFORE incrementing, so iteration 6 will trigger a new cycle
-	shouldStartNewCycle, err := p.container.SessionService.IncrementCycleIteration(req.SessionID)
-	if err != nil {
-		fmt.Printf("⚠️ Failed to increment cycle iteration: %v\n", err)
-	}
+	shouldStartNewCycle := p.container.SessionService.IncrementCycleIterationInMemory(session)
 
 	if shouldStartNewCycle {
 		fmt.Printf("🔄 Iteration limit reached (%d), starting new cycle\n", services.MaxIterations)
@@ -432,21 +399,15 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		}
 
 		// Start new cycle with context carryover
-		if err := p.container.SessionService.StartNewCycle(req.SessionID, req.Message, products); err != nil {
-			fmt.Printf("⚠️ Failed to start new cycle: %v\n", err)
-		}
-	}
-
-	// Re-fetch session after cycle operations (either increment or new cycle)
-	session, err = p.container.SessionService.GetSession(req.SessionID)
-	if err != nil {
-		fmt.Printf("⚠️ Failed to re-fetch session after cycle operations: %v\n", err)
+		p.container.SessionService.StartNewCycleInMemory(session, req.Message, products)
 	}
 
 	// Update session state
 	session.SearchState.Status = models.SearchStatusIdle
-	if err := p.container.SessionService.UpdateSession(session); err != nil {
-		fmt.Printf("⚠️ Failed to update session: %v\n", err)
+
+	// Save session once at the end (this replaces all the intermediate saves)
+	if err := p.container.SessionService.SaveSession(session); err != nil {
+		fmt.Printf("⚠️ Failed to save session: %v\n", err)
 	}
 
 	// Build search state response
@@ -509,9 +470,8 @@ func (p *ChatProcessor) getOrCreateSession(req *ChatRequest) (*models.ChatSessio
 				updated = true
 			}
 
-			if updated {
-				p.container.SessionService.UpdateSession(session)
-			}
+			// Note: Session updates will be saved at the end of ProcessChat with SaveSession()
+			// This avoids an extra save operation here
 
 			// Override request with session values to ensure consistency
 			req.Language = session.LanguageCode
