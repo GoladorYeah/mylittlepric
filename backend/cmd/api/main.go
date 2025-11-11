@@ -34,7 +34,7 @@ func main() {
 	}
 
 	// Initialize structured logger
-	utils.InitLogger(cfg.LogLevel, cfg.LogFormat)
+	utils.InitLogger(cfg.LogLevel, cfg.LogFormat, cfg.LokiEnabled, cfg.LokiURL, cfg.LokiServiceName)
 	logger := utils.GetLogger()
 	ctx := context.Background()
 
@@ -43,6 +43,8 @@ func main() {
 		slog.String("env", cfg.Env),
 		slog.String("log_level", cfg.LogLevel),
 		slog.String("log_format", cfg.LogFormat),
+		slog.Bool("loki_enabled", cfg.LokiEnabled),
+		slog.String("loki_url", cfg.LokiURL),
 	)
 
 	c, err := container.NewContainer(cfg)
@@ -149,6 +151,11 @@ func main() {
 
 		if err := fiberApp.Shutdown(); err != nil {
 			utils.LogError(ctx, "Server shutdown error", err)
+		}
+
+		// Close Loki writer to flush remaining logs
+		if err := utils.CloseLoki(); err != nil {
+			logger.Error("Failed to close Loki writer", err)
 		}
 
 		logger.Info("Server stopped gracefully")

@@ -141,6 +141,11 @@ type Config struct {
 	// Logging
 	LogLevel  string
 	LogFormat string // "json" or "text"
+
+	// Loki Logging
+	LokiEnabled     bool
+	LokiURL         string
+	LokiServiceName string
 }
 
 func Load() (*Config, error) {
@@ -250,6 +255,9 @@ func Load() (*Config, error) {
 		CORSOrigins:       getEnvAsSlice("CORS_ORIGINS", []string{"http://localhost:3000"}),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
 		LogFormat:         getEnv("LOG_FORMAT", "json"),
+		LokiEnabled:       getEnvAsBool("LOKI_ENABLED", false),
+		LokiURL:           getEnv("LOKI_URL", "http://localhost:3100/loki/api/v1/push"),
+		LokiServiceName:   getEnv("LOKI_SERVICE_NAME", "mylittleprice-backend"),
 	}
 
 	if err := config.validate(); err != nil {
