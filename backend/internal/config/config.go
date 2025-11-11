@@ -135,8 +135,8 @@ func Load() (*Config, error) {
 		RedisURL:              getEnv("REDIS_URL", "localhost:6379"),
 		RedisPassword:         getEnv("REDIS_PASSWORD", ""),
 		RedisDB:               getEnvAsInt("REDIS_DB", 0),
-		JWTAccessSecret:       getEnv("JWT_ACCESS_SECRET", "change-me-in-production-access-secret-key"),
-		JWTRefreshSecret:      getEnv("JWT_REFRESH_SECRET", "change-me-in-production-refresh-secret-key"),
+		JWTAccessSecret:       getEnv("JWT_ACCESS_SECRET", ""),
+		JWTRefreshSecret:      getEnv("JWT_REFRESH_SECRET", ""),
 		JWTAccessTTL:          time.Duration(getEnvAsInt("JWT_ACCESS_TTL", 900)) * time.Second,     // 15 minutes default
 		JWTRefreshTTL:         time.Duration(getEnvAsInt("JWT_REFRESH_TTL", 604800)) * time.Second, // 7 days default
 		GoogleClientID:        getEnv("GOOGLE_CLIENT_ID", ""),
