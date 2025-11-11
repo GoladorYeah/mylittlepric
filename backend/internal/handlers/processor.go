@@ -13,6 +13,7 @@ import (
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
+	"mylittleprice/internal/utils"
 )
 
 // ChatProcessor handles the core chat processing logic shared between REST and WebSocket handlers
@@ -60,6 +61,10 @@ type ErrorInfo struct {
 
 // ProcessChat handles the main chat processing logic
 func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
+	// Create context with timeout for the entire operation
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
 	// Validate input
 	if req.Message == "" {
 		return &ChatProcessorResponse{
@@ -367,7 +372,8 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 
 	// Save assistant message (now with products if it was a search)
 	if err := p.container.SessionService.AddMessageInMemory(session, assistantMessage); err != nil {
-		fmt.Printf("⚠️ Failed to store assistant message: %v\n", err)
+		log.Printf("⚠️ WARNING: Failed to store assistant message (non-critical): %v", err)
+		// This is not critical - the session will still be saved with other state
 	}
 
 	// Add assistant response to cycle history
@@ -380,7 +386,10 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	if contextOptimizer.ShouldUpdateContext(session) {
 		fmt.Printf("🧠 Updating conversation context...\n")
 		if err := contextExtractor.UpdateConversationContext(session, session.CycleState.CycleHistory); err != nil {
-			fmt.Printf("⚠️ Failed to update conversation context: %v\n", err)
+			log.Printf("⚠️ WARNING: Failed to update conversation context (non-critical): %v", err)
+			// This is not critical - conversation will continue with existing context
+		} else {
+			fmt.Printf("✅ Conversation context updated successfully\n")
 		}
 		// Context is updated in-memory, will be saved at the end
 	}
@@ -405,9 +414,32 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	// Update session state
 	session.SearchState.Status = models.SearchStatusIdle
 
-	// Save session once at the end (this replaces all the intermediate saves)
-	if err := p.container.SessionService.SaveSession(session); err != nil {
-		fmt.Printf("⚠️ Failed to save session: %v\n", err)
+	// Save session once at the end with retry logic (CRITICAL!)
+	retryConfig := utils.RetryConfig{
+		MaxRetries:    3,
+		InitialDelay:  100 * time.Millisecond,
+		MaxDelay:      2 * time.Second,
+		BackoffFactor: 2.0,
+	}
+
+	saveErr := utils.RetryWithBackoff(ctx, func() error {
+		return p.container.SessionService.SaveSession(session)
+	}, retryConfig)
+
+	if saveErr != nil {
+		log.Printf("❌ CRITICAL: Failed to save session after retries: %v", saveErr)
+		// This is critical - session state is lost!
+		// Return error to client so they know something went wrong
+		return &ChatProcessorResponse{
+			Type:         "error",
+			Output:       "An error occurred while saving your conversation. Please try again.",
+			SessionID:    req.SessionID,
+			MessageCount: session.MessageCount,
+			Error: &ErrorInfo{
+				Code:    "session_save_failed",
+				Message: "Failed to persist session changes",
+			},
+		}
 	}
 
 	// Build search state response
