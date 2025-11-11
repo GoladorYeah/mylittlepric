@@ -16,7 +16,7 @@ docker-compose -f docker-compose.monitoring.yml ps
 
 ### 2. Доступ к сервисам
 
-- **Grafana**: http://localhost:3000
+- **Grafana**: http://localhost:3001
   - Логин: `admin`
   - Пароль: `admin` (можно изменить через переменную окружения `GRAFANA_ADMIN_PASSWORD`)
 
@@ -79,7 +79,7 @@ Backend предоставляет 3 health check эндпоинта:
 
 ### Создание дашбордов
 
-1. Откройте Grafana: http://localhost:3000
+1. Откройте Grafana: http://localhost:3001
 2. Войдите (admin/admin)
 3. Перейдите в **Dashboards** → **New** → **New Dashboard**
 4. Добавьте панели с нужными метриками
