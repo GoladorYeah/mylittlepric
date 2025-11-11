@@ -21,11 +21,12 @@ import (
 )
 
 type Container struct {
-	Config *config.Config
-	EntDB  *sql.DB     // SQL DB for Ent
-	Ent    *ent.Client // Ent ORM client
-	Redis  *redis.Client
-	ctx    context.Context
+	Config    *config.Config
+	StartTime time.Time // Application start time for uptime tracking
+	EntDB     *sql.DB     // SQL DB for Ent
+	Ent       *ent.Client // Ent ORM client
+	Redis     *redis.Client
+	ctx       context.Context
 
 	GeminiRotator *utils.KeyRotator
 	SerpRotator   *utils.KeyRotator
@@ -46,8 +47,9 @@ type Container struct {
 
 func NewContainer(cfg *config.Config) (*Container, error) {
 	c := &Container{
-		Config: cfg,
-		ctx:    context.Background(),
+		Config:    cfg,
+		StartTime: time.Now(),
+		ctx:       context.Background(),
 	}
 
 	if err := c.initDatabase(); err != nil {
