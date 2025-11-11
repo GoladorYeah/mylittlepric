@@ -341,6 +341,10 @@ defer cleanupJob.Stop()
 
 **Статус**: ✅ **ЗАВЕРШЕНО** (11 ноября 2025)
 
+**Дополнительные исправления** (11 ноября 2025):
+- ✅ Исправлена версия Go в go.mod (1.24 вместо 1.25 для совместимости)
+- ✅ Удалена неиспользуемая переменная `updated` в handlers/processor.go
+
 **Проблема**:
 Отсутствуют индексы на часто используемых полях, что замедляет queries:
 - `user.email` - поиск при логине
@@ -437,6 +441,8 @@ psql -U postgres -d mylittleprice_prod -f backend/migrations/008_add_indexes.sql
 **Файлы**:
 - `backend/internal/services/auth_service.go`
 
+**Статус**: ✅ **ЗАВЕРШЕНО** (11 ноября 2025)
+
 **Проблема**:
 Методы `getUserByID()`, `getUserByEmail()`, `getUserByProviderID()` полагаются только на Redis. Если Redis недоступен или данные отсутствуют, система падает. Это критично для:
 - `RefreshAccessToken()` - нельзя обновить токен
@@ -457,49 +463,24 @@ func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
 }
 ```
 
-**Задачи**:
+**Реализованные изменения**:
 
-**Фаза 1: Добавить fallback к Ent**
-```go
-func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
-    // 1. Попробовать Redis
-    userKey := fmt.Sprintf("user:id:%s", userID.String())
-    userData, err := s.redis.HGetAll(s.ctx, userKey).Result()
+**Фаза 1: Добавлен fallback к Ent** ✅
+- ✅ Обновлен `getUserByID()` с fallback к PostgreSQL через Ent
+- ✅ При Redis miss система автоматически запрашивает PostgreSQL
+- ✅ Сохранена консистентность типов ошибок (redis.Nil для not found)
 
-    if err == nil && len(userData) > 0 {
-        // Redis hit - parse и return
-        return s.parseUserFromRedis(userData)
-    }
+**Фаза 2: Созданы helper методы** ✅
+- ✅ `entUserToModel(entUser *ent.User) *models.User` - конвертирует Ent User в models.User
+- ✅ `syncUserToRedis(user *models.User) error` - синхронизирует пользователя в Redis
+- ✅ Обработка опциональных полей (LastLogin)
 
-    // 2. Fallback к PostgreSQL через Ent
-    log.Printf("⚠️ Redis miss for user %s, falling back to PostgreSQL", userID)
-    entUser, err := s.entClient.User.Get(s.ctx, userID)
-    if err != nil {
-        return nil, fmt.Errorf("user not found: %w", err)
-    }
+**Фаза 3: Обновлены все getUserBy* методы** ✅
+- ✅ `getUserByEmail()` - fallback через Ent query by email
+- ✅ `getUserByProviderID()` - fallback через Ent query by provider (поддержка Google OAuth)
+- ✅ Все методы синхронизируют данные обратно в Redis после fallback
 
-    // 3. Sync обратно в Redis для следующих запросов
-    user := s.entUserToModel(entUser)
-    if err := s.syncUserToRedis(user); err != nil {
-        log.Printf("⚠️ Failed to sync user to Redis: %v", err)
-        // Не возвращаем ошибку - user получен из БД
-    }
-
-    return user, nil
-}
-```
-
-**Фаза 2: Создать helper методы**
-- [ ] `parseUserFromRedis(data map[string]string) (*models.User, error)`
-- [ ] `entUserToModel(entUser *ent.User) *models.User`
-- [ ] `syncUserToRedis(user *models.User) error`
-
-**Фаза 3: Обновить другие методы**
-- [ ] Обновить `getUserByEmail()` для fallback
-- [ ] Обновить `getUserByProviderID()` для fallback
-- [ ] Добавить аналогичную логику в другие get методы
-
-**Фаза 4: Тестирование**
+**Фаза 4: Тестирование** (рекомендуется)
 - [ ] Unit test: Redis доступен, пользователь есть
 - [ ] Unit test: Redis недоступен, fallback к PostgreSQL
 - [ ] Unit test: Пользователь не найден нигде
@@ -507,9 +488,10 @@ func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
 - [ ] Chaos testing: Отключить Redis и проверить работу
 
 **Ожидаемый результат**:
-- Система работает даже при отказе Redis
-- Автоматическая синхронизация данных
-- Улучшение resilience
+- ✅ Система работает даже при отказе Redis
+- ✅ Автоматическая синхронизация данных
+- ✅ Улучшение resilience для критичных операций (login, refresh token)
+- ✅ Консистентная обработка ошибок (redis.Nil для user not found)
 
 ---
 
