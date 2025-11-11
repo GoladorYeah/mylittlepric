@@ -768,6 +768,8 @@ func (c *Container) initServices() error {
 **Файлы**:
 - `backend/internal/services/auth_service.go`
 
+**Статус**: ✅ **ЗАВЕРШЕНО** (11 ноября 2025)
+
 **Проблема**:
 Дублирование кода в 3 методах:
 - `getUserByID()` (строка 452)
@@ -829,10 +831,28 @@ func (s *AuthService) getUserByProviderID(provider, providerID string) (*models.
 }
 ```
 
+**Реализованные изменения**:
+- ✅ Создана структура `UserLookup` с опциональными полями для разных критериев поиска
+- ✅ Реализован helper метод `getUserWithFallback(userID uuid.UUID)` для получения пользователя с Redis -> PostgreSQL fallback
+- ✅ Реализован helper метод `lookupUserIDByEmail(email string)` для получения userID из Redis по email
+- ✅ Реализован helper метод `lookupUserIDByProvider(provider, providerID string)` для получения userID из Redis по провайдеру
+- ✅ Создан унифицированный метод `getUser(lookup UserLookup)` с поддержкой всех типов поиска
+- ✅ Упрощены методы `getUserByID`, `getUserByEmail`, `getUserByProviderID` - теперь они просто вызывают `getUser()` с соответствующими параметрами
+- ✅ Сокращено ~150 строк дублированного кода
+- ✅ Все методы сохраняют обратную совместимость (публичные сигнатуры не изменились)
+
+**Детали реализации**:
+- Метод `getUser()` автоматически определяет тип поиска по заполненным полям в `UserLookup`
+- Для каждого типа поиска реализован отдельный fallback к PostgreSQL
+- Все методы синхронизируют данные обратно в Redis после fallback
+- Консистентная обработка ошибок (redis.Nil для user not found)
+
 **Ожидаемый результат**:
-- Единая точка для получения пользователей
-- Консистентное поведение (fallback, caching)
-- Меньше дублирования кода
+- ✅ Единая точка для получения пользователей
+- ✅ Консистентное поведение (fallback, caching)
+- ✅ Меньше дублирования кода (~150 строк удалено)
+- ✅ Проще добавлять новые способы поиска пользователей
+- ✅ Лучшая maintainability и testability
 
 ---
 

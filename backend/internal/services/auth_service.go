@@ -45,6 +45,16 @@ func NewAuthService(client *ent.Client, redis *redis.Client, jwtService *utils.J
 	}
 }
 
+// UserLookup defines criteria for looking up a user
+type UserLookup struct {
+	ByID         *uuid.UUID
+	ByEmail      *string
+	ByProviderID *struct {
+		Provider string
+		ID       string
+	}
+}
+
 // Signup creates a new user account
 func (s *AuthService) Signup(req *models.SignupRequest) (*models.AuthResponse, error) {
 	// Validate input
@@ -435,143 +445,23 @@ func (s *AuthService) SaveUserToPostgres(userModel *models.User) error {
 }
 
 func (s *AuthService) getUserByEmail(email string) (*models.User, error) {
-	// 1. Try Redis first
-	emailKey := fmt.Sprintf("user:email:%s", email)
-	userIDStr, err := s.redis.Get(s.ctx, emailKey).Result()
-
-	if err == nil && userIDStr != "" {
-		// Redis hit - parse and get user
-		if userID, parseErr := uuid.Parse(userIDStr); parseErr == nil {
-			user, getUserErr := s.getUserByID(userID)
-			if getUserErr == nil {
-				return user, nil
-			}
-		}
-	}
-
-	// 2. Fallback to PostgreSQL through Ent
-	fmt.Printf("⚠️ Redis miss for user email %s, falling back to PostgreSQL\n", email)
-	entUser, err := s.client.User.Query().
-		Where(user.EmailEQ(email)).
-		Only(s.ctx)
-
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, redis.Nil // Maintain consistent error type
-		}
-		return nil, fmt.Errorf("user not found in PostgreSQL: %w", err)
-	}
-
-	// 3. Convert Ent user to model
-	userModel := s.entUserToModel(entUser)
-
-	// 4. Sync back to Redis for next requests
-	if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
-		fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
-		// Don't return error - user retrieved from DB successfully
-	}
-
-	return userModel, nil
+	return s.getUser(UserLookup{ByEmail: &email})
 }
 
 func (s *AuthService) getUserByID(userID uuid.UUID) (*models.User, error) {
-	// 1. Try Redis first
-	userKey := fmt.Sprintf("user:id:%s", userID.String())
-	userData, err := s.redis.HGetAll(s.ctx, userKey).Result()
-
-	if err == nil && len(userData) > 0 {
-		// Redis hit - parse and return
-		user := &models.User{}
-		user.ID = userID
-		user.Email = userData["email"]
-		user.PasswordHash = userData["password_hash"]
-		user.FullName = userData["full_name"]
-		user.Picture = userData["picture"]
-		user.Provider = userData["provider"]
-		user.ProviderID = userData["provider_id"]
-
-		if createdAt, parseErr := time.Parse(time.RFC3339, userData["created_at"]); parseErr == nil {
-			user.CreatedAt = createdAt
-		}
-		if updatedAt, parseErr := time.Parse(time.RFC3339, userData["updated_at"]); parseErr == nil {
-			user.UpdatedAt = updatedAt
-		}
-		if lastLoginStr, ok := userData["last_login_at"]; ok && lastLoginStr != "" {
-			if lastLogin, parseErr := time.Parse(time.RFC3339, lastLoginStr); parseErr == nil {
-				user.LastLoginAt = &lastLogin
-			}
-		}
-
-		return user, nil
-	}
-
-	// 2. Fallback to PostgreSQL through Ent
-	fmt.Printf("⚠️ Redis miss for user %s, falling back to PostgreSQL\n", userID)
-	entUser, err := s.client.User.Get(s.ctx, userID)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, redis.Nil // Maintain consistent error type
-		}
-		return nil, fmt.Errorf("user not found in PostgreSQL: %w", err)
-	}
-
-	// 3. Convert Ent user to model
-	userModel := s.entUserToModel(entUser)
-
-	// 4. Sync back to Redis for next requests
-	if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
-		fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
-		// Don't return error - user retrieved from DB successfully
-	}
-
-	return userModel, nil
+	return s.getUser(UserLookup{ByID: &userID})
 }
 
 func (s *AuthService) getUserByProviderID(provider, providerID string) (*models.User, error) {
-	// 1. Try Redis first
-	providerKey := fmt.Sprintf("user:provider:%s:%s", provider, providerID)
-	userIDStr, err := s.redis.Get(s.ctx, providerKey).Result()
-
-	if err == nil && userIDStr != "" {
-		// Redis hit - parse and get user
-		if userID, parseErr := uuid.Parse(userIDStr); parseErr == nil {
-			user, getUserErr := s.getUserByID(userID)
-			if getUserErr == nil {
-				return user, nil
-			}
-		}
-	}
-
-	// 2. Fallback to PostgreSQL through Ent
-	fmt.Printf("⚠️ Redis miss for provider %s:%s, falling back to PostgreSQL\n", provider, providerID)
-
-	// Query based on provider type
-	var entUser *ent.User
-	if provider == "google" {
-		entUser, err = s.client.User.Query().
-			Where(user.GoogleIDEQ(providerID)).
-			Only(s.ctx)
-	} else {
-		return nil, fmt.Errorf("unsupported provider: %s", provider)
-	}
-
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, redis.Nil // Maintain consistent error type
-		}
-		return nil, fmt.Errorf("user not found in PostgreSQL: %w", err)
-	}
-
-	// 3. Convert Ent user to model
-	userModel := s.entUserToModel(entUser)
-
-	// 4. Sync back to Redis for next requests
-	if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
-		fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
-		// Don't return error - user retrieved from DB successfully
-	}
-
-	return userModel, nil
+	return s.getUser(UserLookup{
+		ByProviderID: &struct {
+			Provider string
+			ID       string
+		}{
+			Provider: provider,
+			ID:       providerID,
+		},
+	})
 }
 
 func (s *AuthService) saveRefreshToken(token *models.RefreshToken) error {
@@ -698,6 +588,178 @@ func (s *AuthService) syncUserToRedis(user *models.User) error {
 	}
 
 	return nil
+}
+
+// getUserWithFallback retrieves a user by ID with Redis -> PostgreSQL fallback
+func (s *AuthService) getUserWithFallback(userID uuid.UUID) (*models.User, error) {
+	// 1. Try Redis first
+	userKey := fmt.Sprintf("user:id:%s", userID.String())
+	userData, err := s.redis.HGetAll(s.ctx, userKey).Result()
+
+	if err == nil && len(userData) > 0 {
+		// Redis hit - parse and return
+		user := &models.User{}
+		user.ID = userID
+		user.Email = userData["email"]
+		user.PasswordHash = userData["password_hash"]
+		user.FullName = userData["full_name"]
+		user.Picture = userData["picture"]
+		user.Provider = userData["provider"]
+		user.ProviderID = userData["provider_id"]
+
+		if createdAt, parseErr := time.Parse(time.RFC3339, userData["created_at"]); parseErr == nil {
+			user.CreatedAt = createdAt
+		}
+		if updatedAt, parseErr := time.Parse(time.RFC3339, userData["updated_at"]); parseErr == nil {
+			user.UpdatedAt = updatedAt
+		}
+		if lastLoginStr, ok := userData["last_login_at"]; ok && lastLoginStr != "" {
+			if lastLogin, parseErr := time.Parse(time.RFC3339, lastLoginStr); parseErr == nil {
+				user.LastLoginAt = &lastLogin
+			}
+		}
+
+		return user, nil
+	}
+
+	// 2. Fallback to PostgreSQL through Ent
+	fmt.Printf("⚠️ Redis miss for user %s, falling back to PostgreSQL\n", userID)
+	entUser, err := s.client.User.Get(s.ctx, userID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, redis.Nil // Maintain consistent error type
+		}
+		return nil, fmt.Errorf("user not found in PostgreSQL: %w", err)
+	}
+
+	// 3. Convert Ent user to model
+	userModel := s.entUserToModel(entUser)
+
+	// 4. Sync back to Redis for next requests
+	if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
+		fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
+		// Don't return error - user retrieved from DB successfully
+	}
+
+	return userModel, nil
+}
+
+// lookupUserIDByEmail gets user ID from Redis by email, returns empty UUID if not found
+func (s *AuthService) lookupUserIDByEmail(email string) (uuid.UUID, error) {
+	emailKey := fmt.Sprintf("user:email:%s", email)
+	userIDStr, err := s.redis.Get(s.ctx, emailKey).Result()
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid user ID in Redis: %w", err)
+	}
+
+	return userID, nil
+}
+
+// lookupUserIDByProvider gets user ID from Redis by provider, returns empty UUID if not found
+func (s *AuthService) lookupUserIDByProvider(provider, providerID string) (uuid.UUID, error) {
+	providerKey := fmt.Sprintf("user:provider:%s:%s", provider, providerID)
+	userIDStr, err := s.redis.Get(s.ctx, providerKey).Result()
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid user ID in Redis: %w", err)
+	}
+
+	return userID, nil
+}
+
+// getUser is a unified method for retrieving users by different criteria
+func (s *AuthService) getUser(lookup UserLookup) (*models.User, error) {
+	var userID uuid.UUID
+	var err error
+
+	// 1. Determine userID from lookup criteria
+	switch {
+	case lookup.ByID != nil:
+		userID = *lookup.ByID
+	case lookup.ByEmail != nil:
+		// Try Redis first for email -> ID mapping
+		userID, err = s.lookupUserIDByEmail(*lookup.ByEmail)
+		if err == nil && userID != uuid.Nil {
+			// Found in Redis, now get the user
+			user, getUserErr := s.getUserWithFallback(userID)
+			if getUserErr == nil {
+				return user, nil
+			}
+		}
+
+		// Fallback to PostgreSQL for email lookup
+		fmt.Printf("⚠️ Redis miss for user email %s, falling back to PostgreSQL\n", *lookup.ByEmail)
+		entUser, dbErr := s.client.User.Query().
+			Where(user.EmailEQ(*lookup.ByEmail)).
+			Only(s.ctx)
+
+		if dbErr != nil {
+			if ent.IsNotFound(dbErr) {
+				return nil, redis.Nil // Maintain consistent error type
+			}
+			return nil, fmt.Errorf("user not found in PostgreSQL: %w", dbErr)
+		}
+
+		// Convert and sync to Redis
+		userModel := s.entUserToModel(entUser)
+		if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
+			fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
+		}
+		return userModel, nil
+
+	case lookup.ByProviderID != nil:
+		// Try Redis first for provider -> ID mapping
+		userID, err = s.lookupUserIDByProvider(lookup.ByProviderID.Provider, lookup.ByProviderID.ID)
+		if err == nil && userID != uuid.Nil {
+			// Found in Redis, now get the user
+			user, getUserErr := s.getUserWithFallback(userID)
+			if getUserErr == nil {
+				return user, nil
+			}
+		}
+
+		// Fallback to PostgreSQL for provider lookup
+		fmt.Printf("⚠️ Redis miss for provider %s:%s, falling back to PostgreSQL\n",
+			lookup.ByProviderID.Provider, lookup.ByProviderID.ID)
+
+		var entUser *ent.User
+		if lookup.ByProviderID.Provider == "google" {
+			entUser, err = s.client.User.Query().
+				Where(user.GoogleIDEQ(lookup.ByProviderID.ID)).
+				Only(s.ctx)
+		} else {
+			return nil, fmt.Errorf("unsupported provider: %s", lookup.ByProviderID.Provider)
+		}
+
+		if err != nil {
+			if ent.IsNotFound(err) {
+				return nil, redis.Nil // Maintain consistent error type
+			}
+			return nil, fmt.Errorf("user not found in PostgreSQL: %w", err)
+		}
+
+		// Convert and sync to Redis
+		userModel := s.entUserToModel(entUser)
+		if syncErr := s.syncUserToRedis(userModel); syncErr != nil {
+			fmt.Printf("⚠️ Failed to sync user to Redis: %v\n", syncErr)
+		}
+		return userModel, nil
+
+	default:
+		return nil, fmt.Errorf("no lookup criteria provided")
+	}
+
+	// For ByID case, use the unified fallback method
+	return s.getUserWithFallback(userID)
 }
 
 func (s *AuthService) toUserInfo(user *models.User) *models.UserInfo {
