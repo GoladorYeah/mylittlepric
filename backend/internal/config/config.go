@@ -121,7 +121,8 @@ type Config struct {
 	CORSOrigins []string
 
 	// Logging
-	LogLevel string
+	LogLevel  string
+	LogFormat string // "json" or "text"
 }
 
 func Load() (*Config, error) {
@@ -218,6 +219,7 @@ func Load() (*Config, error) {
 		RateLimitWindow:   getEnvAsInt("RATE_LIMIT_WINDOW", 60),
 		CORSOrigins:       getEnvAsSlice("CORS_ORIGINS", []string{"http://localhost:3000"}),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
+		LogFormat:         getEnv("LOG_FORMAT", "json"),
 	}
 
 	if err := config.validate(); err != nil {

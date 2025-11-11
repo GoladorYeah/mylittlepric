@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -65,7 +65,7 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		return nil, fmt.Errorf("failed to initialize services: %w", err)
 	}
 
-	log.Println("✅ Dependency container initialized successfully")
+	utils.LogInfo(c.ctx, "dependency container initialized successfully")
 	return c, nil
 }
 
@@ -87,11 +87,11 @@ func (c *Container) initDatabase() error {
 
 	// Run auto migrations
 	if err := entClient.Schema.Create(c.ctx); err != nil {
-		log.Printf("⚠️ Failed to create Ent schema (tables may already exist): %v", err)
+		utils.LogWarn(c.ctx, "failed to create Ent schema (tables may already exist)", slog.Any("error", err))
 	}
 
 	c.Ent = entClient
-	log.Println("✅ Connected to PostgreSQL (Ent ORM)")
+	utils.LogInfo(c.ctx, "connected to PostgreSQL (Ent ORM)")
 	return nil
 }
 
@@ -110,7 +110,7 @@ func (c *Container) initRedis() error {
 		return fmt.Errorf("Redis ping failed: %w", err)
 	}
 
-	log.Println("✅ Connected to Redis")
+	utils.LogInfo(c.ctx, "connected to Redis")
 	return nil
 }
 
@@ -129,8 +129,8 @@ func (c *Container) initKeyRotators() error {
 		c.Redis,
 	)
 
-	log.Printf("✅ Gemini Key Rotator: %d keys", c.GeminiRotator.GetTotalKeys())
-	log.Printf("✅ SERP Key Rotator: %d keys", c.SerpRotator.GetTotalKeys())
+	utils.LogInfo(c.ctx, "Gemini key rotator initialized", slog.Int("total_keys", c.GeminiRotator.GetTotalKeys()))
+	utils.LogInfo(c.ctx, "SERP key rotator initialized", slog.Int("total_keys", c.SerpRotator.GetTotalKeys()))
 
 	return nil
 }
@@ -143,23 +143,23 @@ func (c *Container) initServices() error {
 		c.Config.JWTAccessTTL,
 		c.Config.JWTRefreshTTL,
 	)
-	log.Println("🔐 JWT Service initialized")
+	utils.LogInfo(c.ctx, "JWT service initialized")
 
 	// Initialize Google OAuth Service
 	c.GoogleOAuthService = services.NewGoogleOAuthService(c.Config)
-	log.Println("🔑 Google OAuth Service initialized")
+	utils.LogInfo(c.ctx, "Google OAuth service initialized")
 
 	// Initialize Auth Service
 	c.AuthService = services.NewAuthService(c.Ent, c.Redis, c.JWTService, c.GoogleOAuthService)
-	log.Println("🔑 Auth Service initialized")
+	utils.LogInfo(c.ctx, "Auth service initialized")
 
 	// Initialize CycleService (no dependencies)
 	c.CycleService = services.NewCycleService()
-	log.Println("🔄 Cycle Service initialized")
+	utils.LogInfo(c.ctx, "Cycle service initialized")
 
 	// Initialize MessageService (depends on Redis)
 	c.MessageService = services.NewMessageService(c.Redis, c.Config.SessionTTL)
-	log.Println("💬 Message Service initialized")
+	utils.LogInfo(c.ctx, "Message service initialized")
 
 	// Initialize SessionService (depends on CycleService)
 	c.SessionService = services.NewSessionService(
@@ -170,7 +170,7 @@ func (c *Container) initServices() error {
 		c.Config.MaxMessagesPerSession,
 	)
 	c.SessionService.SetAuthService(c.AuthService)
-	log.Println("📦 Session Service initialized")
+	utils.LogInfo(c.ctx, "Session service initialized")
 
 	apiKey, _, _ := c.GeminiRotator.GetNextKey()
 	geminiClient, _ := genai.NewClient(c.ctx, &genai.ClientConfig{
@@ -179,44 +179,42 @@ func (c *Container) initServices() error {
 	})
 
 	c.EmbeddingService = services.NewEmbeddingService(geminiClient, c.Redis, c.Config)
-	log.Println("🧠 Embedding Service initialized")
+	utils.LogInfo(c.ctx, "Embedding service initialized")
 
 	c.CacheService = services.NewCacheService(c.Redis, c.Config, c.EmbeddingService)
 
 	c.GeminiService = services.NewGeminiService(c.GeminiRotator, c.Config, c.EmbeddingService)
-	log.Printf("🎯 Smart Grounding: '%s' mode", c.Config.GeminiGroundingMode)
-	if c.Config.GeminiUseGrounding {
-		log.Println("🔍 Grounding: ENABLED (selective usage)")
-	} else {
-		log.Println("💬 Grounding: DISABLED globally")
-	}
+	utils.LogInfo(c.ctx, "Smart grounding configured",
+		slog.String("mode", c.Config.GeminiGroundingMode),
+		slog.Bool("enabled", c.Config.GeminiUseGrounding),
+	)
 
 	c.SerpService = services.NewSerpService(c.SerpRotator, c.Config)
 
 	c.SearchHistoryService = services.NewSearchHistoryService(c.Ent)
-	log.Println("📜 Search History Service initialized")
+	utils.LogInfo(c.ctx, "Search history service initialized")
 
 	c.PreferencesService = services.NewPreferencesService(c.Ent, c.AuthService)
-	log.Println("⚙️ Preferences Service initialized")
+	utils.LogInfo(c.ctx, "Preferences service initialized")
 
-	log.Println("✅ All services initialized")
+	utils.LogInfo(c.ctx, "all services initialized")
 	return nil
 }
 
 func (c *Container) Close() error {
-	log.Println("🛑 Shutting down container...")
+	utils.LogInfo(c.ctx, "shutting down container")
 
 	// Close Ent client
 	if c.Ent != nil {
 		if err := c.Ent.Close(); err != nil {
-			log.Printf("⚠️ Failed to close Ent client: %v", err)
+			utils.LogWarn(c.ctx, "failed to close Ent client", slog.Any("error", err))
 		}
 	}
 
 	// Close EntDB connection
 	if c.EntDB != nil {
 		if err := c.EntDB.Close(); err != nil {
-			log.Printf("⚠️ Failed to close Ent database: %v", err)
+			utils.LogWarn(c.ctx, "failed to close Ent database", slog.Any("error", err))
 		}
 	}
 
@@ -224,7 +222,7 @@ func (c *Container) Close() error {
 		return fmt.Errorf("failed to close Redis: %w", err)
 	}
 
-	log.Println("✅ Container closed gracefully")
+	utils.LogInfo(c.ctx, "container closed gracefully")
 	return nil
 }
 
