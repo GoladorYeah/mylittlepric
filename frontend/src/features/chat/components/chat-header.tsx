@@ -19,7 +19,7 @@ export function ChatHeader({
   const { isSidebarOpen, toggleSidebar } = useChatStore();
 
   return (
-    <header className="border-b border-border bg-background sticky top-0 z-50">
+    <header className="border-b border-border bg-background sticky top-0 z-20">
       <div className="container mx-auto px-4 h-12 flex items-center">
         {/* Mobile Sidebar Toggle Button */}
         <button
