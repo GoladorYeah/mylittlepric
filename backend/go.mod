@@ -4,14 +4,12 @@ go 1.24.0
 
 require (
 	entgo.io/ent v0.14.5
-	github.com/gofiber/adaptor/v2 v2.2.1
 	github.com/gofiber/contrib/websocket v1.3.4
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
-	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.16.0
 	github.com/serpapi/google-search-results-golang v0.0.0-20240325113416-ec93f510648e
 	golang.org/x/crypto v0.44.0

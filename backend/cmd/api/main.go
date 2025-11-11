@@ -10,19 +10,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"mylittleprice/internal/app"
 	"mylittleprice/internal/config"
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/handlers"
 	"mylittleprice/internal/jobs"
-	"mylittleprice/internal/metrics"
 	"mylittleprice/internal/middleware"
 	"mylittleprice/internal/utils"
 )
@@ -70,7 +67,6 @@ func main() {
 	})
 
 	fiberApp.Use(recover.New())
-	fiberApp.Use(middleware.PrometheusMiddleware())
 	fiberApp.Use(fiberlogger.New(fiberlogger.Config{
 		Format:     "${time} | ${status} | ${latency} | ${method} ${path}\n",
 		TimeFormat: "15:04:05",
@@ -111,22 +107,7 @@ func main() {
 	fiberApp.Get("/health/ready", healthHandler.Readiness)
 	fiberApp.Get("/health", healthHandler.Health)
 
-	// Prometheus metrics endpoint
-	fiberApp.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
-
-	// Periodic metrics update for Redis pool
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-
-		for range ticker.C {
-			stats := c.Redis.PoolStats()
-			metrics.UpdateRedisPoolMetrics(stats)
-		}
-	}()
-
-	logger.Info("Metrics and health check endpoints initialized",
-		slog.String("metrics_endpoint", "/metrics"),
+	logger.Info("Health check endpoints initialized",
 		slog.String("health_endpoint", "/health"),
 	)
 
