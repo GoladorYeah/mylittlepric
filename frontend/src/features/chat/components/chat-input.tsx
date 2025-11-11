@@ -52,7 +52,7 @@ export function ChatInput({
         <button
           onClick={handleSend}
           disabled={!input.trim() || isLoading || !isConnected}
-          className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center flex-shrink-0"
+          className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center shrink-0"
         >
           <Send className="w-5 h-5" />
         </button>

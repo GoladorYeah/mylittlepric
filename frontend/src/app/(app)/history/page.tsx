@@ -151,7 +151,7 @@ export default function HistoryPage() {
       <Sidebar onNewSearch={() => router.push('/chat')} />
 
       <div
-        className={`min-h-screen bg-gradient-to-br from-background via-background to-background/95 transition-all duration-300 ${
+        className={`min-h-screen bg-linear-to-br from-background via-background to-background/95 transition-all duration-300 ${
           isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
         }`}
       >
@@ -233,11 +233,8 @@ export default function HistoryPage() {
                     >
                       {/* Header */}
                       <div className="relative group">
-                        <button
-                          onClick={() => hasProducts && toggleExpanded(item.id)}
-                          className={`w-full text-left p-4 transition-colors ${
-                            hasProducts ? 'hover:bg-secondary cursor-pointer' : 'cursor-default'
-                          }`}
+                        <div
+                          className="w-full text-left p-4 transition-colors"
                         >
                           <div className="flex items-start gap-3">
                             <Search className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
@@ -342,7 +339,7 @@ export default function HistoryPage() {
                               </div>
                             </div>
                           </div>
-                        </button>
+                        </div>
                       </div>
 
                       {/* Products Grid */}
