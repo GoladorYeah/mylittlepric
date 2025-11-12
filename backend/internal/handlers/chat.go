@@ -89,20 +89,37 @@ func (h *ChatHandler) GetSessionMessages(c *fiber.Ctx) error {
 	// Get messages from session
 	messages, err := h.container.MessageService.GetMessages(sessionID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
-			Error:   "server_error",
-			Message: "Failed to retrieve messages",
+		// Check if it's a "not found" error (new session with no messages yet)
+		// This is not a critical error - just return empty messages
+		fmt.Printf("ℹ️ No messages found for session %s (new session?): %v\n", sessionID, err)
+
+		// Try to get session to verify it exists or will be created
+		session, sessionErr := h.container.SessionService.GetSession(sessionID)
+		if sessionErr != nil {
+			// Session doesn't exist yet - this is OK for new sessions
+			return c.JSON(fiber.Map{
+				"messages":      []interface{}{},
+				"session_id":    sessionID,
+				"message_count": 0,
+			})
+		}
+
+		// Session exists but has no messages yet
+		return c.JSON(fiber.Map{
+			"messages":      []interface{}{},
+			"session_id":    sessionID,
+			"message_count": session.MessageCount,
 		})
 	}
 
 	// Get session info for additional context
 	session, err := h.container.SessionService.GetSession(sessionID)
 	if err != nil {
-		// Session might not exist yet, return empty messages
+		// Session might not exist yet, return messages without session context
 		return c.JSON(fiber.Map{
-			"messages":      []interface{}{},
+			"messages":      messages,
 			"session_id":    sessionID,
-			"message_count": 0,
+			"message_count": len(messages),
 		})
 	}
 

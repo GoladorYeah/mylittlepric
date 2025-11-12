@@ -201,6 +201,13 @@ export const useChatStore = create<ChatStore>()(
 
           console.log("✅ Received", response.messages?.length || 0, "messages from API");
 
+          // Handle case where session is new and has no messages yet
+          if (!response.messages || response.messages.length === 0) {
+            console.log("📭 Session is empty (new session or no messages yet)");
+            set({ messages: [] });
+            return;
+          }
+
           if (response.messages && response.messages.length > 0) {
             const chatMessages: ChatMessage[] = response.messages.map((msg, index) => ({
               id: `${sessionId}-${index}`,
@@ -251,6 +258,9 @@ export const useChatStore = create<ChatStore>()(
           }
         } catch (error) {
           console.error("Failed to load session messages:", error);
+          // Don't throw - this is not critical if it's a new session
+          // Just keep current state and let user start fresh
+          console.log("ℹ️ Continuing with empty session (this is OK for new sessions)");
         }
       },
 
