@@ -462,6 +462,15 @@ export const useChatStore = create<ChatStore>()(
       checkSavedSearchPrompt: () => {
         const state = get();
 
+        console.log("🔍 checkSavedSearchPrompt called:", {
+          hasSavedSearch: !!state.savedSearch,
+          messagesLength: state.messages.length,
+          savedSearchMessagesLength: state.savedSearch?.messages.length || 0,
+          currentSessionId: state.sessionId,
+          savedSearchSessionId: state.savedSearch?.sessionId || 'none',
+          currentShowSavedSearchPrompt: state.showSavedSearchPrompt,
+        });
+
         // Only show prompt if:
         // 1. There is a savedSearch
         // 2. Current chat is empty (no messages)
@@ -477,6 +486,7 @@ export const useChatStore = create<ChatStore>()(
           // This prevents showing prompt when we're already in the saved session
           if (state.savedSearch.sessionId === state.sessionId) {
             console.log("ℹ️ savedSearch is from current session - not showing prompt");
+            set({ showSavedSearchPrompt: false }); // Explicitly set to false
             return;
           }
 
@@ -484,6 +494,7 @@ export const useChatStore = create<ChatStore>()(
 
           // Don't show prompt if savedSearch was just created (< 10 seconds ago)
           if (timeSinceSaved < 10000) {
+            console.log("⏱️ savedSearch too recent (< 10s) - not showing prompt");
             return;
           }
 
@@ -502,7 +513,17 @@ export const useChatStore = create<ChatStore>()(
 
           // Show prompt only if savedSearch has NO products
           if (!hasProducts) {
+            console.log("✅ Showing savedSearch prompt (no products, different session)");
             set({ showSavedSearchPrompt: true });
+          } else {
+            console.log("ℹ️ savedSearch has products - not showing prompt");
+          }
+        } else {
+          console.log("ℹ️ Not showing prompt - conditions not met");
+          // Ensure prompt is cleared if conditions not met
+          if (state.showSavedSearchPrompt) {
+            console.log("🧹 Clearing stale showSavedSearchPrompt");
+            set({ showSavedSearchPrompt: false });
           }
         }
       },
