@@ -509,6 +509,27 @@ export const useChatStore = create<ChatStore>()(
         savedSearch: state.savedSearch,
         // Exclude _wsSender from persistence
       }),
+      onRehydrateStorage: () => {
+        console.log("💾 Starting to rehydrate chat store from localStorage...");
+        return (state, error) => {
+          if (error) {
+            console.error("❌ Error rehydrating chat store:", error);
+          } else {
+            console.log("✅ Chat store rehydrated:", {
+              messageCount: state?.messages?.length || 0,
+              sessionId: state?.sessionId || "none",
+              hasMessages: !!state?.messages && state.messages.length > 0,
+            });
+            if (state?.messages && state.messages.length > 0) {
+              console.log("📝 Rehydrated messages:", state.messages.map(m => ({
+                id: m.id,
+                role: m.role,
+                content: m.content.substring(0, 30),
+              })));
+            }
+          }
+        };
+      },
     }
   )
 );
