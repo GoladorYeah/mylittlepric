@@ -97,26 +97,9 @@ class AuthAPI {
       expires_in: authData.expires_in,
     });
 
-    // Sync preferences from server after login
-    try {
-      await useChatStore.getState().syncPreferencesFromServer();
-    } catch (error) {
-      console.error("Failed to sync preferences after login:", error);
-    }
-
-    // Reload messages for current session from server after login
-    // This ensures we see messages sent from other devices while we were logged out
-    const chatStore = useChatStore.getState();
-    const currentSessionId = chatStore.sessionId || localStorage.getItem("chat_session_id");
-
-    if (currentSessionId) {
-      console.log("🔄 Reloading session messages after login:", currentSessionId);
-      try {
-        await chatStore.loadSessionMessages(currentSessionId);
-      } catch (error) {
-        console.error("Failed to reload session messages after login:", error);
-      }
-    }
+    // Note: We don't sync preferences or load messages here
+    // The use-chat.ts hook will handle this automatically on mount for authenticated users
+    // This prevents race conditions with localStorage persistence
 
     return authData;
   }
