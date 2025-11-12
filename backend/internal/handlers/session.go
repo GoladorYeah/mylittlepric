@@ -189,3 +189,39 @@ func (h *SessionHandler) LinkSessionToUser(c *fiber.Ctx) error {
 		"message": "Session linked to user successfully",
 	})
 }
+
+// GetSignedSessionID returns a signed session ID for the current user
+// POST /api/sessions/sign
+func (h *SessionHandler) GetSignedSessionID(c *fiber.Ctx) error {
+	// Parse request body
+	var req struct {
+		SessionID string `json:"session_id"`
+	}
+
+	if err := json.Unmarshal(c.Body(), &req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	if req.SessionID == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "session_id is required",
+		})
+	}
+
+	// Get signed session ID (works for both authenticated and anonymous users)
+	signedSessionID, err := h.container.SessionOwnershipChecker.SignSessionIDForUser(c, req.SessionID)
+	if err != nil {
+		fmt.Printf("❌ Error signing session ID %s: %v\n", req.SessionID, err)
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to sign session ID",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"session_id":        req.SessionID,
+		"signed_session_id": signedSessionID,
+		"expires_in":        24 * 60 * 60, // 24 hours in seconds
+	})
+}

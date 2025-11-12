@@ -485,6 +485,31 @@ func (s *SessionService) LinkSessionToUser(sessionID string, userID uuid.UUID) e
 	return s.UpdateSession(session)
 }
 
+// InvalidateSessionCache invalidates the Redis cache for a specific session
+// This should be called when sessions are modified directly in PostgreSQL
+func (s *SessionService) InvalidateSessionCache(sessionID string) error {
+	key := fmt.Sprintf(constants.CachePrefixSession+"%s", sessionID)
+	return s.redis.Del(s.ctx, key).Err()
+}
+
+// RefreshSessionCache refreshes the Redis cache from PostgreSQL
+// This ensures cache consistency after direct database modifications
+func (s *SessionService) RefreshSessionCache(sessionID string) error {
+	// Get fresh data from PostgreSQL
+	session, err := s.getSessionFromDB(sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get session from database: %w", err)
+	}
+
+	// Save to Redis
+	if err := s.saveSessionToRedis(session); err != nil {
+		return fmt.Errorf("failed to save session to Redis: %w", err)
+	}
+
+	fmt.Printf("✅ Refreshed session cache for %s\n", sessionID)
+	return nil
+}
+
 // ensureUserExistsInPostgres checks if user exists in PostgreSQL and syncs from Redis if needed
 // This prevents foreign key constraint violations when creating sessions for authenticated users
 func (s *SessionService) ensureUserExistsInPostgres(userID uuid.UUID) error {

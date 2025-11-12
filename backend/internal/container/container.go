@@ -16,6 +16,7 @@ import (
 
 	"mylittleprice/ent"
 	"mylittleprice/internal/config"
+	"mylittleprice/internal/middleware"
 	"mylittleprice/internal/services"
 	"mylittleprice/internal/utils"
 )
@@ -32,18 +33,19 @@ type Container struct {
 	SerpRotator   *utils.KeyRotator
 	JWTService    *utils.JWTService
 
-	EmbeddingService     *services.EmbeddingService
-	GeminiService        *services.GeminiService
-	SerpService          *services.SerpService
-	CacheService         *services.CacheService
-	SessionService       *services.SessionService
-	MessageService       *services.MessageService
-	CycleService         *services.CycleService
-	GoogleOAuthService   *services.GoogleOAuthService
-	AuthService          *services.AuthService
-	SearchHistoryService *services.SearchHistoryService
-	PreferencesService   *services.PreferencesService
-	CleanupService       *services.CleanupService
+	EmbeddingService        *services.EmbeddingService
+	GeminiService           *services.GeminiService
+	SerpService             *services.SerpService
+	CacheService            *services.CacheService
+	SessionService          *services.SessionService
+	MessageService          *services.MessageService
+	CycleService            *services.CycleService
+	GoogleOAuthService      *services.GoogleOAuthService
+	AuthService             *services.AuthService
+	SearchHistoryService    *services.SearchHistoryService
+	PreferencesService      *services.PreferencesService
+	CleanupService          *services.CleanupService
+	SessionOwnershipChecker *middleware.SessionOwnershipValidator
 }
 
 func NewContainer(cfg *config.Config) (*Container, error) {
@@ -235,6 +237,10 @@ func (c *Container) initServices() error {
 
 	// Start periodic cleanup (runs daily at 3 AM)
 	c.CleanupService.StartPeriodicCleanup(24 * time.Hour)
+
+	// Initialize Session Ownership Validator
+	c.SessionOwnershipChecker = middleware.NewSessionOwnershipValidator(&services.SessionAdapter{SessionService: c.SessionService}, c.Config.JWTAccessSecret)
+	utils.LogInfo(c.ctx, "Session ownership validation initialized")
 
 	utils.LogInfo(c.ctx, "all services initialized")
 	return nil

@@ -190,6 +190,14 @@ func (s *MessageService) GetMessages(sessionID string) ([]*models.Message, error
 	// Restore to Redis for future requests
 	if len(messages) > 0 {
 		fmt.Printf("📦 Messages for session %s restored from PostgreSQL to Redis\n", sessionID)
+
+		// Clear existing cache first to ensure consistency
+		key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
+		if err := s.redis.Del(s.ctx, key).Err(); err != nil {
+			fmt.Printf("⚠️ Failed to clear old Redis cache: %v\n", err)
+		}
+
+		// Restore all messages in correct order
 		for _, msg := range messages {
 			if err := s.saveMessageToRedis(sessionID, msg); err != nil {
 				fmt.Printf("⚠️ Failed to restore message to Redis: %v\n", err)
@@ -404,4 +412,37 @@ func (s *MessageService) GetMessagesAfterID(sessionID string, afterID uuid.UUID)
 
 	// Get messages created after this timestamp
 	return s.GetMessagesSince(sessionID, refMsg.CreatedAt)
+}
+
+// InvalidateMessageCache invalidates the Redis cache for a specific session's messages
+// This should be called when messages are modified directly in PostgreSQL
+func (s *MessageService) InvalidateMessageCache(sessionID string) error {
+	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
+	return s.redis.Del(s.ctx, key).Err()
+}
+
+// RefreshMessageCache refreshes the Redis cache from PostgreSQL
+// This ensures cache consistency after direct database modifications
+func (s *MessageService) RefreshMessageCache(sessionID string) error {
+	// Get fresh data from PostgreSQL
+	messages, err := s.getMessagesFromDB(sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get messages from database: %w", err)
+	}
+
+	// Clear old cache
+	key := fmt.Sprintf(constants.CachePrefixMessages, sessionID)
+	if err := s.redis.Del(s.ctx, key).Err(); err != nil {
+		return fmt.Errorf("failed to clear Redis cache: %w", err)
+	}
+
+	// Restore to Redis in correct order
+	for _, msg := range messages {
+		if err := s.saveMessageToRedis(sessionID, msg); err != nil {
+			return fmt.Errorf("failed to restore message to Redis: %w", err)
+		}
+	}
+
+	fmt.Printf("✅ Refreshed message cache for session %s (%d messages)\n", sessionID, len(messages))
+	return nil
 }
