@@ -318,11 +318,16 @@ export const useChatStore = create<ChatStore>()(
       restoreSavedSearch: async () => {
         const state = get();
         if (state.savedSearch) {
+          // Check if saved search has products to set searchInProgress correctly
+          const hasProducts = state.savedSearch.messages.some(
+            m => m.products && m.products.length > 0
+          );
+
           set({
             messages: [...state.savedSearch.messages],
             sessionId: state.savedSearch.sessionId,
             currentCategory: state.savedSearch.category,
-            searchInProgress: false,
+            searchInProgress: hasProducts, // Set based on presence of products
             isLoading: false,
           });
           // Save session ID to localStorage
@@ -442,9 +447,16 @@ export const useChatStore = create<ChatStore>()(
         // 1. There is a savedSearch
         // 2. Current chat is empty (no messages)
         // 3. SavedSearch has messages but no products
+        // 4. SavedSearch was created more than 10 seconds ago (avoid showing after "New Search")
         if (state.savedSearch &&
             state.messages.length === 0 &&
             state.savedSearch.messages.length > 0) {
+
+          // Don't show prompt if savedSearch was just created (< 10 seconds ago)
+          const timeSinceSaved = Date.now() - state.savedSearch.timestamp;
+          if (timeSinceSaved < 10000) {
+            return;
+          }
 
           const hasProducts = state.savedSearch.messages.some(
             m => m.products && m.products.length > 0
