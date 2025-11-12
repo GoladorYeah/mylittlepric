@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 )
 
@@ -54,5 +55,13 @@ func (Message) Edges() []ent.Edge {
 			Field("session_id").
 			Required().
 			Unique(),
+	}
+}
+
+// Indexes of the Message.
+func (Message) Indexes() []ent.Index {
+	return []ent.Index{
+		// Index for GetMessagesFromDB - filtering by session_id and ordering by created_at
+		index.Fields("session_id", "created_at"),
 	}
 }

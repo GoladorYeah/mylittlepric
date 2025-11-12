@@ -43,6 +43,7 @@ type Container struct {
 	AuthService          *services.AuthService
 	SearchHistoryService *services.SearchHistoryService
 	PreferencesService   *services.PreferencesService
+	CleanupService       *services.CleanupService
 }
 
 func NewContainer(cfg *config.Config) (*Container, error) {
@@ -189,9 +190,9 @@ func (c *Container) initServices() error {
 	c.CycleService = services.NewCycleService()
 	utils.LogInfo(c.ctx, "Cycle service initialized")
 
-	// Initialize MessageService (depends on Redis)
-	c.MessageService = services.NewMessageService(c.Redis, c.Config.SessionTTL)
-	utils.LogInfo(c.ctx, "Message service initialized")
+	// Initialize MessageService (depends on Redis and Ent)
+	c.MessageService = services.NewMessageService(c.Redis, c.Ent, c.Config.SessionTTL)
+	utils.LogInfo(c.ctx, "Message service initialized with PostgreSQL persistence")
 
 	// Initialize SessionService (depends on CycleService)
 	c.SessionService = services.NewSessionService(
@@ -228,6 +229,12 @@ func (c *Container) initServices() error {
 
 	c.PreferencesService = services.NewPreferencesService(c.Ent, c.AuthService)
 	utils.LogInfo(c.ctx, "Preferences service initialized")
+
+	c.CleanupService = services.NewCleanupService(c.Ent)
+	utils.LogInfo(c.ctx, "Cleanup service initialized")
+
+	// Start periodic cleanup (runs daily at 3 AM)
+	c.CleanupService.StartPeriodicCleanup(24 * time.Hour)
 
 	utils.LogInfo(c.ctx, "all services initialized")
 	return nil

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"time"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
@@ -110,5 +111,51 @@ func (h *ChatHandler) GetSessionMessages(c *fiber.Ctx) error {
 		"session_id":    sessionID,
 		"message_count": len(messages),
 		"search_state":  session.SearchState,
+	})
+}
+
+// GetMessagesSince retrieves messages created after a specific timestamp
+// This is useful for reconnection scenarios
+// GET /api/chat/messages/since?session_id=xxx&since=2024-01-01T00:00:00Z
+func (h *ChatHandler) GetMessagesSince(c *fiber.Ctx) error {
+	sessionID := c.Query("session_id")
+	if sessionID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "session_id is required",
+		})
+	}
+
+	sinceStr := c.Query("since")
+	if sinceStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "since timestamp is required",
+		})
+	}
+
+	// Parse timestamp
+	since, err := time.Parse(time.RFC3339, sinceStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "Invalid since timestamp format. Use RFC3339 format (e.g., 2024-01-01T00:00:00Z)",
+		})
+	}
+
+	// Get messages since timestamp
+	messages, err := h.container.MessageService.GetMessagesSince(sessionID, since)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error:   "server_error",
+			Message: "Failed to retrieve messages",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"messages":      messages,
+		"session_id":    sessionID,
+		"message_count": len(messages),
+		"since":         since,
 	})
 }

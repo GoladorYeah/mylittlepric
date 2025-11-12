@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/models"
+	"mylittleprice/internal/services"
 )
 
 type Client struct {
@@ -24,15 +26,28 @@ type WSHandler struct {
 	clients   map[string]*Client // clientID -> Client
 	userConns map[uuid.UUID]map[string]bool // userID -> set of clientIDs
 	mu        sync.RWMutex
+	pubsub    *services.PubSubService // Redis Pub/Sub for cross-server communication
 }
 
 func NewWSHandler(c *container.Container) *WSHandler {
-	return &WSHandler{
+	// Create PubSub service
+	pubsub := services.NewPubSubService(c.Redis)
+
+	handler := &WSHandler{
 		container: c,
 		processor: NewChatProcessor(c),
 		clients:   make(map[string]*Client),
 		userConns: make(map[uuid.UUID]map[string]bool),
+		pubsub:    pubsub,
 	}
+
+	// Subscribe to all users broadcast channel
+	// This allows this server to receive messages from other servers
+	pubsub.SubscribeToAllUsers(handler.handleBroadcastMessage)
+
+	log.Printf("🚀 WebSocket handler initialized with Pub/Sub (ServerID: %s)", pubsub.GetServerID()[:8])
+
+	return handler
 }
 
 type WSMessage struct {
@@ -315,27 +330,84 @@ func (h *WSHandler) updateClientUser(clientID string, userID *uuid.UUID) {
 }
 
 // broadcastToUser sends a message to all connections of a user except the sender
+// This also broadcasts via Redis Pub/Sub to other servers
 func (h *WSHandler) broadcastToUser(userID uuid.UUID, response *WSResponse, excludeClientID string) {
+	// 1. Broadcast to local clients on this server
 	h.mu.RLock()
-	defer h.mu.RUnlock()
+	clientIDs, hasLocalClients := h.userConns[userID]
+	h.mu.RUnlock()
 
-	clientIDs, ok := h.userConns[userID]
-	if !ok {
+	if hasLocalClients {
+		for cid := range clientIDs {
+			if cid == excludeClientID {
+				continue
+			}
+
+			h.mu.RLock()
+			client, exists := h.clients[cid]
+			h.mu.RUnlock()
+
+			if !exists {
+				continue
+			}
+
+			if err := client.Conn.WriteJSON(response); err != nil {
+				log.Printf("❌ Failed to broadcast to client %s: %v", cid, err)
+			}
+		}
+	}
+
+	// 2. Broadcast to other servers via Redis Pub/Sub
+	// This ensures users connected to other backend instances also receive the message
+	if err := h.pubsub.BroadcastToAllUsers(userID, response.Type, response); err != nil {
+		log.Printf("⚠️ Failed to broadcast to Pub/Sub: %v", err)
+	}
+}
+
+// handleBroadcastMessage handles messages received from other servers via Redis Pub/Sub
+func (h *WSHandler) handleBroadcastMessage(msg *services.BroadcastMessage) {
+	// Check if we have any local clients for this user
+	h.mu.RLock()
+	clientIDs, hasClients := h.userConns[msg.UserID]
+	h.mu.RUnlock()
+
+	if !hasClients {
+		// No local clients for this user, ignore message
 		return
 	}
 
-	for cid := range clientIDs {
-		if cid == excludeClientID {
-			continue
+	// Convert payload to WSResponse
+	payload, ok := msg.Payload.(*WSResponse)
+	if !ok {
+		// Try to unmarshal from map
+		data, err := json.Marshal(msg.Payload)
+		if err != nil {
+			log.Printf("❌ Failed to marshal broadcast payload: %v", err)
+			return
 		}
 
+		var wsResp WSResponse
+		if err := json.Unmarshal(data, &wsResp); err != nil {
+			log.Printf("❌ Failed to unmarshal broadcast payload to WSResponse: %v", err)
+			return
+		}
+		payload = &wsResp
+	}
+
+	// Send to all local clients for this user
+	for cid := range clientIDs {
+		h.mu.RLock()
 		client, exists := h.clients[cid]
+		h.mu.RUnlock()
+
 		if !exists {
 			continue
 		}
 
-		if err := client.Conn.WriteJSON(response); err != nil {
-			log.Printf("❌ Failed to broadcast to client %s: %v", cid, err)
+		if err := client.Conn.WriteJSON(payload); err != nil {
+			log.Printf("❌ Failed to send broadcast message to client %s: %v", cid, err)
+		} else {
+			log.Printf("📨 Broadcast from server %s delivered to client %s", msg.ServerID[:8], cid[:8])
 		}
 	}
 }
