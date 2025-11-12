@@ -81,6 +81,13 @@ var (
 				OnDelete:   schema.NoAction,
 			},
 		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "message_session_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MessagesColumns[8], MessagesColumns[7]},
+			},
+		},
 	}
 	// SearchHistoriesColumns holds the columns for the "search_histories" table.
 	SearchHistoriesColumns = []*schema.Column{
