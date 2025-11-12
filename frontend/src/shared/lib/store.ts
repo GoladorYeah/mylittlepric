@@ -111,6 +111,7 @@ export const useChatStore = create<ChatStore>()(
             role: message.role,
             content: message.content.substring(0, 50),
             currentMessageCount: state.messages.length,
+            stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n')
           });
 
           // Check for duplicate message IDs to prevent duplicate messages
