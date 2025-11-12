@@ -63,6 +63,25 @@ function getBaseSessionId(sessionId: string): string {
 }
 
 /**
+ * Extract timestamp from a session ID
+ * Example: "1762943791279-78vn1po5d" -> 1762943791279
+ */
+function getSessionTimestamp(sessionId: string): number {
+  const baseId = getBaseSessionId(sessionId);
+  const match = baseId.match(/^(\d+)-/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+/**
+ * Check if session A is newer than session B based on timestamp
+ */
+function isSessionNewer(sessionA: string, sessionB: string): boolean {
+  const timestampA = getSessionTimestamp(sessionA);
+  const timestampB = getSessionTimestamp(sessionB);
+  return timestampA > timestampB;
+}
+
+/**
  * Custom hook for managing WebSocket chat connection
  * Handles connection, message sending, and session management
  */
@@ -227,18 +246,42 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
             // If server has a different session, check if we should switch
             if (localSessionId && localSessionId !== serverSessionId) {
-              // Don't switch to server session if:
-              // 1. We already have messages loaded (user is actively using this session)
-              // 2. OR we came from a URL with a session ID (user wants to view this specific session)
-              if (store.messages.length > 0 || initialSessionId) {
-                console.log("⏭️ Keeping current session (has messages or from URL):", {
+              // ALWAYS keep session if it came from URL (user explicitly wants to view this session)
+              if (initialSessionId) {
+                console.log("⏭️ Keeping URL session:", {
                   localSessionId,
-                  messageCount: store.messages.length,
-                  fromURL: !!initialSessionId,
                   serverSessionAvailable: serverSessionId,
                 });
-                // Keep using local session - user is actively working with it
                 return;
+              }
+
+              // If we have messages loaded, check which session is newer
+              if (store.messages.length > 0) {
+                // Compare timestamps to determine which session is newer
+                const serverIsNewer = isSessionNewer(serverSessionId, localSessionId);
+
+                if (serverIsNewer) {
+                  // Server session is newer (user started new chat, then reloaded page)
+                  // Switch to the newer session
+                  console.log("🔄 Switching to newer server session:", {
+                    oldSession: localSessionId,
+                    oldTimestamp: getSessionTimestamp(localSessionId),
+                    newSession: serverSessionId,
+                    newTimestamp: getSessionTimestamp(serverSessionId),
+                    reason: "Server session is newer",
+                  });
+                  // Will switch to server session below
+                } else {
+                  // Local session is newer or equal - keep it
+                  console.log("⏭️ Keeping current session (local is newer or equal):", {
+                    localSessionId,
+                    localTimestamp: getSessionTimestamp(localSessionId),
+                    messageCount: store.messages.length,
+                    serverSessionId,
+                    serverTimestamp: getSessionTimestamp(serverSessionId),
+                  });
+                  return;
+                }
               }
 
               // No messages in current session, safe to switch to server session
