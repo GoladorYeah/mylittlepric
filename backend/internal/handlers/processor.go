@@ -416,6 +416,18 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		}
 	}
 
+	// IMPORTANT: Sync assistant message content with final response output
+	// response.Output may have been modified after assistantMessage was created
+	// (e.g., in error handling, empty search results, etc.)
+	if response.Output != "" {
+		assistantMessage.Content = response.Output
+	} else if assistantMessage.Content == "" {
+		// Fallback if both are empty - this should not happen, but prevents validation errors
+		assistantMessage.Content = "..." // Minimal valid content
+		response.Output = "..."
+		utils.LogWarn(ctx, "both response.Output and assistantMessage.Content are empty - using fallback")
+	}
+
 	// Save assistant message (now with products if it was a search)
 	if err := p.container.MessageService.AddMessageInMemory(session, assistantMessage); err != nil {
 		utils.LogWarn(ctx, "failed to store assistant message (non-critical)", slog.Any("error", err))
