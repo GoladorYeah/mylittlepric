@@ -808,18 +808,31 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
   // Send initial query if provided
   useEffect(() => {
+    console.log("📍 Initial query effect triggered:", {
+      initialQuery,
+      alreadySent: initialQuerySentRef.current,
+      sessionId,
+      isConnected,
+    });
+
     if (
       initialQuery &&
       !initialQuerySentRef.current &&
       sessionId &&
       isConnected
     ) {
+      console.log("📤 Sending initial query:", initialQuery);
       initialQuerySentRef.current = true;
       sendMessage(initialQuery);
     }
   }, [initialQuery, sessionId, isConnected]);
 
   const sendMessage = async (message: string) => {
+    console.log("🔵 sendMessage called:", {
+      message: message.substring(0, 50),
+      stackTrace: new Error().stack?.split('\n').slice(1, 4).join('\n')
+    });
+
     const textToSend = message.trim();
     if (!textToSend || !isConnected) {
       console.warn("⚠️ Cannot send message:", { textToSend, isConnected });
@@ -849,6 +862,13 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       const store = useChatStore.getState();
       // Prefer signed session ID if available
       const sessionIdToSend = store.signedSessionId || sessionId;
+
+      console.log("📡 Sending WebSocket message:", {
+        type: "chat",
+        session_id: sessionIdToSend,
+        message: textToSend.substring(0, 50),
+        messageId,
+      });
 
       sendJsonMessage({
         type: "chat",
