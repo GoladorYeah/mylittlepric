@@ -168,6 +168,7 @@ export const useChatStore = create<ChatStore>()(
           isLoading: false,
           currentCategory: "",
           signedSessionId: null, // Clear signed session ID for new session
+          showSavedSearchPrompt: false, // Clear saved search prompt to show welcome message
         });
       },
 
@@ -204,7 +205,10 @@ export const useChatStore = create<ChatStore>()(
           // Handle case where session is new and has no messages yet
           if (!response.messages || response.messages.length === 0) {
             console.log("📭 Session is empty (new session or no messages yet)");
-            set({ messages: [] });
+            set({
+              messages: [],
+              showSavedSearchPrompt: false, // Clear prompt for empty session to show welcome
+            });
             return;
           }
 
@@ -262,7 +266,10 @@ export const useChatStore = create<ChatStore>()(
           console.log("ℹ️ Continuing with empty session (this is OK for new sessions)");
           // Don't throw - this is not critical if it's a new session
           // Just keep current state and let user start fresh
-          set({ messages: [] });
+          set({
+            messages: [],
+            showSavedSearchPrompt: false, // Clear prompt to show welcome message
+          });
         }
       },
 
@@ -460,13 +467,24 @@ export const useChatStore = create<ChatStore>()(
         // 2. Current chat is empty (no messages)
         // 3. SavedSearch has messages but no products
         // 4. SavedSearch was created more than 10 seconds ago (avoid showing after "New Search")
+        // 5. SavedSearch is not too old (< 24 hours)
         if (state.savedSearch &&
             state.messages.length === 0 &&
             state.savedSearch.messages.length > 0) {
 
-          // Don't show prompt if savedSearch was just created (< 10 seconds ago)
           const timeSinceSaved = Date.now() - state.savedSearch.timestamp;
+
+          // Don't show prompt if savedSearch was just created (< 10 seconds ago)
           if (timeSinceSaved < 10000) {
+            return;
+          }
+
+          // Don't show prompt if savedSearch is too old (> 24 hours)
+          // User probably doesn't care about old searches anymore
+          const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+          if (timeSinceSaved > MAX_AGE) {
+            console.log("🗑️ Clearing old savedSearch (> 24 hours old)");
+            set({ savedSearch: null, showSavedSearchPrompt: false });
             return;
           }
 
