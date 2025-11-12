@@ -69,15 +69,20 @@ func (s *MessageService) saveMessageToDB(msg *models.Message) error {
 	if msg.Products != nil && len(msg.Products) > 0 {
 		for _, product := range msg.Products {
 			productMap := map[string]interface{}{
-				"title":        product.Title,
-				"link":         product.Link,
-				"price":        product.Price,
-				"rating":       product.Rating,
-				"reviews":      product.Reviews,
-				"thumbnail":    product.Thumbnail,
-				"source":       product.Source,
-				"page_token":   product.PageToken,
-				"product_type": product.ProductType,
+				"name":        product.Name,
+				"price":       product.Price,
+				"link":        product.Link,
+				"image":       product.Image,
+				"page_token":  product.PageToken,
+			}
+			if product.OldPrice != "" {
+				productMap["old_price"] = product.OldPrice
+			}
+			if product.Description != "" {
+				productMap["description"] = product.Description
+			}
+			if product.Badge != "" {
+				productMap["badge"] = product.Badge
 			}
 			productsJSON = append(productsJSON, productMap)
 		}
@@ -262,32 +267,29 @@ func convertEntMessageToModel(entMsg *ent.Message) (*models.Message, error) {
 		for _, productMap := range entMsg.Products {
 			product := models.ProductCard{}
 
-			if title, ok := productMap["title"].(string); ok {
-				product.Title = title
-			}
-			if link, ok := productMap["link"].(string); ok {
-				product.Link = link
+			if name, ok := productMap["name"].(string); ok {
+				product.Name = name
 			}
 			if price, ok := productMap["price"].(string); ok {
 				product.Price = price
 			}
-			if rating, ok := productMap["rating"].(float64); ok {
-				product.Rating = rating
+			if link, ok := productMap["link"].(string); ok {
+				product.Link = link
 			}
-			if reviews, ok := productMap["reviews"].(float64); ok {
-				product.Reviews = int(reviews)
-			}
-			if thumbnail, ok := productMap["thumbnail"].(string); ok {
-				product.Thumbnail = thumbnail
-			}
-			if source, ok := productMap["source"].(string); ok {
-				product.Source = source
+			if image, ok := productMap["image"].(string); ok {
+				product.Image = image
 			}
 			if pageToken, ok := productMap["page_token"].(string); ok {
 				product.PageToken = pageToken
 			}
-			if productType, ok := productMap["product_type"].(string); ok {
-				product.ProductType = productType
+			if oldPrice, ok := productMap["old_price"].(string); ok {
+				product.OldPrice = oldPrice
+			}
+			if description, ok := productMap["description"].(string); ok {
+				product.Description = description
+			}
+			if badge, ok := productMap["badge"].(string); ok {
+				product.Badge = badge
 			}
 
 			products = append(products, product)
