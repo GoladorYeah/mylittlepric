@@ -107,7 +107,7 @@ func (s *MessageService) saveMessageToDB(msg *models.Message) error {
 		createBuilder.SetSearchInfo(msg.SearchInfo)
 	}
 
-	_, err = createBuilder.Save(s.ctx)
+	_, err := createBuilder.Save(s.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create message in database: %w", err)
 	}
