@@ -371,6 +371,17 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       // Small delay to let state settle
       const timer = setTimeout(() => {
         checkSavedSearchPrompt();
+
+        // Additional safety: If messages are empty after check, ensure prompt is cleared
+        const store = useChatStore.getState();
+        if (store.messages.length === 0 && store.showSavedSearchPrompt) {
+          const savedSearch = store.savedSearch;
+          // Only keep prompt if savedSearch is from a different session
+          if (!savedSearch || savedSearch.sessionId === store.sessionId) {
+            console.log("🧹 Clearing savedSearch prompt for empty current session");
+            store.setShowSavedSearchPrompt(false);
+          }
+        }
       }, 100);
       return () => clearTimeout(timer);
     }
