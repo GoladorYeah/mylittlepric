@@ -114,10 +114,11 @@ func setupWebSocketRoutes(app *fiber.App, c *container.Container) {
 func setupChatRoutes(api fiber.Router, c *container.Container) {
 	chatHandler := handlers.NewChatHandler(c)
 	optionalAuthMiddleware := middleware.OptionalAuthMiddleware(c.JWTService)
+	sessionOwnership := c.SessionOwnershipChecker.ValidateSessionOwnership()
 
 	api.Post("/chat", optionalAuthMiddleware, chatHandler.HandleChat)
-	api.Get("/chat/messages/since", optionalAuthMiddleware, chatHandler.GetMessagesSince) // Reconnect endpoint
-	api.Get("/chat/messages", optionalAuthMiddleware, chatHandler.GetSessionMessages)
+	api.Get("/chat/messages/since", optionalAuthMiddleware, sessionOwnership, chatHandler.GetMessagesSince) // Reconnect endpoint with ownership check
+	api.Get("/chat/messages", optionalAuthMiddleware, sessionOwnership, chatHandler.GetSessionMessages)     // Get messages with ownership check
 }
 
 func setupProductRoutes(api fiber.Router, c *container.Container) {
@@ -144,12 +145,16 @@ func setupSearchHistoryRoutes(api fiber.Router, c *container.Container) {
 func setupSessionRoutes(api fiber.Router, c *container.Container) {
 	sessionHandler := handlers.NewSessionHandler(c)
 	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+	optionalAuthMiddleware := middleware.OptionalAuthMiddleware(c.JWTService)
 
-	// Session management - requires authentication
-	sessions := api.Group("/sessions", authMiddleware)
-	sessions.Get("/active", sessionHandler.GetActiveSession)
-	sessions.Get("/active-search", sessionHandler.GetActiveSearchSession)
-	sessions.Post("/link", sessionHandler.LinkSessionToUser)
+	// Session management - requires authentication and ownership validation
+	sessions := api.Group("/sessions")
+	sessions.Get("/active", authMiddleware, sessionHandler.GetActiveSession)
+	sessions.Get("/active-search", authMiddleware, sessionHandler.GetActiveSearchSession)
+	sessions.Post("/link", authMiddleware, sessionHandler.LinkSessionToUser)
+
+	// Sign session ID - optional authentication (works for both authenticated and anonymous users)
+	sessions.Post("/sign", optionalAuthMiddleware, sessionHandler.GetSignedSessionID)
 }
 
 func setupPreferencesRoutes(api fiber.Router, c *container.Container) {

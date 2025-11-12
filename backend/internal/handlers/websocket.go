@@ -13,6 +13,7 @@ import (
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/models"
 	"mylittleprice/internal/services"
+	"mylittleprice/internal/utils"
 )
 
 type Client struct {
@@ -21,31 +22,36 @@ type Client struct {
 }
 
 type WSHandler struct {
-	container *container.Container
-	processor *ChatProcessor
-	clients   map[string]*Client // clientID -> Client
-	userConns map[uuid.UUID]map[string]bool // userID -> set of clientIDs
-	mu        sync.RWMutex
-	pubsub    *services.PubSubService // Redis Pub/Sub for cross-server communication
+	container   *container.Container
+	processor   *ChatProcessor
+	clients     map[string]*Client                   // clientID -> Client
+	userConns   map[uuid.UUID]map[string]bool        // userID -> set of clientIDs
+	mu          sync.RWMutex
+	pubsub      *services.PubSubService              // Redis Pub/Sub for cross-server communication
+	rateLimiter *utils.WSRateLimiter                 // WebSocket message rate limiter
 }
 
 func NewWSHandler(c *container.Container) *WSHandler {
 	// Create PubSub service
 	pubsub := services.NewPubSubService(c.Redis)
 
+	// Create WebSocket rate limiter
+	rateLimiter := utils.NewWSRateLimiter(utils.DefaultWSRateLimitConfig())
+
 	handler := &WSHandler{
-		container: c,
-		processor: NewChatProcessor(c),
-		clients:   make(map[string]*Client),
-		userConns: make(map[uuid.UUID]map[string]bool),
-		pubsub:    pubsub,
+		container:   c,
+		processor:   NewChatProcessor(c),
+		clients:     make(map[string]*Client),
+		userConns:   make(map[uuid.UUID]map[string]bool),
+		pubsub:      pubsub,
+		rateLimiter: rateLimiter,
 	}
 
 	// Subscribe to all users broadcast channel
 	// This allows this server to receive messages from other servers
 	pubsub.SubscribeToAllUsers(handler.handleBroadcastMessage)
 
-	log.Printf("🚀 WebSocket handler initialized with Pub/Sub (ServerID: %s)", pubsub.GetServerID()[:8])
+	log.Printf("🚀 WebSocket handler initialized with Pub/Sub and Rate Limiting (ServerID: %s)", pubsub.GetServerID()[:8])
 
 	return handler
 }
@@ -126,6 +132,28 @@ func (h *WSHandler) HandleWebSocket(c *websocket.Conn) {
 }
 
 func (h *WSHandler) handleMessage(c *websocket.Conn, msg *WSMessage, clientID string) {
+	// Skip rate limiting for ping messages
+	if msg.Type != "ping" {
+		// Check connection-level rate limit
+		allowed, reason, retryAfter := h.rateLimiter.CheckConnection(clientID)
+		if !allowed {
+			h.sendRateLimitError(c, reason, retryAfter)
+			return
+		}
+
+		// Check user-level rate limit if authenticated
+		if msg.AccessToken != "" {
+			claims, err := h.container.JWTService.ValidateAccessToken(msg.AccessToken)
+			if err == nil {
+				allowed, reason, retryAfter := h.rateLimiter.CheckUser(claims.UserID)
+				if !allowed {
+					h.sendRateLimitError(c, reason, retryAfter)
+					return
+				}
+			}
+		}
+	}
+
 	switch msg.Type {
 	case "chat":
 		h.handleChat(c, msg, clientID)
@@ -295,6 +323,9 @@ func (h *WSHandler) removeClient(id string) {
 			}
 		}
 	}
+
+	// Remove rate limit data for this connection
+	h.rateLimiter.RemoveConnection(id)
 
 	delete(h.clients, id)
 }
@@ -504,4 +535,17 @@ func (h *WSHandler) sendError(c *websocket.Conn, errorCode, message string) {
 		Error:   errorCode,
 		Message: message,
 	})
+}
+
+func (h *WSHandler) sendRateLimitError(c *websocket.Conn, reason string, retryAfter time.Duration) {
+	h.sendResponse(c, &WSResponse{
+		Type:    "error",
+		Error:   "rate_limit_exceeded",
+		Message: fmt.Sprintf("%s. Retry after %v seconds", reason, int(retryAfter.Seconds())),
+	})
+}
+
+// GetRateLimiterStats returns rate limiter statistics for monitoring
+func (h *WSHandler) GetRateLimiterStats() map[string]interface{} {
+	return h.rateLimiter.GetStats()
 }

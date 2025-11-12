@@ -51,13 +51,18 @@ func validateSessionID(sessionID string) error {
 		return fmt.Errorf("session ID cannot be empty")
 	}
 
-	// Session IDs should be reasonable length (typically UUIDs or similar)
-	if len(sessionID) < 16 || len(sessionID) > 128 {
+	// Session IDs can be:
+	// 1. Plain: UUID or similar (16-128 chars, alphanumeric + hyphens/underscores)
+	// 2. Signed: sessionID.timestamp.signature or sessionID.timestamp.userID.signature
+
+	// Maximum length increased to support signed session IDs
+	if len(sessionID) < 16 || len(sessionID) > 512 {
 		return fmt.Errorf("invalid session ID length")
 	}
 
-	// Only allow alphanumeric and hyphens (typical for UUIDs)
-	if !regexp.MustCompile(`^[a-zA-Z0-9\-_]+$`).MatchString(sessionID) {
+	// Allow alphanumeric, hyphens, underscores, and dots (for signed session IDs)
+	// Also allow = and - for base64 URL encoding in signatures
+	if !regexp.MustCompile(`^[a-zA-Z0-9\-_.=]+$`).MatchString(sessionID) {
 		return fmt.Errorf("invalid session ID format")
 	}
 
