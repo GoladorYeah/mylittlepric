@@ -99,6 +99,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const initializingRef = useRef(false); // Prevent duplicate initialization calls
   const signingSessionRef = useRef(false); // Prevent duplicate session signing calls
 
+  // Log component mount/unmount for debugging
+  useEffect(() => {
+    console.log("🔵 useChat hook MOUNTED");
+    return () => {
+      console.log("🔴 useChat hook UNMOUNTED");
+    };
+  }, []);
+
   const {
     messages,
     sessionId,
@@ -123,7 +131,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const { accessToken } = useAuthStore();
 
   // Memoize WebSocket URL to prevent creating multiple connections on re-renders
-  const socketUrl = useMemo(() => getWebSocketUrl(accessToken), [accessToken]);
+  const socketUrl = useMemo(() => {
+    const url = getWebSocketUrl(accessToken);
+    console.log("🔗 WebSocket URL updated:", { hasToken: !!accessToken, url: url.substring(0, 50) + '...' });
+    return url;
+  }, [accessToken]);
 
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
     socketUrl,
