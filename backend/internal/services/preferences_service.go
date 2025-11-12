@@ -375,7 +375,63 @@ func mapToSavedSearch(m map[string]interface{}) *models.SavedSearch {
 				if v, ok := msgMap["search_type"].(string); ok {
 					msg.SearchType = v
 				}
-				// TODO: Handle quick_replies and products if needed
+
+				// Handle quick_replies
+				if quickRepliesRaw, ok := msgMap["quick_replies"].([]interface{}); ok {
+					msg.QuickReplies = make([]string, 0, len(quickRepliesRaw))
+					for _, qr := range quickRepliesRaw {
+						if qrStr, ok := qr.(string); ok {
+							msg.QuickReplies = append(msg.QuickReplies, qrStr)
+						}
+					}
+				}
+
+				// Handle products
+				if productsRaw, ok := msgMap["products"].([]interface{}); ok {
+					msg.Products = make([]models.ProductCard, 0, len(productsRaw))
+					for _, prodRaw := range productsRaw {
+						if prodMap, ok := prodRaw.(map[string]interface{}); ok {
+							product := models.ProductCard{}
+
+							if v, ok := prodMap["title"].(string); ok {
+								product.Title = v
+							}
+							if v, ok := prodMap["link"].(string); ok {
+								product.Link = v
+							}
+							if v, ok := prodMap["source"].(string); ok {
+								product.Source = v
+							}
+							if v, ok := prodMap["price"].(string); ok {
+								product.Price = v
+							}
+							if v, ok := prodMap["currency"].(string); ok {
+								product.Currency = v
+							}
+							if v, ok := prodMap["thumbnail"].(string); ok {
+								product.Thumbnail = v
+							}
+							if v, ok := prodMap["rating"].(float64); ok {
+								product.Rating = v
+							}
+							if v, ok := prodMap["reviews"].(float64); ok {
+								product.Reviews = int(v)
+							}
+							if v, ok := prodMap["delivery"].(string); ok {
+								product.Delivery = v
+							}
+							if v, ok := prodMap["relevance_score"].(float64); ok {
+								product.RelevanceScore = v
+							}
+							if v, ok := prodMap["page_token"].(string); ok {
+								product.PageToken = v
+							}
+
+							msg.Products = append(msg.Products, product)
+						}
+					}
+				}
+
 				ss.Messages[i] = msg
 			}
 		}
