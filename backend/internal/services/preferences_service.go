@@ -393,35 +393,26 @@ func mapToSavedSearch(m map[string]interface{}) *models.SavedSearch {
 						if prodMap, ok := prodRaw.(map[string]interface{}); ok {
 							product := models.ProductCard{}
 
-							if v, ok := prodMap["title"].(string); ok {
-								product.Title = v
-							}
-							if v, ok := prodMap["link"].(string); ok {
-								product.Link = v
-							}
-							if v, ok := prodMap["source"].(string); ok {
-								product.Source = v
+							if v, ok := prodMap["name"].(string); ok {
+								product.Name = v
 							}
 							if v, ok := prodMap["price"].(string); ok {
 								product.Price = v
 							}
-							if v, ok := prodMap["currency"].(string); ok {
-								product.Currency = v
+							if v, ok := prodMap["old_price"].(string); ok {
+								product.OldPrice = v
 							}
-							if v, ok := prodMap["thumbnail"].(string); ok {
-								product.Thumbnail = v
+							if v, ok := prodMap["link"].(string); ok {
+								product.Link = v
 							}
-							if v, ok := prodMap["rating"].(float64); ok {
-								product.Rating = v
+							if v, ok := prodMap["image"].(string); ok {
+								product.Image = v
 							}
-							if v, ok := prodMap["reviews"].(float64); ok {
-								product.Reviews = int(v)
+							if v, ok := prodMap["description"].(string); ok {
+								product.Description = v
 							}
-							if v, ok := prodMap["delivery"].(string); ok {
-								product.Delivery = v
-							}
-							if v, ok := prodMap["relevance_score"].(float64); ok {
-								product.RelevanceScore = v
+							if v, ok := prodMap["badge"].(string); ok {
+								product.Badge = v
 							}
 							if v, ok := prodMap["page_token"].(string); ok {
 								product.PageToken = v
