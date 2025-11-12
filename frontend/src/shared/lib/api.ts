@@ -71,6 +71,16 @@ export async function getSessionMessages(
   // Track rate limit headers
   rateLimitTracker.updateFromHeaders(response.headers);
 
+  // Handle 404 - session doesn't exist yet (new session before first message)
+  if (response.status === 404) {
+    console.log("ℹ️ Session not found on server - returning empty messages (new session)");
+    return {
+      messages: [],
+      session_id: sessionId,
+      message_count: 0,
+    };
+  }
+
   if (!response.ok) {
     throw new Error("Failed to fetch session messages");
   }
