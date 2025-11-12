@@ -233,8 +233,19 @@ export const useChatStore = create<ChatStore>()(
               isLocal: true, // Messages loaded from session are considered local (already sent)
             }));
 
-            console.log("✅ Setting", chatMessages.length, "messages in store");
-            set({ messages: chatMessages });
+            // Deduplicate messages by ID before setting
+            const uniqueMessages = chatMessages.reduce((acc, msg) => {
+              const isDuplicate = acc.some((m) => m.id === msg.id);
+              if (!isDuplicate) {
+                acc.push(msg);
+              } else {
+                console.log("⚠️ Skipping duplicate message from server:", msg.id);
+              }
+              return acc;
+            }, [] as ChatMessage[]);
+
+            console.log("✅ Setting", uniqueMessages.length, "unique messages in store (from", chatMessages.length, "total)");
+            set({ messages: uniqueMessages });
 
             // Restore search state from server response
             let hasActiveSearch = false;
