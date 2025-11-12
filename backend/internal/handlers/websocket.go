@@ -24,11 +24,11 @@ type Client struct {
 type WSHandler struct {
 	container   *container.Container
 	processor   *ChatProcessor
-	clients     map[string]*Client                   // clientID -> Client
-	userConns   map[uuid.UUID]map[string]bool        // userID -> set of clientIDs
+	clients     map[string]*Client            // clientID -> Client
+	userConns   map[uuid.UUID]map[string]bool // userID -> set of clientIDs
 	mu          sync.RWMutex
-	pubsub      *services.PubSubService              // Redis Pub/Sub for cross-server communication
-	rateLimiter *utils.WSRateLimiter                 // WebSocket message rate limiter
+	pubsub      *services.PubSubService // Redis Pub/Sub for cross-server communication
+	rateLimiter *utils.WSRateLimiter    // WebSocket message rate limiter
 }
 
 func NewWSHandler(c *container.Container) *WSHandler {
@@ -194,8 +194,8 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 
 	// Extract base session ID from signed session ID if applicable
 	sessionID := msg.SessionID
-	if h.container.SessionOwnershipChecker.IsSignedSessionID(sessionID) {
-		baseSessionID, embeddedUserID, err := h.container.SessionOwnershipChecker.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
+	if h.container.SessionOwnershipChecker.Signer.IsSignedSessionID(sessionID) {
+		baseSessionID, embeddedUserID, err := h.container.SessionOwnershipChecker.Signer.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
 		if err != nil {
 			h.sendError(c, "invalid_session", "Invalid or expired session signature")
 			return
@@ -293,8 +293,8 @@ func (h *WSHandler) handleProductDetails(c *websocket.Conn, msg *WSMessage) {
 
 	// Extract base session ID from signed session ID if applicable
 	sessionID := msg.SessionID
-	if h.container.SessionOwnershipChecker.IsSignedSessionID(sessionID) {
-		baseSessionID, _, err := h.container.SessionOwnershipChecker.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
+	if h.container.SessionOwnershipChecker.Signer.IsSignedSessionID(sessionID) {
+		baseSessionID, _, err := h.container.SessionOwnershipChecker.Signer.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
 		if err != nil {
 			h.sendError(c, "invalid_session", "Invalid or expired session signature")
 			return
