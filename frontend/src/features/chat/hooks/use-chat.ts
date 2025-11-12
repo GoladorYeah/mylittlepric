@@ -97,6 +97,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const processedMessageIds = useRef<Set<string>>(new Set());
   const sessionLoadedRef = useRef(false);
   const initializingRef = useRef(false); // Prevent duplicate initialization calls
+  const signingSessionRef = useRef(false); // Prevent duplicate session signing calls
 
   const {
     messages,
@@ -425,6 +426,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return;
       }
 
+      // Prevent duplicate signing calls
+      if (signingSessionRef.current) {
+        console.log("⏭️ Already signing session, skipping duplicate call");
+        return;
+      }
+
       // Check if we already have a valid signed session for THIS session ID
       const store = useChatStore.getState();
       if (store.signedSessionId) {
@@ -442,6 +449,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         });
       }
 
+      signingSessionRef.current = true;
       try {
         const signedResponse = await SessionAPI.signSession(sessionId);
         console.log("🔐 Session signed:", signedResponse.signed_session_id);
@@ -449,6 +457,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       } catch (error) {
         console.error("Failed to sign session:", error);
         // Continue with unsigned session (backward compatible)
+      } finally {
+        signingSessionRef.current = false;
       }
     };
 
