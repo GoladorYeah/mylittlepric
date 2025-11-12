@@ -257,10 +257,12 @@ export const useChatStore = create<ChatStore>()(
                        hasActiveSearch ? "(with active search)" : "(no active search)");
           }
         } catch (error) {
-          console.error("Failed to load session messages:", error);
+          // This is expected for new sessions that don't exist on server yet
+          console.log("ℹ️ Session messages not available:", error instanceof Error ? error.message : String(error));
+          console.log("ℹ️ Continuing with empty session (this is OK for new sessions)");
           // Don't throw - this is not critical if it's a new session
           // Just keep current state and let user start fresh
-          console.log("ℹ️ Continuing with empty session (this is OK for new sessions)");
+          set({ messages: [] });
         }
       },
 
