@@ -9,6 +9,7 @@ import { ChatMessages } from "./chat-messages";
 import { ChatInput } from "./chat-input";
 import { ChatHeader } from "./chat-header";
 import { SavedSearchPrompt } from "./SavedSearchPrompt";
+import { RateLimitNotification } from "./RateLimitNotification";
 
 
 interface ChatInterfaceProps {
@@ -52,6 +53,9 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
 
   return (
     <>
+      {/* Rate Limit Notification - Fixed position notification */}
+      <RateLimitNotification />
+
       {/* Sidebar with all controls */}
       <SearchHistory
         isConnected={isConnected}

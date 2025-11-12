@@ -4,6 +4,7 @@ import { useChatStore } from "@/shared/lib";
 import { useAuthStore } from "@/shared/lib";
 import { SessionAPI } from "@/shared/lib";
 import { generateId } from "@/shared/lib";
+import { reconnectManager } from "@/shared/lib/reconnect-manager";
 
 /**
  * Build WebSocket URL dynamically based on current page protocol
@@ -94,8 +95,41 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       shouldReconnect: () => true,
       reconnectAttempts,
       reconnectInterval,
-      onOpen: () => {
+      onOpen: async () => {
         console.log("✅ WebSocket connected");
+
+        // Recover missed messages after reconnect
+        const lastTimestamp = reconnectManager.getLastMessageTimestamp();
+        if (sessionId && lastTimestamp) {
+          console.log("🔄 Recovering missed messages since:", lastTimestamp.toISOString());
+          setLoading(true);
+
+          try {
+            const missedMessages = await reconnectManager.recoverMissedMessages(sessionId);
+
+            // Add missed messages to store
+            missedMessages.forEach((msg) => {
+              addMessage({
+                id: generateId(),
+                role: msg.role as "user" | "assistant",
+                content: msg.content,
+                timestamp: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now(),
+                quick_replies: msg.quick_replies,
+                products: msg.products,
+                search_type: msg.search_type,
+                isLocal: false, // Recovered messages are not local
+              });
+            });
+
+            if (missedMessages.length > 0) {
+              console.log(`✅ Synced ${missedMessages.length} missed messages`);
+            }
+          } catch (error) {
+            console.error("Failed to sync missed messages:", error);
+          } finally {
+            setLoading(false);
+          }
+        }
       },
       onError: (event) => {
         console.error("❌ WebSocket error:", event);
@@ -266,6 +300,33 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     }
   }, [sessionId, _hasInitialized]);
 
+  // Get signed session ID for authenticated users
+  useEffect(() => {
+    const signSessionIfAuthenticated = async () => {
+      // Only sign sessions for authenticated users
+      if (!accessToken || !sessionId) {
+        return;
+      }
+
+      // Check if we already have a valid signed session
+      const store = useChatStore.getState();
+      if (store.signedSessionId) {
+        return;
+      }
+
+      try {
+        const signedResponse = await SessionAPI.signSession(sessionId);
+        console.log("🔐 Session signed:", signedResponse.signed_session_id);
+        store.setSignedSessionId(signedResponse.signed_session_id);
+      } catch (error) {
+        console.error("Failed to sign session:", error);
+        // Continue with unsigned session (backward compatible)
+      }
+    };
+
+    signSessionIfAuthenticated();
+  }, [accessToken, sessionId]);
+
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (lastJsonMessage !== null) {
@@ -423,6 +484,60 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       if (data.type === "error") {
         const errorMessage = data.message || data.error || "An error occurred";
+
+        // Check if it's a rate limit error
+        if (data.error === "rate_limit_exceeded" || errorMessage.toLowerCase().includes("rate limit exceeded")) {
+          console.warn("⚠️ Rate limit exceeded:", data);
+
+          // Parse retry_after from message if available
+          const retryMatch = errorMessage.match(/retry after (\d+) seconds?/i);
+          const retryAfter = retryMatch ? parseInt(retryMatch[1], 10) : 30;
+
+          // Set rate limit state
+          const expiresAt = new Date(Date.now() + retryAfter * 1000);
+          const store = useChatStore.getState();
+          store.setRateLimitState({
+            isLimited: true,
+            reason: errorMessage,
+            retryAfter,
+            expiresAt,
+          });
+
+          // Auto-clear after retry_after seconds
+          setTimeout(() => {
+            const store = useChatStore.getState();
+            store.clearRateLimitState();
+          }, retryAfter * 1000);
+
+          // Don't add error message to chat (notification will be shown instead)
+          return;
+        }
+
+        // Check if it's a session ownership error
+        if (errorMessage.toLowerCase().includes("session ownership") || errorMessage.toLowerCase().includes("unauthorized")) {
+          console.error("❌ Session ownership validation failed");
+
+          // Clear invalid session and start fresh
+          const newSessionId = generateId();
+          setSessionId(newSessionId);
+          const store = useChatStore.getState();
+          store.setSignedSessionId(null);
+          localStorage.setItem("chat_session_id", newSessionId);
+          reconnectManager.reset();
+          newSearch();
+
+          // Show user-friendly error
+          addMessage({
+            id: generateId(),
+            role: "assistant",
+            content: "Your session has expired. Please start a new conversation.",
+            timestamp: Date.now(),
+            isLocal: true,
+          });
+          return;
+        }
+
+        // Regular error handling
         addMessage({
           id: generateId(),
           role: "assistant",
@@ -496,21 +611,27 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     const textToSend = message.trim();
     if (!textToSend || !isConnected) return;
 
+    const messageId = generateId();
     const userMessage = {
-      id: generateId(),
+      id: messageId,
       role: "user" as const,
       content: textToSend,
       timestamp: Date.now(),
       isLocal: true, // Message sent from this device
+      status: "pending" as const, // Mark as pending
     };
 
     addMessage(userMessage);
     setLoading(true);
 
     try {
+      const store = useChatStore.getState();
+      // Prefer signed session ID if available
+      const sessionIdToSend = store.signedSessionId || sessionId;
+
       sendJsonMessage({
         type: "chat",
-        session_id: sessionId,
+        session_id: sessionIdToSend,
         message: textToSend,
         country,
         language,
@@ -519,9 +640,21 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         current_category: currentCategory,
         ...(accessToken && { access_token: accessToken }),
       });
+
+      // Mark as sent after successful send
+      store.updateMessageStatus(messageId, "sent");
+
+      // Update reconnectManager timestamp
+      reconnectManager.setLastMessageTimestamp(new Date());
     } catch (error) {
       console.error("Error sending message:", error);
       setLoading(false);
+
+      // Mark as failed
+      const store = useChatStore.getState();
+      store.updateMessageStatus(messageId, "failed", "Failed to send message");
+
+      // Show error to user
       addMessage({
         id: generateId(),
         role: "assistant",

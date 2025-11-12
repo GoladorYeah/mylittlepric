@@ -29,6 +29,10 @@ export interface ChatMessage {
   products?: Product[];
   search_type?: string;
   isLocal?: boolean; // true if message was sent from this device, false if synced from another device
+
+  // Optimistic updates support
+  status?: "pending" | "sent" | "failed";
+  error?: string;
 }
 
 export interface SessionMessage {

@@ -12,6 +12,13 @@ export interface SavedSearch {
 
 type WebSocketSender = (message: any) => void;
 
+export interface RateLimitState {
+  isLimited: boolean;
+  reason: string | null;
+  retryAfter: number | null; // seconds
+  expiresAt: Date | null;
+}
+
 interface ChatStore {
   messages: ChatMessage[];
   sessionId: string;
@@ -26,6 +33,15 @@ interface ChatStore {
   savedSearch: SavedSearch | null; // Last search before "New Search" was clicked
   showSavedSearchPrompt: boolean; // Show dialog to continue or start new search
   _wsSender: WebSocketSender | null; // Internal WebSocket sender for realtime sync
+
+  // Reconnect mechanism fields
+  lastMessageTimestamp: Date | null;
+
+  // Rate limiting fields
+  rateLimitState: RateLimitState;
+
+  // Session ownership validation (signed sessions)
+  signedSessionId: string | null;
 
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;
@@ -51,6 +67,14 @@ interface ChatStore {
   registerWebSocketSender: (sender: WebSocketSender | null) => void;
   setShowSavedSearchPrompt: (show: boolean) => void;
   checkSavedSearchPrompt: () => void;
+
+  // New methods for Priority 1 features
+  setLastMessageTimestamp: (timestamp: Date | null) => void;
+  setRateLimitState: (state: Partial<RateLimitState>) => void;
+  clearRateLimitState: () => void;
+  setSignedSessionId: (signedSessionId: string | null) => void;
+  updateMessageStatus: (messageId: string, status: "pending" | "sent" | "failed", error?: string) => void;
+  removeMessage: (messageId: string) => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -70,8 +94,21 @@ export const useChatStore = create<ChatStore>()(
       showSavedSearchPrompt: false,
       _wsSender: null,
 
+      // New fields initialization
+      lastMessageTimestamp: null,
+      rateLimitState: {
+        isLimited: false,
+        reason: null,
+        retryAfter: null,
+        expiresAt: null,
+      },
+      signedSessionId: null,
+
       addMessage: (message) =>
-        set((state) => ({ messages: [...state.messages, message] })),
+        set((state) => ({
+          messages: [...state.messages, message],
+          lastMessageTimestamp: new Date(),
+        })),
 
       setMessages: (messages) => set({ messages }),
 
@@ -393,6 +430,49 @@ export const useChatStore = create<ChatStore>()(
             set({ showSavedSearchPrompt: true });
           }
         }
+      },
+
+      // New methods for Priority 1 features
+      setLastMessageTimestamp: (timestamp) => {
+        set({ lastMessageTimestamp: timestamp });
+      },
+
+      setRateLimitState: (state) => {
+        set((currentState) => ({
+          rateLimitState: {
+            ...currentState.rateLimitState,
+            ...state,
+          },
+        }));
+      },
+
+      clearRateLimitState: () => {
+        set({
+          rateLimitState: {
+            isLimited: false,
+            reason: null,
+            retryAfter: null,
+            expiresAt: null,
+          },
+        });
+      },
+
+      setSignedSessionId: (signedSessionId) => {
+        set({ signedSessionId });
+      },
+
+      updateMessageStatus: (messageId, status, error) => {
+        set((state) => ({
+          messages: state.messages.map((msg) =>
+            msg.id === messageId ? { ...msg, status, error } : msg
+          ),
+        }));
+      },
+
+      removeMessage: (messageId) => {
+        set((state) => ({
+          messages: state.messages.filter((msg) => msg.id !== messageId),
+        }));
       },
     }),
     {
