@@ -28,6 +28,7 @@ export async function getProductDetails(
 
 export interface SessionMessagesResponse {
   messages: Array<{
+    id?: string; // UUID from backend - use for deduplication
     role: string;
     content: string;
     timestamp?: string;

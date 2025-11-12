@@ -327,40 +327,48 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         }
       }
 
-      // If store already has sessionId (restored from persist), don't reload
-      if (store.sessionId && store.messages.length > 0) {
-        console.log("✅ Session restored from localStorage:", {
-          sessionId: store.sessionId,
-          messageCount: store.messages.length,
-          messages: store.messages.map(m => ({
-            id: m.id,
-            role: m.role,
-            content: m.content.substring(0, 30),
-          })),
-        });
-        localStorage.setItem("chat_session_id", store.sessionId);
-        return;
-      }
-
-      // Otherwise, check for session in localStorage or create new one
+      // Determine which session to use
       const savedSessionId = localStorage.getItem("chat_session_id");
+      const currentSessionId = store.sessionId || savedSessionId;
 
-      if (savedSessionId && savedSessionId === store.sessionId) {
-        // Session ID exists but no messages - this is a fresh session
-        console.log("🆕 Fresh session:", savedSessionId);
-      } else if (savedSessionId) {
-        // Session ID mismatch - load from server
-        setSessionId(savedSessionId);
-        try {
-          await loadSessionMessages(savedSessionId);
-        } catch (error) {
-          console.error("Failed to load messages:", error);
-        }
-      } else {
+      if (!currentSessionId) {
         // No session at all - create new one
         const newSessionId = generateId();
         setSessionId(newSessionId);
         localStorage.setItem("chat_session_id", newSessionId);
+        console.log("🆕 Created new session:", newSessionId);
+        return;
+      }
+
+      // Update session ID if needed
+      if (currentSessionId !== store.sessionId) {
+        setSessionId(currentSessionId);
+      }
+      localStorage.setItem("chat_session_id", currentSessionId);
+
+      // IMPORTANT: For authenticated users, ALWAYS reload from server to ensure sync
+      // localStorage is only used for optimistic initial render
+      if (accessToken) {
+        console.log("🔄 Loading session from server (authenticated):", currentSessionId);
+        try {
+          await loadSessionMessages(currentSessionId);
+        } catch (error) {
+          console.log("ℹ️ Failed to load from server, using local cache:", error);
+        }
+      } else {
+        // For anonymous users, show local cache but attempt to load from server
+        if (store.messages.length > 0) {
+          console.log("📦 Using cached messages while loading from server:", {
+            sessionId: currentSessionId,
+            messageCount: store.messages.length,
+          });
+        }
+
+        try {
+          await loadSessionMessages(currentSessionId);
+        } catch (error) {
+          console.log("ℹ️ Failed to load from server:", error);
+        }
       }
     };
 

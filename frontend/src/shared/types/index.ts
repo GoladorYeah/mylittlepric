@@ -36,6 +36,7 @@ export interface ChatMessage {
 }
 
 export interface SessionMessage {
+  id?: string; // UUID from backend - use for deduplication
   role: string;
   content: string;
   timestamp?: string;
