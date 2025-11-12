@@ -61,7 +61,7 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
 
       {/* Main content area - pushed by sidebar on desktop */}
       <div
-        className={`min-h-screen w-full bg-linear-to-br from-background via-background to-background/95 transition-[padding] duration-300 ease-in-out will-change-[padding] ${
+        className={`min-h-screen w-full bg-background transition-[padding] duration-300 ease-in-out will-change-[padding] ${
           isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
         }`}
       >
