@@ -28,6 +28,42 @@ services:
       - loki
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mylittleprice_prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts:/etc/prometheus/alerts
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+      - mylittleprice
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: mylittleprice_alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - "9093:9093"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: mylittleprice_grafana
@@ -46,11 +82,14 @@ services:
       - monitoring
     depends_on:
       - loki
+      - prometheus
     restart: unless-stopped
 
 volumes:
   grafana_data:
   loki_data:
+  prometheus_data:
+  alertmanager_data:
 
 networks:
   monitoring:

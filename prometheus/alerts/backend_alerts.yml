@@ -1,0 +1,58 @@
+groups:
+  - name: backend_health
+    interval: 30s
+    rules:
+      # Backend API is down
+      - alert: BackendDown
+        expr: up{job="mylittleprice-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "MyLittlePrice Backend is down"
+          description: "Backend API has been down for more than 1 minute"
+
+      # High HTTP error rate
+      - alert: HighHTTPErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) by (handler)
+          /
+          sum(rate(http_requests_total[5m])) by (handler)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "High HTTP 5xx error rate on {{ $labels.handler }}"
+          description: "{{ $labels.handler }} has {{ $value | humanizePercentage }} error rate (threshold: 5%)"
+
+      # Critical HTTP error rate
+      - alert: CriticalHTTPErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) by (handler)
+          /
+          sum(rate(http_requests_total[5m])) by (handler)
+          > 0.20
+        for: 2m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Critical HTTP 5xx error rate on {{ $labels.handler }}"
+          description: "{{ $labels.handler }} has {{ $value | humanizePercentage }} error rate (threshold: 20%)"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (handler, le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "High response time on {{ $labels.handler }}"
+          description: "95th percentile response time is {{ $value }}s (threshold: 2s)"

@@ -1,0 +1,50 @@
+groups:
+  - name: rate_limiting
+    interval: 30s
+    rules:
+      # High rate limiting activity
+      - alert: HighRateLimitingActivity
+        expr: |
+          sum(rate(rate_limit_exceeded_total[5m])) by (endpoint) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: rate_limiter
+        annotations:
+          summary: "High rate limiting on {{ $labels.endpoint }}"
+          description: "{{ $value }} requests per second are being rate limited on {{ $labels.endpoint }}"
+
+      # Potential DDoS attack
+      - alert: PotentialDDoSAttack
+        expr: |
+          sum(rate(rate_limit_exceeded_total[1m])) > 100
+        for: 2m
+        labels:
+          severity: critical
+          component: rate_limiter
+        annotations:
+          summary: "Potential DDoS attack detected"
+          description: "{{ $value }} requests per second are being rate limited - possible attack in progress"
+
+      # Auth endpoint brute force attempts
+      - alert: AuthBruteForceAttempts
+        expr: |
+          sum(rate(rate_limit_exceeded_total{endpoint=~"/api/auth/.*"}[5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+          component: auth
+        annotations:
+          summary: "Potential brute force attack on auth endpoints"
+          description: "{{ $value }} rate limited auth requests per second"
+
+      # Redis rate limiter connection issues
+      - alert: RateLimiterRedisConnectionIssue
+        expr: rate_limiter_redis_errors_total > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: rate_limiter
+        annotations:
+          summary: "Rate limiter Redis connection issues"
+          description: "{{ $value }} Redis errors in rate limiter - failing open"

@@ -1,0 +1,78 @@
+groups:
+  - name: session_management
+    interval: 30s
+    rules:
+      # Session cache miss rate too high
+      - alert: HighSessionCacheMissRate
+        expr: |
+          (
+            sum(rate(session_cache_miss_total[5m]))
+            /
+            sum(rate(session_lookups_total[5m]))
+          ) > 0.30
+        for: 10m
+        labels:
+          severity: warning
+          component: session
+        annotations:
+          summary: "High session cache miss rate"
+          description: "{{ $value | humanizePercentage }} cache miss rate (threshold: 30%)"
+
+      # Too many active sessions
+      - alert: TooManyActiveSessions
+        expr: active_sessions_total > 10000
+        for: 10m
+        labels:
+          severity: warning
+          component: session
+        annotations:
+          summary: "High number of active sessions"
+          description: "{{ $value }} active sessions (threshold: 10000)"
+
+      # Session cleanup failing
+      - alert: SessionCleanupFailing
+        expr: |
+          (time() - session_cleanup_last_success_timestamp) > 172800
+        for: 1h
+        labels:
+          severity: warning
+          component: session
+        annotations:
+          summary: "Session cleanup hasn't run successfully"
+          description: "Session cleanup last succeeded {{ $value | humanizeDuration }} ago"
+
+      # High session creation rate
+      - alert: HighSessionCreationRate
+        expr: |
+          sum(rate(sessions_created_total[5m])) > 50
+        for: 10m
+        labels:
+          severity: warning
+          component: session
+        annotations:
+          summary: "High session creation rate"
+          description: "{{ $value }} sessions per second being created"
+
+      # Message persistence failures
+      - alert: MessagePersistenceFailures
+        expr: |
+          sum(rate(message_persistence_failed_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: critical
+          component: session
+        annotations:
+          summary: "Messages failing to persist to database"
+          description: "{{ $value }} message persistence failures per second"
+
+      # Redis-PostgreSQL sync issues
+      - alert: RedisPgSyncIssues
+        expr: |
+          sum(rate(session_sync_failed_total[5m])) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: session
+        annotations:
+          summary: "Redis-PostgreSQL sync failures detected"
+          description: "{{ $value }} sync failures per second"

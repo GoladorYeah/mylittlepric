@@ -14,6 +14,10 @@ import (
 
 // SetupRoutes configures all application routes
 func SetupRoutes(app *fiber.App, c *container.Container) {
+	// Prometheus metrics endpoint (no auth required for scraping)
+	metricsHandler := handlers.NewMetricsHandler()
+	app.Get("/metrics", metricsHandler.GetMetrics)
+
 	// Health check
 	app.Get("/health", func(ctx *fiber.Ctx) error {
 		return ctx.JSON(fiber.Map{
@@ -23,7 +27,8 @@ func SetupRoutes(app *fiber.App, c *container.Container) {
 		})
 	})
 
-	api := app.Group("/api")
+	// Apply Prometheus middleware to all /api routes
+	api := app.Group("/api", middleware.PrometheusMiddleware())
 
 	// Authentication routes (public)
 	setupAuthRoutes(api, c)

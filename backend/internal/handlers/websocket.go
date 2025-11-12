@@ -92,6 +92,10 @@ func (h *WSHandler) HandleWebSocket(c *websocket.Conn) {
 
 	log.Printf("🔌 Client connected: %s", clientID)
 
+	// Record connection metrics
+	cleanup := h.recordConnectionStart()
+	defer cleanup()
+
 	// First message should contain access_token if user is authenticated
 	// We'll update userID as messages come in with access_token
 	client := &Client{
@@ -107,9 +111,13 @@ func (h *WSHandler) HandleWebSocket(c *websocket.Conn) {
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("❌ WebSocket error: %v", err)
+				h.recordConnectionFailed()
 			}
 			break
 		}
+
+		// Record message received
+		h.recordMessageReceived(msg.Type)
 
 		// Update userID if access_token is provided
 		if msg.AccessToken != "" {
@@ -137,6 +145,7 @@ func (h *WSHandler) handleMessage(c *websocket.Conn, msg *WSMessage, clientID st
 		// Check connection-level rate limit
 		allowed, reason, retryAfter := h.rateLimiter.CheckConnection(clientID)
 		if !allowed {
+			h.recordRateLimitViolation("connection")
 			h.sendRateLimitError(c, reason, retryAfter)
 			return
 		}
@@ -147,6 +156,7 @@ func (h *WSHandler) handleMessage(c *websocket.Conn, msg *WSMessage, clientID st
 			if err == nil {
 				allowed, reason, retryAfter := h.rateLimiter.CheckUser(claims.UserID)
 				if !allowed {
+					h.recordRateLimitViolation("user")
 					h.sendRateLimitError(c, reason, retryAfter)
 					return
 				}
@@ -392,11 +402,16 @@ func (h *WSHandler) broadcastToUser(userID uuid.UUID, response *WSResponse, excl
 	// This ensures users connected to other backend instances also receive the message
 	if err := h.pubsub.BroadcastToAllUsers(userID, response.Type, response); err != nil {
 		log.Printf("⚠️ Failed to broadcast to Pub/Sub: %v", err)
+	} else {
+		h.recordBroadcastSent()
 	}
 }
 
 // handleBroadcastMessage handles messages received from other servers via Redis Pub/Sub
 func (h *WSHandler) handleBroadcastMessage(msg *services.BroadcastMessage) {
+	// Record broadcast received
+	h.recordBroadcastReceived()
+
 	// Check if we have any local clients for this user
 	h.mu.RLock()
 	clientIDs, hasClients := h.userConns[msg.UserID]
@@ -526,6 +541,9 @@ func (h *WSHandler) handleSyncSession(c *websocket.Conn, msg *WSMessage, clientI
 func (h *WSHandler) sendResponse(c *websocket.Conn, response *WSResponse) {
 	if err := c.WriteJSON(response); err != nil {
 		log.Printf("❌ Failed to send response: %v", err)
+		h.recordMessageSendFailed(response.Type, "write_error")
+	} else {
+		h.recordMessageSent(response.Type)
 	}
 }
 

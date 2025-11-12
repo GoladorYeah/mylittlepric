@@ -76,6 +76,7 @@ func RateLimiter(config RateLimiterConfig) fiber.Handler {
 		_, err := pipe.Exec(ctx)
 		if err != nil {
 			// Redis error - fail open if configured
+			RecordRateLimiterRedisError()
 			if config.SkipFailOpen {
 				fmt.Printf("⚠️ Rate limiter Redis error (failing open): %v\n", err)
 				return c.Next()
@@ -91,6 +92,13 @@ func RateLimiter(config RateLimiterConfig) fiber.Handler {
 
 		// Check if limit exceeded
 		if count > int64(config.Max) {
+			// Record rate limit exceeded
+			endpoint := c.Route().Path
+			if endpoint == "" {
+				endpoint = c.Path()
+			}
+			RecordRateLimitExceeded(endpoint)
+
 			// Get TTL for Retry-After header
 			ttl, _ := config.Redis.TTL(ctx, key).Result()
 
