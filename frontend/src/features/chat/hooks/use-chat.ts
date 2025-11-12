@@ -207,9 +207,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         initialSessionId,
         currentSessionId: store.sessionId,
         messageCount: store.messages.length,
+        isAuthenticated: !!accessToken,
       });
 
-      if (store._hasInitialized && !initialSessionId) {
+      // Skip if already initialized AND not authenticated
+      // For authenticated users, we ALWAYS want to reload from server
+      if (store._hasInitialized && !initialSessionId && !accessToken) {
         console.log("⏭️ Session already initialized, skipping");
         return;
       }
