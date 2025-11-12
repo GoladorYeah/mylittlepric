@@ -51,6 +51,18 @@ export interface UseChatReturn {
 }
 
 /**
+ * Extract base session ID from a signed session ID
+ * Example: "1762943791279-78vn1po5d.1762955546...." -> "1762943791279-78vn1po5d"
+ */
+function getBaseSessionId(sessionId: string): string {
+  // Base session ID format: timestamp-randomId (e.g., "1762943791279-78vn1po5d")
+  // Signed session ID adds more parts: baseId.timestamp.userId.signature
+  // Extract just the first part (timestamp-randomId)
+  const match = sessionId.match(/^(\d+-[a-z0-9]+)/);
+  return match ? match[1] : sessionId;
+}
+
+/**
  * Custom hook for managing WebSocket chat connection
  * Handles connection, message sending, and session management
  */
@@ -185,6 +197,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       // If session_id is provided in URL, use it and load messages
       if (initialSessionId && !sessionLoadedRef.current) {
         sessionLoadedRef.current = true;
+        console.log("🔗 Loading session from URL:", initialSessionId);
         setSessionId(initialSessionId);
         localStorage.setItem("chat_session_id", initialSessionId);
 
@@ -212,9 +225,23 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
             const serverSessionId = activeSessionResponse.session.session_id;
             const localSessionId = store.sessionId || localStorage.getItem("chat_session_id");
 
-            // If server has a different session, ask user which one to use
+            // If server has a different session, check if we should switch
             if (localSessionId && localSessionId !== serverSessionId) {
-              // We have both local and server session - prefer server (most recent)
+              // Don't switch to server session if:
+              // 1. We already have messages loaded (user is actively using this session)
+              // 2. OR we came from a URL with a session ID (user wants to view this specific session)
+              if (store.messages.length > 0 || initialSessionId) {
+                console.log("⏭️ Keeping current session (has messages or from URL):", {
+                  localSessionId,
+                  messageCount: store.messages.length,
+                  fromURL: !!initialSessionId,
+                  serverSessionAvailable: serverSessionId,
+                });
+                // Keep using local session - user is actively working with it
+                return;
+              }
+
+              // No messages in current session, safe to switch to server session
               console.log("📱 Multi-device sync: Using server session", serverSessionId);
               setSessionId(serverSessionId);
               localStorage.setItem("chat_session_id", serverSessionId);
@@ -386,10 +413,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           session: data.session_id
         });
 
-        // Ignore if session doesn't match
-        if (data.session_id && data.session_id !== sessionId) {
-          console.warn("⚠️ Ignoring sync from different session");
-          return;
+        // Ignore if session doesn't match (compare base IDs)
+        if (data.session_id && sessionId) {
+          const incomingBaseId = getBaseSessionId(data.session_id);
+          const currentBaseId = getBaseSessionId(sessionId);
+          if (incomingBaseId !== currentBaseId) {
+            console.warn("⚠️ Ignoring sync from different session");
+            return;
+          }
         }
 
         const userMessage = {
@@ -414,10 +445,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           session: data.session_id
         });
 
-        // Ignore if session doesn't match
-        if (data.session_id && data.session_id !== sessionId) {
-          console.warn("⚠️ Ignoring sync from different session");
-          return;
+        // Ignore if session doesn't match (compare base IDs)
+        if (data.session_id && sessionId) {
+          const incomingBaseId = getBaseSessionId(data.session_id);
+          const currentBaseId = getBaseSessionId(sessionId);
+          if (incomingBaseId !== currentBaseId) {
+            console.warn("⚠️ Ignoring sync from different session");
+            return;
+          }
         }
 
         const assistantMessage = {
@@ -449,10 +484,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         // Message from another device (legacy format - assistant only)
         console.log("📱 Received message sync from another device (legacy)");
 
-        // Ignore if session doesn't match
-        if (data.session_id && data.session_id !== sessionId) {
-          console.warn("⚠️ Ignoring sync from different session");
-          return;
+        // Ignore if session doesn't match (compare base IDs)
+        if (data.session_id && sessionId) {
+          const incomingBaseId = getBaseSessionId(data.session_id);
+          const currentBaseId = getBaseSessionId(sessionId);
+          if (incomingBaseId !== currentBaseId) {
+            console.warn("⚠️ Ignoring sync from different session");
+            return;
+          }
         }
 
         const assistantMessage = {
@@ -497,10 +536,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       if (data.type === "session_changed") {
         // Session changed on another device (e.g., New Search)
         console.log("📱 Session changed on another device");
-        if (data.session_id && data.session_id !== sessionId) {
-          setSessionId(data.session_id);
-          localStorage.setItem("chat_session_id", data.session_id);
-          loadSessionMessages(data.session_id);
+        if (data.session_id && sessionId) {
+          const incomingBaseId = getBaseSessionId(data.session_id);
+          const currentBaseId = getBaseSessionId(sessionId);
+          // Only switch if the base session ID is different
+          if (incomingBaseId !== currentBaseId) {
+            setSessionId(data.session_id);
+            localStorage.setItem("chat_session_id", data.session_id);
+            loadSessionMessages(data.session_id);
+          }
         }
         return;
       }
@@ -572,14 +616,25 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       }
 
       // Ignore messages from old sessions (e.g., after New Search)
-      if (data.session_id && data.session_id !== sessionId) {
-        console.warn(
-          "⚠️ Ignoring message from old session:",
-          data.session_id,
-          "Current session:",
-          sessionId
-        );
-        return;
+      // Compare base session IDs to handle signed session ID variations
+      if (data.session_id && sessionId) {
+        const incomingBaseId = getBaseSessionId(data.session_id);
+        const currentBaseId = getBaseSessionId(sessionId);
+
+        if (incomingBaseId !== currentBaseId) {
+          console.warn(
+            "⚠️ Ignoring message from old session:",
+            data.session_id,
+            "(base:",
+            incomingBaseId,
+            ") - Current session:",
+            sessionId,
+            "(base:",
+            currentBaseId,
+            ")"
+          );
+          return;
+        }
       }
 
       const assistantMessage = {
