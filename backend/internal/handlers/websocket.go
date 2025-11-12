@@ -213,11 +213,15 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 		sessionID = baseSessionID
 	}
 
+	// Generate message IDs upfront for consistent deduplication across devices
+	userMessageID := uuid.New().String()
+	assistantMessageID := uuid.New().String()
+
 	// Broadcast user message to other devices BEFORE processing
 	if userID != nil {
 		userMsgSync := &WSResponse{
 			Type:      "user_message_sync",
-			MessageID: uuid.New().String(), // Unique ID for deduplication
+			MessageID: userMessageID, // Use pre-generated ID for consistency
 			Output:    msg.Message,
 			SessionID: sessionID, // Use base session ID
 		}
@@ -226,14 +230,16 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 
 	// Process chat using shared processor
 	processorReq := &ChatRequest{
-		SessionID:       sessionID, // Use base session ID
-		UserID:          userID,
-		Message:         msg.Message,
-		Country:         msg.Country,
-		Language:        msg.Language,
-		Currency:        msg.Currency,
-		NewSearch:       msg.NewSearch,
-		CurrentCategory: msg.CurrentCategory,
+		SessionID:         sessionID, // Use base session ID
+		UserID:            userID,
+		Message:           msg.Message,
+		Country:           msg.Country,
+		Language:          msg.Language,
+		Currency:          msg.Currency,
+		NewSearch:         msg.NewSearch,
+		CurrentCategory:   msg.CurrentCategory,
+		UserMessageID:     userMessageID,     // Pass pre-generated user message ID
+		AssistantMessageID: assistantMessageID, // Pass pre-generated assistant message ID
 	}
 
 	result := h.processor.ProcessChat(processorReq)
@@ -244,13 +250,14 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 		return
 	}
 
-	// Generate unique message ID for both responses
-	messageID := uuid.New().String()
+	// Use the pre-generated assistant message ID for consistent deduplication
+	// (it was passed to processor and used for the message in database)
+	messageID := assistantMessageID
 
 	// Build response
 	response := &WSResponse{
 		Type:         result.Type,
-		MessageID:    messageID, // Same ID for sender and sync
+		MessageID:    messageID, // Same ID as in database
 		Output:       result.Output,
 		QuickReplies: result.QuickReplies,
 		Products:     result.Products,
@@ -268,7 +275,7 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 		// Create sync message for other devices (same message_id for deduplication)
 		syncMsg := &WSResponse{
 			Type:         "assistant_message_sync",
-			MessageID:    messageID, // Same ID as sent to sender
+			MessageID:    messageID, // Same ID as sent to sender and in database
 			Output:       result.Output,
 			QuickReplies: result.QuickReplies,
 			Products:     result.Products,

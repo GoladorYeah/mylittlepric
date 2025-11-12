@@ -222,7 +222,8 @@ export const useChatStore = create<ChatStore>()(
 
           if (response.messages && response.messages.length > 0) {
             const chatMessages: ChatMessage[] = response.messages.map((msg, index) => ({
-              id: `${sessionId}-${index}`,
+              // Use message ID from backend if available, fallback to session-based ID
+              id: msg.id || `${sessionId}-${index}`,
               role: msg.role as "user" | "assistant",
               content: msg.content,
               timestamp: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now(),
