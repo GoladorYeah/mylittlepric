@@ -468,9 +468,17 @@ export const useChatStore = create<ChatStore>()(
         // 3. SavedSearch has messages but no products
         // 4. SavedSearch was created more than 10 seconds ago (avoid showing after "New Search")
         // 5. SavedSearch is not too old (< 24 hours)
+        // 6. SavedSearch is from a DIFFERENT session (don't show for current session)
         if (state.savedSearch &&
             state.messages.length === 0 &&
             state.savedSearch.messages.length > 0) {
+
+          // Don't show if savedSearch is from the CURRENT session
+          // This prevents showing prompt when we're already in the saved session
+          if (state.savedSearch.sessionId === state.sessionId) {
+            console.log("ℹ️ savedSearch is from current session - not showing prompt");
+            return;
+          }
 
           const timeSinceSaved = Date.now() - state.savedSearch.timestamp;
 
