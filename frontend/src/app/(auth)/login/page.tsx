@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
-import { useAuthStore, useChatStore } from '@/shared/lib';
+import { useAuthStore } from '@/shared/lib';
 import { AuthAPI } from '@/shared/lib/api/auth';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -54,27 +54,9 @@ export default function LoginPage() {
         expires_in: authResponse.expires_in,
       });
 
-      // Sync preferences from server after login
-      try {
-        await useChatStore.getState().syncPreferencesFromServer();
-      } catch (error) {
-        console.error('Failed to sync preferences after login:', error);
-      }
-
-      // Reload messages for current session from server after login
-      // This ensures we see messages sent from other devices while we were logged out
-      const chatStore = useChatStore.getState();
-      const currentSessionId = chatStore.sessionId || localStorage.getItem("chat_session_id");
-
-      if (currentSessionId) {
-        console.log("🔄 Reloading session messages after login:", currentSessionId);
-        try {
-          await chatStore.loadSessionMessages(currentSessionId);
-        } catch (error) {
-          console.error("Failed to reload session messages after login:", error);
-        }
-      }
-
+      // Note: We don't sync preferences or load messages here
+      // The use-chat.ts hook will handle this automatically on mount for authenticated users
+      // This prevents race conditions with localStorage persistence
       router.push(returnUrl || '/chat');
     } catch (error) {
       console.error('Login failed:', error);
@@ -105,27 +87,9 @@ export default function LoginPage() {
         expires_in: authResponse.expires_in,
       });
 
-      // Sync preferences from server after login
-      try {
-        await useChatStore.getState().syncPreferencesFromServer();
-      } catch (error) {
-        console.error('Failed to sync preferences after login:', error);
-      }
-
-      // Reload messages for current session from server after login
-      // This ensures we see messages sent from other devices while we were logged out
-      const chatStore = useChatStore.getState();
-      const currentSessionId = chatStore.sessionId || localStorage.getItem("chat_session_id");
-
-      if (currentSessionId) {
-        console.log("🔄 Reloading session messages after login:", currentSessionId);
-        try {
-          await chatStore.loadSessionMessages(currentSessionId);
-        } catch (error) {
-          console.error("Failed to reload session messages after login:", error);
-        }
-      }
-
+      // Note: We don't sync preferences or load messages here
+      // The use-chat.ts hook will handle this automatically on mount for authenticated users
+      // This prevents race conditions with localStorage persistence
       router.push(returnUrl || '/chat');
     } catch (error) {
       console.error('Auth failed:', error);
