@@ -112,6 +112,14 @@ export const useChatStore = create<ChatStore>()(
             content: message.content.substring(0, 50),
             currentMessageCount: state.messages.length,
           });
+
+          // Check for duplicate message IDs to prevent duplicate messages
+          const isDuplicate = state.messages.some((m) => m.id === message.id);
+          if (isDuplicate) {
+            console.log("⚠️ Skipping duplicate message with id:", message.id);
+            return state; // No state change
+          }
+
           const newMessages = [...state.messages, message];
           console.log("📝 After addMessage, total messages:", newMessages.length);
           return {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useChatStore } from "@/shared/lib";
 import { useAuthStore } from "@/shared/lib";
@@ -120,8 +120,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
   const { accessToken } = useAuthStore();
 
+  // Memoize WebSocket URL to prevent creating multiple connections on re-renders
+  const socketUrl = useMemo(() => getWebSocketUrl(accessToken), [accessToken]);
+
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
-    getWebSocketUrl(accessToken),
+    socketUrl,
     {
       shouldReconnect: () => true,
       reconnectAttempts,
@@ -495,7 +498,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         }
 
         const userMessage = {
-          id: generateId(),
+          id: data.message_id || generateId(), // Use message_id from backend for deduplication
           role: "user" as const,
           content: data.output || "",
           timestamp: Date.now(),
@@ -527,7 +530,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         }
 
         const assistantMessage = {
-          id: generateId(),
+          id: data.message_id || generateId(), // Use message_id from backend for deduplication
           role: "assistant" as const,
           content: data.output || "",
           timestamp: Date.now(),
@@ -566,7 +569,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         }
 
         const assistantMessage = {
-          id: generateId(),
+          id: data.message_id || generateId(), // Use message_id from backend for deduplication
           role: "assistant" as const,
           content: data.output || "",
           timestamp: Date.now(),
