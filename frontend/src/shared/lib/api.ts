@@ -91,6 +91,7 @@ export async function getSessionMessages(
 
 export interface MessagesSinceResponse {
   messages: Array<{
+    id: string; // UUID from backend - CRITICAL for deduplication
     role: string;
     content: string;
     timestamp: string;

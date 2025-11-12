@@ -156,9 +156,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
             const missedMessages = await reconnectManager.recoverMissedMessages(sessionId);
 
             // Add missed messages to store
+            // IMPORTANT: Use msg.id from backend for deduplication
+            let addedCount = 0;
+            let skippedCount = 0;
+
             missedMessages.forEach((msg) => {
+              const currentCount = useChatStore.getState().messages.length;
               addMessage({
-                id: generateId(),
+                id: msg.id, // Use backend UUID for deduplication across reconnects
                 role: msg.role as "user" | "assistant",
                 content: msg.content,
                 timestamp: msg.timestamp ? new Date(msg.timestamp).getTime() : Date.now(),
@@ -167,10 +172,18 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
                 search_type: msg.search_type,
                 isLocal: false, // Recovered messages are not local
               });
+              const newCount = useChatStore.getState().messages.length;
+
+              if (newCount > currentCount) {
+                addedCount++;
+              } else {
+                skippedCount++;
+                console.log("⚠️ Message was skipped (duplicate):", msg.id);
+              }
             });
 
             if (missedMessages.length > 0) {
-              console.log(`✅ Synced ${missedMessages.length} missed messages`);
+              console.log(`✅ Synced ${addedCount} new messages, skipped ${skippedCount} duplicates`);
             }
           } catch (error) {
             console.error("Failed to sync missed messages:", error);
