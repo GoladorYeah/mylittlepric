@@ -192,20 +192,41 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 		}
 	}
 
+	// Extract base session ID from signed session ID if applicable
+	sessionID := msg.SessionID
+	if h.container.SessionOwnershipChecker.IsSignedSessionID(sessionID) {
+		baseSessionID, embeddedUserID, err := h.container.SessionOwnershipChecker.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
+		if err != nil {
+			h.sendError(c, "invalid_session", "Invalid or expired session signature")
+			return
+		}
+
+		// Verify user ID matches if embedded in signature
+		if embeddedUserID != nil && userID != nil {
+			if *embeddedUserID != *userID {
+				h.sendError(c, "session_ownership", "Session belongs to different user")
+				return
+			}
+		}
+
+		// Use base session ID for processing
+		sessionID = baseSessionID
+	}
+
 	// Broadcast user message to other devices BEFORE processing
 	if userID != nil {
 		userMsgSync := &WSResponse{
 			Type:      "user_message_sync",
 			MessageID: uuid.New().String(), // Unique ID for deduplication
 			Output:    msg.Message,
-			SessionID: msg.SessionID,
+			SessionID: sessionID, // Use base session ID
 		}
 		h.broadcastToUser(*userID, userMsgSync, clientID)
 	}
 
 	// Process chat using shared processor
 	processorReq := &ChatRequest{
-		SessionID:       msg.SessionID,
+		SessionID:       sessionID, // Use base session ID
 		UserID:          userID,
 		Message:         msg.Message,
 		Country:         msg.Country,
@@ -270,9 +291,20 @@ func (h *WSHandler) handleProductDetails(c *websocket.Conn, msg *WSMessage) {
 		msg.Country = h.container.Config.DefaultCountry
 	}
 
+	// Extract base session ID from signed session ID if applicable
+	sessionID := msg.SessionID
+	if h.container.SessionOwnershipChecker.IsSignedSessionID(sessionID) {
+		baseSessionID, _, err := h.container.SessionOwnershipChecker.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
+		if err != nil {
+			h.sendError(c, "invalid_session", "Invalid or expired session signature")
+			return
+		}
+		sessionID = baseSessionID
+	}
+
 	cachedProduct, err := h.container.CacheService.GetProductByToken(msg.PageToken)
 	if err == nil && cachedProduct != nil {
-		h.sendProductDetailsResponse(c, cachedProduct, msg.SessionID)
+		h.sendProductDetailsResponse(c, cachedProduct, sessionID)
 		return
 	}
 
@@ -291,7 +323,7 @@ func (h *WSHandler) handleProductDetails(c *websocket.Conn, msg *WSMessage) {
 		fmt.Printf("⚠️ Failed to cache product details: %v\n", err)
 	}
 
-	h.sendProductDetailsResponse(c, productDetails, msg.SessionID)
+	h.sendProductDetailsResponse(c, productDetails, sessionID)
 }
 
 func (h *WSHandler) sendProductDetailsResponse(c *websocket.Conn, productData map[string]interface{}, sessionID string) {
