@@ -46,7 +46,6 @@ services:
       - "9090:9090"
     networks:
       - monitoring
-      - mylittleprice
     restart: unless-stopped
 
   alertmanager:
