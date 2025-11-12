@@ -246,15 +246,28 @@ func (s *MessageService) getMessagesFromDB(sessionID string) ([]*models.Message,
 		return nil, fmt.Errorf("failed to query messages: %w", err)
 	}
 
-	// Convert to models
+	// Convert to models and deduplicate by ID
 	messages := make([]*models.Message, 0, len(entMessages))
+	seenIDs := make(map[uuid.UUID]bool)
+
 	for _, entMsg := range entMessages {
+		// Skip if we've already seen this message ID (deduplication)
+		if seenIDs[entMsg.ID] {
+			fmt.Printf("⚠️ Skipping duplicate message ID %s in session %s\n", entMsg.ID.String(), sessionID)
+			continue
+		}
+		seenIDs[entMsg.ID] = true
+
 		msg, err := convertEntMessageToModel(entMsg)
 		if err != nil {
 			fmt.Printf("⚠️ Failed to convert message %s: %v\n", entMsg.ID.String(), err)
 			continue
 		}
 		messages = append(messages, msg)
+	}
+
+	if len(seenIDs) < len(entMessages) {
+		fmt.Printf("⚠️ Found %d duplicate messages in session %s\n", len(entMessages)-len(seenIDs), sessionID)
 	}
 
 	return messages, nil

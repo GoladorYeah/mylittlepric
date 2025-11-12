@@ -180,7 +180,23 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         }
       },
       onError: (event) => {
-        console.error("❌ WebSocket error:", event);
+        // Extract useful error information from the WebSocket event
+        const errorInfo = {
+          type: event?.type || 'unknown',
+          target: {
+            readyState: (event?.target as any)?.readyState,
+            url: (event?.target as any)?.url,
+          },
+          // Check if connection is closing/closed (expected during page reload)
+          isClosing: readyState === ReadyState.CLOSING || readyState === ReadyState.CLOSED,
+        };
+
+        // Only log as error if it's not just a normal disconnect
+        if (errorInfo.isClosing) {
+          console.log("ℹ️ WebSocket closing (expected during navigation/reload):", errorInfo);
+        } else {
+          console.error("❌ WebSocket error:", errorInfo);
+        }
       },
       onClose: (event) => {
         console.log("🔌 WebSocket closed:", event.code, event.reason);
