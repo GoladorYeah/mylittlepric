@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { useAuthStore, useChatStore } from "@/shared/lib";
 
 function PreferencesSync() {
   const { isAuthenticated, _hasHydrated } = useAuthStore();
   const syncPreferencesFromServer = useChatStore((state) => state.syncPreferencesFromServer);
+  const syncingRef = useRef(false);
 
   useEffect(() => {
     // Only sync if user is authenticated and hydration is complete
-    if (_hasHydrated && isAuthenticated) {
+    // Also prevent duplicate calls using ref
+    if (_hasHydrated && isAuthenticated && !syncingRef.current) {
+      syncingRef.current = true;
       console.log("🔄 Syncing preferences from server on app load...");
-      syncPreferencesFromServer();
+      syncPreferencesFromServer().finally(() => {
+        syncingRef.current = false;
+      });
     }
   }, [isAuthenticated, _hasHydrated, syncPreferencesFromServer]);
 

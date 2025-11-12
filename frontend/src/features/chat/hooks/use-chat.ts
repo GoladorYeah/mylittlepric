@@ -96,6 +96,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const initialQuerySentRef = useRef(false);
   const processedMessageIds = useRef<Set<string>>(new Set());
   const sessionLoadedRef = useRef(false);
+  const initializingRef = useRef(false); // Prevent duplicate initialization calls
 
   const {
     messages,
@@ -201,6 +202,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   // Initialize session on mount
   useEffect(() => {
     const initializeSession = async () => {
+      // Prevent duplicate initialization calls
+      if (initializingRef.current) {
+        console.log("⏭️ Already initializing, skipping duplicate call");
+        return;
+      }
+
       const store = useChatStore.getState();
       console.log("🔧 Initializing session:", {
         hasInitialized: store._hasInitialized,
@@ -217,6 +224,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return;
       }
 
+      initializingRef.current = true;
       useChatStore.setState({ _hasInitialized: true });
 
       // If session_id is provided in URL, use it and load messages
@@ -236,12 +244,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       // For authenticated users, check for active session on server
       if (accessToken) {
-        // Load user preferences from server
-        try {
-          await store.syncPreferencesFromServer();
-        } catch (error) {
-          console.error("Failed to sync preferences from server:", error);
-        }
+        // Note: Preferences sync is handled by PreferencesSync component in providers.tsx
+        // No need to sync here to avoid duplicate requests
 
         try {
           const activeSessionResponse = await SessionAPI.getActiveSession();
@@ -375,7 +379,9 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       }
     };
 
-    initializeSession();
+    initializeSession().finally(() => {
+      initializingRef.current = false;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSessionId, accessToken]);
 
