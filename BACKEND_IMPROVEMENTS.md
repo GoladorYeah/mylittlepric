@@ -331,7 +331,7 @@ go func() {
    - Per-user quotas
 
 4. **Monitoring & Alerting**
-   - Prometheus metrics для WebSocket
+   - Grafana Loki metrics для WebSocket
    - Grafana dashboards
    - Alerts для high error rates
 
