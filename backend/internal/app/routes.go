@@ -54,12 +54,13 @@ func setupAuthRoutes(api fiber.Router, c *container.Container) {
 	auth := api.Group("/auth")
 	authHandler := handlers.NewAuthHandler(c)
 	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+	authRateLimiter := middleware.AuthRateLimiter(c.Redis)
 
-	// Public routes
-	auth.Post("/signup", authHandler.Signup)
-	auth.Post("/login", authHandler.Login)
-	auth.Post("/google", authHandler.GoogleLogin)
-	auth.Post("/refresh", authHandler.RefreshToken)
+	// Public routes with rate limiting
+	auth.Post("/signup", authRateLimiter, authHandler.Signup)
+	auth.Post("/login", authRateLimiter, authHandler.Login)
+	auth.Post("/google", authRateLimiter, authHandler.GoogleLogin)
+	auth.Post("/refresh", authRateLimiter, authHandler.RefreshToken)
 	auth.Post("/logout", authHandler.Logout)
 
 	// Protected routes
@@ -69,8 +70,9 @@ func setupAuthRoutes(api fiber.Router, c *container.Container) {
 
 func setupWebSocketRoutes(app *fiber.App, c *container.Container) {
 	wsHandler := handlers.NewWSHandler(c)
+	wsRateLimiter := middleware.WebSocketRateLimiter(c.Redis, 30) // Max 30 connections per minute per IP
 
-	app.Use("/ws", func(ctx *fiber.Ctx) error {
+	app.Use("/ws", wsRateLimiter, func(ctx *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(ctx) {
 			// Try to get token from query parameter or Authorization header
 			var token string
@@ -114,6 +116,7 @@ func setupChatRoutes(api fiber.Router, c *container.Container) {
 	optionalAuthMiddleware := middleware.OptionalAuthMiddleware(c.JWTService)
 
 	api.Post("/chat", optionalAuthMiddleware, chatHandler.HandleChat)
+	api.Get("/chat/messages/since", optionalAuthMiddleware, chatHandler.GetMessagesSince) // Reconnect endpoint
 	api.Get("/chat/messages", optionalAuthMiddleware, chatHandler.GetSessionMessages)
 }
 
