@@ -19,14 +19,14 @@ type SessionService interface {
 // SessionOwnershipValidator validates that the user has access to the requested session
 type SessionOwnershipValidator struct {
 	sessionService SessionService
-	signer         *utils.SessionSignature
+	Signer         *utils.SessionSignature // Public for WebSocket handler access
 }
 
 // NewSessionOwnershipValidator creates a new session ownership validator
 func NewSessionOwnershipValidator(sessionService SessionService, secretKey string) *SessionOwnershipValidator {
 	return &SessionOwnershipValidator{
 		sessionService: sessionService,
-		signer:         utils.NewSessionSignature(secretKey),
+		Signer:         utils.NewSessionSignature(secretKey),
 	}
 }
 
@@ -52,9 +52,9 @@ func (v *SessionOwnershipValidator) ValidateSessionOwnership() fiber.Handler {
 		}
 
 		// Check if session ID is signed
-		if v.signer.IsSignedSessionID(sessionID) {
+		if v.Signer.IsSignedSessionID(sessionID) {
 			// Verify signed session ID
-			rawSessionID, embeddedUserID, err := v.signer.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
+			rawSessionID, embeddedUserID, err := v.Signer.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
 			if err != nil {
 				return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 					"error": "Invalid or expired session signature",
@@ -143,14 +143,14 @@ func (v *SessionOwnershipValidator) ValidateSessionOwnershipStrict() fiber.Handl
 		}
 
 		// Require signed session ID
-		if !v.signer.IsSignedSessionID(sessionID) {
+		if !v.Signer.IsSignedSessionID(sessionID) {
 			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 				"error": "Unsigned session IDs are not allowed. Please use signed session IDs.",
 			})
 		}
 
 		// Verify signed session ID
-		rawSessionID, embeddedUserID, err := v.signer.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
+		rawSessionID, embeddedUserID, err := v.Signer.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
 		if err != nil {
 			return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid or expired session signature",
@@ -185,19 +185,19 @@ func (v *SessionOwnershipValidator) SignSessionIDForUser(c *fiber.Ctx, sessionID
 	userUUID, ok := GetUserID(c)
 	if !ok {
 		// Anonymous user - sign without user_id
-		return v.signer.SignSessionID(sessionID, nil), nil
+		return v.Signer.SignSessionID(sessionID, nil), nil
 	}
 
 	// Authenticated user - sign with user_id
-	return v.signer.SignSessionID(sessionID, &userUUID), nil
+	return v.Signer.SignSessionID(sessionID, &userUUID), nil
 }
 
 // ValidateWebSocketSessionOwnership validates session ownership for WebSocket connections
 // Used in WebSocket upgrade handler
 func (v *SessionOwnershipValidator) ValidateWebSocketSessionOwnership(sessionID string, userID *uuid.UUID) error {
 	// If session ID is signed, verify it
-	if v.signer.IsSignedSessionID(sessionID) {
-		rawSessionID, embeddedUserID, err := v.signer.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
+	if v.Signer.IsSignedSessionID(sessionID) {
+		rawSessionID, embeddedUserID, err := v.Signer.VerifyAndExtractSessionID(sessionID, 24*time.Hour)
 		if err != nil {
 			return fmt.Errorf("invalid session signature: %w", err)
 		}
