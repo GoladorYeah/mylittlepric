@@ -51,6 +51,18 @@ export interface UseChatReturn {
 }
 
 /**
+ * Extract base session ID from a signed session ID
+ * Example: "1762943791279-78vn1po5d.1762955546...." -> "1762943791279-78vn1po5d"
+ */
+function getBaseSessionId(sessionId: string): string {
+  // Base session ID format: timestamp-randomId (e.g., "1762943791279-78vn1po5d")
+  // Signed session ID adds more parts: baseId.timestamp.userId.signature
+  // Extract just the first part (timestamp-randomId)
+  const match = sessionId.match(/^(\d+-[a-z0-9]+)/);
+  return match ? match[1] : sessionId;
+}
+
+/**
  * Custom hook for managing WebSocket chat connection
  * Handles connection, message sending, and session management
  */
@@ -401,10 +413,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           session: data.session_id
         });
 
-        // Ignore if session doesn't match
-        if (data.session_id && data.session_id !== sessionId) {
-          console.warn("⚠️ Ignoring sync from different session");
-          return;
+        // Ignore if session doesn't match (compare base IDs)
+        if (data.session_id && sessionId) {
+          const incomingBaseId = getBaseSessionId(data.session_id);
+          const currentBaseId = getBaseSessionId(sessionId);
+          if (incomingBaseId !== currentBaseId) {
+            console.warn("⚠️ Ignoring sync from different session");
+            return;
+          }
         }
 
         const userMessage = {
@@ -429,10 +445,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           session: data.session_id
         });
 
-        // Ignore if session doesn't match
-        if (data.session_id && data.session_id !== sessionId) {
-          console.warn("⚠️ Ignoring sync from different session");
-          return;
+        // Ignore if session doesn't match (compare base IDs)
+        if (data.session_id && sessionId) {
+          const incomingBaseId = getBaseSessionId(data.session_id);
+          const currentBaseId = getBaseSessionId(sessionId);
+          if (incomingBaseId !== currentBaseId) {
+            console.warn("⚠️ Ignoring sync from different session");
+            return;
+          }
         }
 
         const assistantMessage = {
@@ -464,10 +484,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         // Message from another device (legacy format - assistant only)
         console.log("📱 Received message sync from another device (legacy)");
 
-        // Ignore if session doesn't match
-        if (data.session_id && data.session_id !== sessionId) {
-          console.warn("⚠️ Ignoring sync from different session");
-          return;
+        // Ignore if session doesn't match (compare base IDs)
+        if (data.session_id && sessionId) {
+          const incomingBaseId = getBaseSessionId(data.session_id);
+          const currentBaseId = getBaseSessionId(sessionId);
+          if (incomingBaseId !== currentBaseId) {
+            console.warn("⚠️ Ignoring sync from different session");
+            return;
+          }
         }
 
         const assistantMessage = {
@@ -512,10 +536,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       if (data.type === "session_changed") {
         // Session changed on another device (e.g., New Search)
         console.log("📱 Session changed on another device");
-        if (data.session_id && data.session_id !== sessionId) {
-          setSessionId(data.session_id);
-          localStorage.setItem("chat_session_id", data.session_id);
-          loadSessionMessages(data.session_id);
+        if (data.session_id && sessionId) {
+          const incomingBaseId = getBaseSessionId(data.session_id);
+          const currentBaseId = getBaseSessionId(sessionId);
+          // Only switch if the base session ID is different
+          if (incomingBaseId !== currentBaseId) {
+            setSessionId(data.session_id);
+            localStorage.setItem("chat_session_id", data.session_id);
+            loadSessionMessages(data.session_id);
+          }
         }
         return;
       }
@@ -587,14 +616,25 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       }
 
       // Ignore messages from old sessions (e.g., after New Search)
-      if (data.session_id && data.session_id !== sessionId) {
-        console.warn(
-          "⚠️ Ignoring message from old session:",
-          data.session_id,
-          "Current session:",
-          sessionId
-        );
-        return;
+      // Compare base session IDs to handle signed session ID variations
+      if (data.session_id && sessionId) {
+        const incomingBaseId = getBaseSessionId(data.session_id);
+        const currentBaseId = getBaseSessionId(sessionId);
+
+        if (incomingBaseId !== currentBaseId) {
+          console.warn(
+            "⚠️ Ignoring message from old session:",
+            data.session_id,
+            "(base:",
+            incomingBaseId,
+            ") - Current session:",
+            sessionId,
+            "(base:",
+            currentBaseId,
+            ")"
+          );
+          return;
+        }
       }
 
       const assistantMessage = {
