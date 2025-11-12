@@ -185,6 +185,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       // If session_id is provided in URL, use it and load messages
       if (initialSessionId && !sessionLoadedRef.current) {
         sessionLoadedRef.current = true;
+        console.log("🔗 Loading session from URL:", initialSessionId);
         setSessionId(initialSessionId);
         localStorage.setItem("chat_session_id", initialSessionId);
 
@@ -212,9 +213,23 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
             const serverSessionId = activeSessionResponse.session.session_id;
             const localSessionId = store.sessionId || localStorage.getItem("chat_session_id");
 
-            // If server has a different session, ask user which one to use
+            // If server has a different session, check if we should switch
             if (localSessionId && localSessionId !== serverSessionId) {
-              // We have both local and server session - prefer server (most recent)
+              // Don't switch to server session if:
+              // 1. We already have messages loaded (user is actively using this session)
+              // 2. OR we came from a URL with a session ID (user wants to view this specific session)
+              if (store.messages.length > 0 || initialSessionId) {
+                console.log("⏭️ Keeping current session (has messages or from URL):", {
+                  localSessionId,
+                  messageCount: store.messages.length,
+                  fromURL: !!initialSessionId,
+                  serverSessionAvailable: serverSessionId,
+                });
+                // Keep using local session - user is actively working with it
+                return;
+              }
+
+              // No messages in current session, safe to switch to server session
               console.log("📱 Multi-device sync: Using server session", serverSessionId);
               setSessionId(serverSessionId);
               localStorage.setItem("chat_session_id", serverSessionId);
