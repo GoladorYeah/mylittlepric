@@ -70,3 +70,54 @@ export async function getSessionMessages(
 
   return response.json();
 }
+
+export interface MessagesSinceResponse {
+  messages: Array<{
+    role: string;
+    content: string;
+    timestamp: string;
+    quick_replies?: string[];
+    products?: any[];
+    search_type?: string;
+  }>;
+  session_id: string;
+  message_count: number;
+  since: string;
+}
+
+/**
+ * Get messages since a specific timestamp
+ * Used for recovering missed messages after WebSocket reconnection
+ *
+ * @param sessionId - The session ID
+ * @param since - The timestamp to get messages since
+ * @returns Messages that were created after the given timestamp
+ */
+export async function getMessagesSince(
+  sessionId: string,
+  since: Date
+): Promise<MessagesSinceResponse> {
+  const accessToken = useAuthStore.getState().accessToken;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  const sinceISO = since.toISOString();
+  const url = `${API_URL}/api/chat/messages/since?session_id=${encodeURIComponent(sessionId)}&since=${encodeURIComponent(sinceISO)}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch messages since timestamp");
+  }
+
+  return response.json();
+}

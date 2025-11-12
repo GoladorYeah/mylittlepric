@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
 import { CountrySelector } from "@/shared/components/ui";
+import { useChatStore } from "@/shared/lib";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -18,10 +19,11 @@ export function ChatInput({
   connectionStatus,
 }: ChatInputProps) {
   const [input, setInput] = useState("");
+  const { rateLimitState } = useChatStore();
 
   const handleSend = () => {
     const trimmedInput = input.trim();
-    if (trimmedInput) {
+    if (trimmedInput && !rateLimitState.isLimited) {
       onSend(trimmedInput);
       setInput("");
     }
@@ -34,6 +36,27 @@ export function ChatInput({
     }
   };
 
+  // Calculate time remaining for rate limit
+  const getTimeRemaining = () => {
+    if (!rateLimitState.expiresAt) return 0;
+    return Math.ceil((rateLimitState.expiresAt.getTime() - Date.now()) / 1000);
+  };
+
+  // Determine if input should be disabled
+  const isDisabled = rateLimitState.isLimited || !isConnected || isLoading;
+
+  // Get appropriate placeholder text
+  const getPlaceholder = () => {
+    if (rateLimitState.isLimited) {
+      const timeRemaining = getTimeRemaining();
+      return `Rate limit exceeded. Retry in ${timeRemaining}s`;
+    }
+    if (!isConnected) {
+      return `${connectionStatus}...`;
+    }
+    return "Type your message...";
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-4 pb-2">
       <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border focus-within:border-primary transition-colors">
@@ -43,15 +66,13 @@ export function ChatInput({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={
-            isConnected ? "Type your message..." : `${connectionStatus}...`
-          }
-          disabled={isLoading || !isConnected}
+          placeholder={getPlaceholder()}
+          disabled={isDisabled}
           className="flex-1 px-2 py-3 bg-transparent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <button
           onClick={handleSend}
-          disabled={!input.trim() || isLoading || !isConnected}
+          disabled={!input.trim() || isDisabled}
           className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center shrink-0"
         >
           <Send className="w-5 h-5" />
