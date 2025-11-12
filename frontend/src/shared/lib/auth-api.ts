@@ -104,6 +104,20 @@ class AuthAPI {
       console.error("Failed to sync preferences after login:", error);
     }
 
+    // Reload messages for current session from server after login
+    // This ensures we see messages sent from other devices while we were logged out
+    const chatStore = useChatStore.getState();
+    const currentSessionId = chatStore.sessionId || localStorage.getItem("chat_session_id");
+
+    if (currentSessionId) {
+      console.log("🔄 Reloading session messages after login:", currentSessionId);
+      try {
+        await chatStore.loadSessionMessages(currentSessionId);
+      } catch (error) {
+        console.error("Failed to reload session messages after login:", error);
+      }
+    }
+
     return authData;
   }
 
