@@ -29,14 +29,16 @@ func NewChatProcessor(c *container.Container) *ChatProcessor {
 
 // ChatRequest represents a standardized chat request
 type ChatRequest struct {
-	SessionID       string
-	UserID          *uuid.UUID // Optional user ID for authenticated users
-	Message         string
-	Country         string
-	Language        string
-	Currency        string
-	NewSearch       bool
-	CurrentCategory string
+	SessionID         string
+	UserID            *uuid.UUID // Optional user ID for authenticated users
+	Message           string
+	Country           string
+	Language          string
+	Currency          string
+	NewSearch         bool
+	CurrentCategory   string
+	UserMessageID     string // Pre-generated UUID for user message (for consistent sync)
+	AssistantMessageID string // Pre-generated UUID for assistant message (for consistent sync)
 }
 
 // ChatProcessorResponse represents the standardized response from chat processing
@@ -151,8 +153,21 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	}
 
 	// Store user message
+	// Use pre-generated ID if provided, otherwise generate new one
+	var userMsgID uuid.UUID
+	if req.UserMessageID != "" {
+		parsedID, err := uuid.Parse(req.UserMessageID)
+		if err != nil {
+			userMsgID = uuid.New()
+		} else {
+			userMsgID = parsedID
+		}
+	} else {
+		userMsgID = uuid.New()
+	}
+
 	userMessage := &models.Message{
-		ID:        uuid.New(),
+		ID:        userMsgID,
 		SessionID: session.ID,
 		Role:      "user",
 		Content:   req.Message,
@@ -260,8 +275,21 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 	}
 
 	// Create assistant message (but don't save yet - we may need to add products first)
+	// Use pre-generated ID if provided, otherwise generate new one
+	var assistantMsgID uuid.UUID
+	if req.AssistantMessageID != "" {
+		parsedID, err := uuid.Parse(req.AssistantMessageID)
+		if err != nil {
+			assistantMsgID = uuid.New()
+		} else {
+			assistantMsgID = parsedID
+		}
+	} else {
+		assistantMsgID = uuid.New()
+	}
+
 	assistantMessage := &models.Message{
-		ID:           uuid.New(),
+		ID:           assistantMsgID,
 		SessionID:    session.ID,
 		Role:         "assistant",
 		Content:      geminiResponse.Output,
