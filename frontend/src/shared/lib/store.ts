@@ -125,7 +125,12 @@ export const useChatStore = create<ChatStore>()(
         set({ messages });
       },
 
-      setSessionId: (id) => set({ sessionId: id }),
+      setSessionId: (id) =>
+        set((state) => ({
+          sessionId: id,
+          // Clear signed session ID when base session changes to avoid using stale signatures
+          signedSessionId: state.sessionId !== id ? null : state.signedSessionId,
+        })),
 
       setLoading: (loading) => set({ isLoading: loading }),
 
@@ -162,6 +167,7 @@ export const useChatStore = create<ChatStore>()(
           searchInProgress: false,
           isLoading: false,
           currentCategory: "",
+          signedSessionId: null, // Clear signed session ID for new session
         });
       },
 

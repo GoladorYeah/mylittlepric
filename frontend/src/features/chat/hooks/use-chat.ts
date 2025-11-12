@@ -351,10 +351,21 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return;
       }
 
-      // Check if we already have a valid signed session
+      // Check if we already have a valid signed session for THIS session ID
       const store = useChatStore.getState();
       if (store.signedSessionId) {
-        return;
+        // Verify it's for the current session (extract base ID from signed session)
+        const signedBaseId = getBaseSessionId(store.signedSessionId);
+        const currentBaseId = getBaseSessionId(sessionId);
+        if (signedBaseId === currentBaseId) {
+          console.log("🔐 Already have valid signed session for", currentBaseId);
+          return; // Already signed for this session
+        }
+        // Old signed session for different session - will be replaced
+        console.log("🔄 Signed session is for old session, re-signing:", {
+          old: signedBaseId,
+          new: currentBaseId,
+        });
       }
 
       try {
