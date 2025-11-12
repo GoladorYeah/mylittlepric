@@ -1,5 +1,6 @@
 import { ProductDetailsResponse, ChatMessage } from "@/shared/types";
 import { useAuthStore } from "./auth-store";
+import { rateLimitTracker } from "./rate-limit-tracker";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -14,6 +15,9 @@ export async function getProductDetails(
     },
     body: JSON.stringify({ page_token: pageToken, country }),
   });
+
+  // Track rate limit headers
+  rateLimitTracker.updateFromHeaders(response.headers);
 
   if (!response.ok) {
     throw new Error("Failed to fetch product details");
@@ -63,6 +67,9 @@ export async function getSessionMessages(
       headers,
     }
   );
+
+  // Track rate limit headers
+  rateLimitTracker.updateFromHeaders(response.headers);
 
   if (!response.ok) {
     throw new Error("Failed to fetch session messages");
@@ -114,6 +121,9 @@ export async function getMessagesSince(
     method: "GET",
     headers,
   });
+
+  // Track rate limit headers
+  rateLimitTracker.updateFromHeaders(response.headers);
 
   if (!response.ok) {
     throw new Error("Failed to fetch messages since timestamp");

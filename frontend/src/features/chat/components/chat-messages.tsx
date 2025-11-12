@@ -14,12 +14,14 @@ interface ChatMessagesProps {
   messages: ChatMessage[];
   isLoading: boolean;
   onQuickReply: (reply: string) => void;
+  onRetry?: (messageId: string) => void;
 }
 
 export function ChatMessages({
   messages,
   isLoading,
   onQuickReply,
+  onRetry,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { sessionId } = useChatStore();
@@ -43,6 +45,7 @@ export function ChatMessages({
               key={message.id}
               message={message}
               onQuickReply={onQuickReply}
+              onRetry={onRetry}
             />
           ))}
           {isLoading && <LoadingDots />}

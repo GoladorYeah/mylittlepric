@@ -26,6 +26,7 @@ function getInitials(user: { full_name?: string; email: string } | null): string
 interface ChatMessageProps {
   message: ChatMessageType;
   onQuickReply: (reply: string) => void;
+  onRetry?: (messageId: string) => void;
 }
 
 // Parse quick reply to separate text and price
@@ -48,10 +49,12 @@ function parseQuickReply(reply: string): { text: string; price: string | null } 
   return { text: reply, price: null };
 }
 
-export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
+export function ChatMessage({ message, onQuickReply, onRetry }: ChatMessageProps) {
   const isUser = message.role === "user";
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
+  const isPending = message.status === "pending";
+  const isFailed = message.status === "failed";
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -76,7 +79,7 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
           <div
             className={`${
               isUser
-                ? "rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground flex items-start gap-3"
+                ? `rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground flex items-start gap-3 ${isFailed ? 'opacity-60' : ''} ${isPending ? 'opacity-80' : ''}`
                 : "text-foreground"
             }`}
           >
@@ -85,7 +88,42 @@ export function ChatMessage({ message, onQuickReply }: ChatMessageProps) {
                 {getInitials(user)}
               </div>
             )}
-            <p className="whitespace-pre-wrap flex-1">{message.content}</p>
+            <div className="flex-1">
+              <p className="whitespace-pre-wrap">{message.content}</p>
+
+              {/* Status indicators for user messages */}
+              {isUser && (isPending || isFailed) && (
+                <div className="flex items-center gap-1 mt-2 text-xs">
+                  {isPending && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <div className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                      <span>Sending...</span>
+                    </div>
+                  )}
+
+                  {isFailed && (
+                    <div className="flex items-center gap-2 text-red-500 dark:text-red-400">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span>Failed to send</span>
+                      {onRetry && (
+                        <button
+                          onClick={() => onRetry(message.id)}
+                          className="underline hover:no-underline ml-1 font-medium"
+                        >
+                          Retry
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

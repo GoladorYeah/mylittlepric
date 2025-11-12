@@ -37,6 +37,18 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
     sendMessage(reply);
   };
 
+  const handleRetry = (messageId: string) => {
+    // Find the failed message
+    const message = messages.find((m) => m.id === messageId);
+    if (message && message.content) {
+      // Remove the failed message from store
+      const store = useChatStore.getState();
+      store.removeMessage(messageId);
+      // Resend the message
+      sendMessage(message.content);
+    }
+  };
+
   const handleContinueSearch = () => {
     restoreSavedSearch();
     setShowSavedSearchPrompt(false);
@@ -89,6 +101,7 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
               messages={messages}
               isLoading={isLoading}
               onQuickReply={handleQuickReply}
+              onRetry={handleRetry}
             />
           </>
         )}
