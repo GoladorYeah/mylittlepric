@@ -168,7 +168,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   useEffect(() => {
     const initializeSession = async () => {
       const store = useChatStore.getState();
+      console.log("🔧 Initializing session:", {
+        hasInitialized: store._hasInitialized,
+        initialSessionId,
+        currentSessionId: store.sessionId,
+        messageCount: store.messages.length,
+      });
+
       if (store._hasInitialized && !initialSessionId) {
+        console.log("⏭️ Session already initialized, skipping");
         return;
       }
 
@@ -248,7 +256,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       // If store already has sessionId (restored from persist), don't reload
       if (store.sessionId && store.messages.length > 0) {
-        console.log("✅ Session restored from localStorage:", store.sessionId);
+        console.log("✅ Session restored from localStorage:", {
+          sessionId: store.sessionId,
+          messageCount: store.messages.length,
+          messages: store.messages.map(m => ({
+            id: m.id,
+            role: m.role,
+            content: m.content.substring(0, 30),
+          })),
+        });
         localStorage.setItem("chat_session_id", store.sessionId);
         return;
       }
@@ -331,6 +347,13 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   useEffect(() => {
     if (lastJsonMessage !== null) {
       const data: any = lastJsonMessage;
+
+      console.log("📨 WebSocket message received:", {
+        type: data.type,
+        message_id: data.message_id,
+        content: data.output?.substring(0, 50),
+        session_id: data.session_id,
+      });
 
       if (data.type === "pong") {
         return;
@@ -609,7 +632,10 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
   const sendMessage = async (message: string) => {
     const textToSend = message.trim();
-    if (!textToSend || !isConnected) return;
+    if (!textToSend || !isConnected) {
+      console.warn("⚠️ Cannot send message:", { textToSend, isConnected });
+      return;
+    }
 
     const messageId = generateId();
     const userMessage = {
@@ -620,6 +646,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       isLocal: true, // Message sent from this device
       status: "pending" as const, // Mark as pending
     };
+
+    console.log("📤 Sending user message:", {
+      messageId,
+      content: textToSend.substring(0, 50),
+      sessionId,
+    });
 
     addMessage(userMessage);
     setLoading(true);

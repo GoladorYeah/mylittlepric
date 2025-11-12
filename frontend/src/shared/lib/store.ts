@@ -105,12 +105,25 @@ export const useChatStore = create<ChatStore>()(
       signedSessionId: null,
 
       addMessage: (message) =>
-        set((state) => ({
-          messages: [...state.messages, message],
-          lastMessageTimestamp: new Date(),
-        })),
+        set((state) => {
+          console.log("📝 addMessage called:", {
+            messageId: message.id,
+            role: message.role,
+            content: message.content.substring(0, 50),
+            currentMessageCount: state.messages.length,
+          });
+          const newMessages = [...state.messages, message];
+          console.log("📝 After addMessage, total messages:", newMessages.length);
+          return {
+            messages: newMessages,
+            lastMessageTimestamp: new Date(),
+          };
+        }),
 
-      setMessages: (messages) => set({ messages }),
+      setMessages: (messages) => {
+        console.log("🔄 setMessages called with", messages.length, "messages");
+        set({ messages });
+      },
 
       setSessionId: (id) => set({ sessionId: id }),
 
@@ -142,13 +155,15 @@ export const useChatStore = create<ChatStore>()(
         });
       },
 
-      newSearch: () =>
+      newSearch: () => {
+        console.log("🆕 newSearch called - clearing all messages");
         set({
           messages: [],
           searchInProgress: false,
           isLoading: false,
           currentCategory: "",
-        }),
+        });
+      },
 
       initializeLocale: async () => {
         const state = get();
@@ -174,8 +189,11 @@ export const useChatStore = create<ChatStore>()(
         }
 
         try {
+          console.log("🔄 Loading messages for session:", sessionId);
           const { getSessionMessages } = await import("./api");
           const response = await getSessionMessages(sessionId);
+
+          console.log("✅ Received", response.messages?.length || 0, "messages from API");
 
           if (response.messages && response.messages.length > 0) {
             const chatMessages: ChatMessage[] = response.messages.map((msg, index) => ({
@@ -189,6 +207,7 @@ export const useChatStore = create<ChatStore>()(
               isLocal: true, // Messages loaded from session are considered local (already sent)
             }));
 
+            console.log("✅ Setting", chatMessages.length, "messages in store");
             set({ messages: chatMessages });
 
             // Restore search state from server response
@@ -490,6 +509,27 @@ export const useChatStore = create<ChatStore>()(
         savedSearch: state.savedSearch,
         // Exclude _wsSender from persistence
       }),
+      onRehydrateStorage: () => {
+        console.log("💾 Starting to rehydrate chat store from localStorage...");
+        return (state, error) => {
+          if (error) {
+            console.error("❌ Error rehydrating chat store:", error);
+          } else {
+            console.log("✅ Chat store rehydrated:", {
+              messageCount: state?.messages?.length || 0,
+              sessionId: state?.sessionId || "none",
+              hasMessages: !!state?.messages && state.messages.length > 0,
+            });
+            if (state?.messages && state.messages.length > 0) {
+              console.log("📝 Rehydrated messages:", state.messages.map(m => ({
+                id: m.id,
+                role: m.role,
+                content: m.content.substring(0, 30),
+              })));
+            }
+          }
+        };
+      },
     }
   )
 );
