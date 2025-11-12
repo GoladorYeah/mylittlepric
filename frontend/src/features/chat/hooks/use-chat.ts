@@ -597,7 +597,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           if (incomingBaseId !== currentBaseId) {
             setSessionId(data.session_id);
             localStorage.setItem("chat_session_id", data.session_id);
-            loadSessionMessages(data.session_id);
+
+            // Load messages for new session (may be empty if it's a brand new session)
+            loadSessionMessages(data.session_id).catch((err) => {
+              // Ignore errors for new sessions - they're expected to be empty initially
+              console.log("ℹ️ New session is empty, continuing:", err.message);
+            });
           }
         }
         return;
