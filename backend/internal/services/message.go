@@ -58,22 +58,19 @@ func (s *MessageService) AddMessage(sessionID string, msg *models.Message) error
 
 // saveMessageToDB saves a message to PostgreSQL using Ent
 func (s *MessageService) saveMessageToDB(msg *models.Message) error {
-	// Get session UUID from session_id string
-	sessionUUID, err := s.getSessionUUIDBySessionID(msg.SessionID.String())
-	if err != nil {
-		return fmt.Errorf("failed to get session UUID: %w", err)
-	}
+	// msg.SessionID already contains the correct UUID (foreign key to chat_sessions.id)
+	// No need to look it up again
 
 	// Convert products to proper format
 	var productsJSON []map[string]interface{}
 	if msg.Products != nil && len(msg.Products) > 0 {
 		for _, product := range msg.Products {
 			productMap := map[string]interface{}{
-				"name":        product.Name,
-				"price":       product.Price,
-				"link":        product.Link,
-				"image":       product.Image,
-				"page_token":  product.PageToken,
+				"name":       product.Name,
+				"price":      product.Price,
+				"link":       product.Link,
+				"image":      product.Image,
+				"page_token": product.PageToken,
 			}
 			if product.OldPrice != "" {
 				productMap["old_price"] = product.OldPrice
@@ -91,7 +88,7 @@ func (s *MessageService) saveMessageToDB(msg *models.Message) error {
 	// Create message in PostgreSQL
 	createBuilder := s.client.Message.Create().
 		SetID(msg.ID).
-		SetSessionID(sessionUUID).
+		SetSessionID(msg.SessionID).
 		SetRole(msg.Role).
 		SetContent(msg.Content).
 		SetCreatedAt(msg.CreatedAt)
