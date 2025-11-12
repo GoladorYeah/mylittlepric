@@ -451,6 +451,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return;
       }
 
+      // Ignore sync acknowledgment messages - they don't need to be displayed
+      if (data.type === "sync_ack") {
+        console.log("✅ Sync acknowledged by server");
+        return;
+      }
+
       // Use message_id for deduplication if available, otherwise fall back to hash
       const messageId = data.message_id || JSON.stringify(data);
 
