@@ -1,0 +1,91 @@
+groups:
+  - name: websocket_monitoring
+    interval: 30s
+    rules:
+      # High WebSocket connection failures
+      - alert: HighWebSocketConnectionFailures
+        expr: |
+          sum(rate(websocket_connections_failed_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "High WebSocket connection failure rate"
+          description: "{{ $value }} connection failures per second in the last 5 minutes"
+
+      # WebSocket message send failures
+      - alert: WebSocketMessageSendFailures
+        expr: |
+          sum(rate(websocket_messages_sent_failed_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "High WebSocket message send failure rate"
+          description: "{{ $value }} message send failures per second"
+
+      # Too many active WebSocket connections
+      - alert: TooManyWebSocketConnections
+        expr: websocket_connections_active > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "High number of active WebSocket connections"
+          description: "{{ $value }} active WebSocket connections (threshold: 1000)"
+
+      # WebSocket rate limiting triggered frequently
+      - alert: FrequentWebSocketRateLimiting
+        expr: |
+          sum(rate(websocket_rate_limit_exceeded_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "High WebSocket rate limiting activity"
+          description: "{{ $value }} rate limit violations per second - potential abuse detected"
+
+      # Critical: All WebSocket connections failing
+      - alert: AllWebSocketConnectionsFailing
+        expr: |
+          (
+            sum(rate(websocket_connections_failed_total[2m]))
+            /
+            sum(rate(websocket_connections_total[2m]))
+          ) > 0.80
+        for: 2m
+        labels:
+          severity: critical
+          component: websocket
+        annotations:
+          summary: "Critical: Most WebSocket connections are failing"
+          description: "{{ $value | humanizePercentage }} of WebSocket connections failed in last 2 minutes"
+
+      # WebSocket message queue backup
+      - alert: WebSocketMessageQueueBackup
+        expr: websocket_message_queue_size > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "WebSocket message queue backing up"
+          description: "Message queue size: {{ $value }} (threshold: 1000)"
+
+      # Average message processing time too high
+      - alert: HighWebSocketMessageProcessingTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(websocket_message_duration_seconds_bucket[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: websocket
+        annotations:
+          summary: "High WebSocket message processing time"
+          description: "95th percentile message processing time: {{ $value }}s (threshold: 1s)"

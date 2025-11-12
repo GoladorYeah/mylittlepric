@@ -254,10 +254,77 @@ The backend uses an intelligent "Smart Grounding" system to decide when to use G
 
 ## Monitoring & Debugging
 
-- **Logs**: Check Grafana dashboard at http://localhost:3001 after starting monitoring stack
-- **Health Check**: GET http://localhost:8080/health for backend status
+### Quick Start Monitoring
+
+```bash
+# Start monitoring stack (Prometheus, Grafana, Loki, Alertmanager)
+docker-compose -f docker-compose.monitoring.yml up -d
+```
+
+### Monitoring Interfaces
+
+- **Grafana**: http://localhost:3001 (admin/admin)
+  - WebSocket Monitoring dashboard
+  - Loki logs viewer
+  - Custom dashboards
+- **Prometheus**: http://localhost:9090
+  - Metrics explorer
+  - Query interface
+  - Targets status
+- **Alertmanager**: http://localhost:9093
+  - Active alerts
+  - Silences management
+- **Backend Metrics**: http://localhost:8080/metrics (Prometheus format)
+
+### Key Dashboards
+
+1. **WebSocket Monitoring** (`websocket-monitoring`)
+   - Active connections
+   - Message throughput by type
+   - Rate limiting violations
+   - Processing latency (p50, p95, p99)
+   - Pub/Sub activity
+
+### Health & Stats Endpoints
+
+- **Health Check**: GET http://localhost:8080/health
+- **Prometheus Metrics**: GET http://localhost:8080/metrics
 - **Stats Endpoints**:
   - `/api/stats/keys` - API key rotation status
   - `/api/stats/grounding` - Smart grounding statistics
   - `/api/stats/tokens` - Token usage tracking
   - `/api/stats/all` - All stats combined
+
+### Key Metrics
+
+**WebSocket:**
+- `websocket_connections_active` - Current active connections
+- `websocket_messages_sent_total` - Total messages sent
+- `websocket_rate_limit_exceeded_total` - Rate limit violations
+
+**HTTP API:**
+- `http_requests_total` - Total HTTP requests
+- `http_request_duration_seconds` - Request latency histogram
+- `rate_limit_exceeded_total` - HTTP rate limit violations
+
+**Sessions:**
+- `active_sessions_total` - Current active sessions
+- `session_cache_hit_total` / `session_cache_miss_total` - Cache performance
+- `message_persistence_failed_total` - Message save failures
+
+### Alerting
+
+Alerts are configured in `prometheus/alerts/` and managed by Alertmanager.
+
+**Critical Alerts:**
+- BackendDown - Backend API is unreachable
+- CriticalHTTPErrorRate - >20% HTTP 5xx errors
+- AllWebSocketConnectionsFailing - >80% WebSocket failures
+- MessagePersistenceFailures - Messages failing to save
+
+**Configure Notifications:**
+Edit `alertmanager/alertmanager.yml` to add Slack/Email/PagerDuty receivers.
+
+### Full Documentation
+
+See [MONITORING.md](MONITORING.md) for complete monitoring setup, metrics reference, and troubleshooting guide.

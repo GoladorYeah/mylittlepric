@@ -1,0 +1,76 @@
+global:
+  resolve_timeout: 5m
+
+# Route configuration
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      continue: true
+
+    # Warning alerts - grouped notification
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      continue: true
+
+    # WebSocket specific alerts
+    - match:
+        component: websocket
+      receiver: 'websocket-alerts'
+
+# Receivers configuration
+receivers:
+  # Default receiver (logs only)
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:9093/api/v1/alerts'
+        send_resolved: true
+
+  # Critical alerts receiver
+  # CONFIGURE: Add your notification channels (Slack, Email, PagerDuty, etc.)
+  - name: 'critical-alerts'
+    # Example: Slack webhook
+    # slack_configs:
+    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    #     channel: '#alerts-critical'
+    #     title: '🚨 Critical Alert: {{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+    # Example: Email notification
+    # email_configs:
+    #   - to: 'alerts@yourdomain.com'
+    #     from: 'prometheus@yourdomain.com'
+    #     smarthost: 'smtp.gmail.com:587'
+    #     auth_username: 'your-email@gmail.com'
+    #     auth_password: 'your-app-password'
+
+  # Warning alerts receiver
+  - name: 'warning-alerts'
+    # slack_configs:
+    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    #     channel: '#alerts-warning'
+    #     title: '⚠️ Warning: {{ .GroupLabels.alertname }}'
+
+  # WebSocket alerts receiver
+  - name: 'websocket-alerts'
+    # slack_configs:
+    #   - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+    #     channel: '#websocket-monitoring'
+    #     title: '🔌 WebSocket Alert: {{ .GroupLabels.alertname }}'
+
+# Inhibition rules - prevent alert spam
+inhibit_rules:
+  # Inhibit warning if critical is firing for the same alert
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
