@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"log/slog"
+	"log"
+	"runtime/debug"
 
 	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
@@ -36,28 +37,23 @@ func NewMetricsHandler() *MetricsHandler {
 // @Produce plain
 // @Success 200 {string} string "Prometheus metrics"
 // @Router /metrics [get]
-func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) (err error) {
-	logger := utils.GetLogger()
-
-	// Add panic recovery to prevent crashes
+func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) error {
+	// Wrap handler with panic recovery and detailed logging
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("Panic recovered in metrics endpoint",
-				slog.Any("panic", r),
-				slog.String("path", c.Path()),
-			)
-			err = fiber.NewError(fiber.StatusInternalServerError, "Failed to generate metrics")
+			stack := debug.Stack()
+			log.Printf("❌ Panic in metrics handler: %v\nStack trace:\n%s", r, string(stack))
+			c.Status(fiber.StatusInternalServerError).SendString("Error collecting metrics")
 		}
 	}()
 
-	// Call the pre-created handler
-	err = h.handler(c)
+	// Use adaptor to convert standard http.Handler to fiber handler
+	handler := adaptor.HTTPHandler(promhttp.Handler())
+	err := handler(c)
+
 	if err != nil {
-		logger.Error("Error serving metrics",
-			slog.Any("error", err),
-			slog.String("path", c.Path()),
-		)
-		return fiber.NewError(fiber.StatusInternalServerError, "Failed to serve metrics")
+		log.Printf("❌ Error from metrics handler: %v", err)
+		return err
 	}
 
 	return nil
