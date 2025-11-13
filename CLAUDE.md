@@ -4,48 +4,64 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MyLittlePrice is a full-stack AI-powered price comparison application that helps users find and compare product prices. The application uses Gemini AI for natural language processing and Google SERP API for product searches.
+MyLittlePrice is a full-stack AI-powered shopping assistant that leverages Google Gemini AI for intelligent product recommendations and web search. The application features real-time WebSocket communication, multi-user authentication (email + Google OAuth), and comprehensive monitoring infrastructure.
 
-**Architecture**: Monorepo with separate frontend and backend applications
-- **Frontend**: Next.js 16 (React 19) with TypeScript, Tailwind CSS v4
-- **Backend**: Go (Fiber framework) with PostgreSQL and Redis
-- **Infrastructure**: Docker Compose for local development, Grafana/Loki for monitoring
+**Tech Stack:**
+- **Backend:** Go 1.24 with Fiber web framework
+- **Frontend:** Next.js 16 (App Router) with React 19 & TypeScript
+- **Database:** PostgreSQL 17 with Ent ORM
+- **Cache/PubSub:** Redis 8
+- **AI:** Google Gemini API
+- **Search:** SerpAPI (Google Shopping Search)
+- **Monitoring:** Prometheus, Loki, Grafana, AlertManager
 
 ## Development Commands
 
 ### Backend (Go)
+
 ```bash
+# Navigate to backend directory
 cd backend
 
-# Run in development mode
-go run cmd/api/main.go
+# Run development server
+go run ./cmd/api/main.go
 
-# Build executable
-go build -o api.exe cmd/api/main.go
+# Build binary
+go build -o api ./cmd/api/
 
-# Run the built executable
-./api.exe
+# Run tests
+go test ./...
 
-# Generate Ent models after schema changes
+# Run tests with coverage
+go test -cover ./...
+
+# Run specific package tests
+go test ./internal/services/...
+
+# Generate Ent ORM code after schema changes
 go generate ./ent
 
 # Install dependencies
 go mod download
+
+# Tidy dependencies
 go mod tidy
 ```
 
 ### Frontend (Next.js)
+
 ```bash
+# Navigate to frontend directory
 cd frontend
 
-# Development server with Turbopack
+# Run development server with Turbopack
 npm run dev
 
-# Production build
+# Build for production
 npm run build
 
 # Start production server
-npm run start
+npm start
 
 # Install dependencies
 npm install
@@ -54,277 +70,372 @@ npm install
 ### Infrastructure
 
 ```bash
-# Start database services (PostgreSQL + Redis)
+# Start PostgreSQL + Redis
+docker-compose up
+
+# Start in detached mode
 docker-compose up -d
 
-# Start monitoring stack (Grafana + Loki + Promtail)
-docker-compose -f docker-compose.monitoring.yml up -d
-
-# Stop all services
+# Stop services
 docker-compose down
-docker-compose -f docker-compose.monitoring.yml down
+
+# Start monitoring stack (Prometheus, Grafana, Loki, AlertManager)
+docker-compose -f docker-compose.monitoring.yml up
 
 # View logs
-docker-compose logs -f postgres
-docker-compose logs -f redis
+docker-compose logs -f
 ```
 
-**Service Ports**:
+### Typical Development Workflow
+
+```bash
+# Terminal 1: Start infrastructure
+docker-compose up
+
+# Terminal 2: Start backend
+cd backend && go run ./cmd/api/main.go
+
+# Terminal 3: Start frontend
+cd frontend && npm run dev
+
+# Terminal 4 (Optional): Start monitoring
+docker-compose -f docker-compose.monitoring.yml up
+```
+
+**Development URLs:**
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8080
+- Prometheus: http://localhost:9090
 - Grafana: http://localhost:3001 (admin/admin)
 - PostgreSQL: localhost:5432
 - Redis: localhost:6379
-- Loki: localhost:3100
-
-## Environment Configuration
-
-Both frontend and backend require `.env` files. Examples are provided in `.env.example` files.
-
-**Critical Backend Configuration**:
-- `GEMINI_API_KEYS`: Comma-separated Gemini API keys for AI features
-- `SERP_API_KEYS`: Comma-separated SERP API keys for product search
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: OAuth credentials (must match frontend)
-- `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`: Generate with `openssl rand -hex 32`
-- `DATABASE_URL`: PostgreSQL connection string
-- `REDIS_URL`: Redis connection string
-- `CORS_ORIGINS`: Comma-separated frontend URLs (NO trailing slashes)
-
-**Critical Frontend Configuration**:
-- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`: Must match backend OAuth Client ID
-- `NEXT_PUBLIC_API_URL`: Backend API URL (default: http://localhost:8080)
 
 ## Architecture
 
-### Backend Architecture (Go)
+### High-Level Structure
 
-**Framework**: Go Fiber v2 (Express-like HTTP framework)
-
-**Key Architectural Patterns**:
-1. **Dependency Injection via Container**: [internal/container/container.go](internal/container/container.go) - Central IoC container that initializes and manages all services, database connections, and API clients
-2. **Service Layer Pattern**: Business logic in [internal/services/](internal/services/)
-3. **Handler Layer**: HTTP handlers in [internal/handlers/](internal/handlers/)
-4. **Domain Models**: Domain types in [internal/domain/](internal/domain/)
-5. **Ent ORM**: Database schema defined in [backend/ent/schema/](backend/ent/schema/) - auto-generates type-safe query builders
-
-**Entry Point**: [backend/cmd/api/main.go](backend/cmd/api/main.go)
-- Initializes container with all dependencies
-- Sets up Fiber app with middleware (CORS, logger, recovery, auth)
-- Configures routes via [internal/app/routes.go](internal/app/routes.go)
-- Starts cleanup job for expired sessions
-- Handles graceful shutdown
-
-**Core Services** (all initialized in container):
-- `GeminiService`: AI chat responses with smart grounding (decides when to use Google Search)
-- `SerpService`: Product searches via Google SERP API with relevance scoring
-- `SessionService`: Manages chat sessions (Redis + PostgreSQL sync)
-- `MessageService`: Stores conversation history in Redis
-- `AuthService`: JWT authentication + Google OAuth
-- `EmbeddingService`: Text embeddings for semantic similarity (category detection, query comparison)
-- `CacheService`: Redis caching for API responses (Gemini, SERP, embeddings)
-- `SearchHistoryService`: User search history with product click tracking
-- `PreferencesService`: User preferences (country, language)
-
-**Key Features**:
-- **API Key Rotation**: [internal/utils/key_rotator.go](internal/utils/key_rotator.go) - Round-robin rotation with Redis-based error tracking
-- **Smart Grounding Strategy**: [internal/services/grounding_strategy.go](internal/services/grounding_strategy.go) - Intelligent decision-making for when to use Google Search grounding based on query type, freshness needs, and dialogue context
-- **WebSocket Support**: Real-time chat via [internal/handlers/websocket.go](internal/handlers/websocket.go)
-- **Optional Authentication**: Most endpoints work for both authenticated and anonymous users (using session IDs)
-
-**Database**:
-- **ORM**: Ent (Facebook's entity framework) with schema-first approach
-- **Migrations**: SQL files in [backend/migrations/](backend/migrations/) - run automatically on container startup
-- **Models**: `User`, `ChatSession`, `Message`, `SearchHistory`, `UserPreference`
-
-### Frontend Architecture (Next.js)
-
-**Framework**: Next.js 16 with App Router, React 19, TypeScript
-
-**Project Structure** (Feature-Sliced Design inspired):
 ```
-src/
-├── app/                    # Next.js App Router
-│   ├── (app)/             # Main app pages (chat, product search)
-│   ├── (auth)/            # Authentication pages (login, signup)
-│   ├── (marketing)/       # Marketing pages (landing, about)
-│   ├── layout.tsx         # Root layout with theme provider
-│   └── globals.css        # Global styles + Tailwind
-├── features/              # Feature modules
-│   ├── auth/             # Authentication logic, hooks, components
-│   ├── chat/             # Chat interface and WebSocket logic
-│   ├── search/           # Product search UI
-│   ├── products/         # Product display components
-│   └── policies/         # Privacy/terms pages
-└── shared/               # Shared utilities
-    ├── components/       # Reusable UI components
-    ├── hooks/            # Custom React hooks (API, localStorage, etc.)
-    ├── lib/              # Utilities and helpers
-    └── types/            # TypeScript type definitions
+mylittleprice/
+├── backend/           # Go backend service
+│   ├── cmd/api/       # Application entry point (main.go)
+│   ├── internal/      # Private application code
+│   ├── ent/           # Ent ORM generated code & schemas
+│   └── migrations/    # Database migration SQL files
+├── frontend/          # Next.js frontend application
+│   └── src/
+│       ├── app/       # App Router routes
+│       ├── features/  # Feature-based components
+│       └── shared/    # Shared utilities & components
+├── prometheus/        # Prometheus configuration
+├── grafana/           # Grafana dashboards & provisioning
+├── loki/              # Loki log aggregation config
+├── promtail/          # Log shipper config
+└── alertmanager/      # Alert routing config
 ```
 
-**State Management**:
-- Zustand for global state ([features/auth/store.ts](features/auth/store.ts) for auth state)
-- React hooks for local state
-- WebSocket connections via `react-use-websocket`
+### Backend Architecture
 
-**Styling**:
-- Tailwind CSS v4 (latest version)
-- CSS variables for theming in [globals.css](frontend/src/app/globals.css)
-- `next-themes` for dark mode support
-- Utility functions: `cn()` from `tailwind-merge` + `clsx`
+**Entry Point:** [backend/cmd/api/main.go](backend/cmd/api/main.go)
 
-**Path Aliases** (see [tsconfig.json](frontend/tsconfig.json)):
-- `@/*` → `src/*`
-- `@/features/*` → `src/features/*`
-- `@/shared/*` → `src/shared/*`
+The backend follows a **dependency injection container pattern** where all services are initialized in [backend/internal/container/container.go](backend/internal/container/container.go) and passed to handlers.
 
-**API Communication**:
-- REST API calls via custom `useApi` hook
-- WebSocket for real-time chat
-- Next.js rewrites proxy `/api/*` and `/ws` to backend (configured in [next.config.ts](frontend/next.config.ts))
+**Key Layers:**
+1. **Handlers** ([internal/handlers/](backend/internal/handlers/)) - HTTP & WebSocket request handling
+2. **Services** ([internal/services/](backend/internal/services/)) - Business logic (Gemini, SERP, Auth, Session, etc.)
+3. **Ent ORM** ([ent/schema/](backend/ent/schema/)) - Database models and queries
+4. **Middleware** ([internal/middleware/](backend/internal/middleware/)) - Auth, CORS, rate limiting, Prometheus metrics
 
-### Communication Flow
+**Routing:** All routes are defined in [backend/internal/app/routes.go](backend/internal/app/routes.go)
 
-1. **Chat Interaction**: User sends message → WebSocket → Backend processes with Gemini AI → May trigger SERP search → Response streamed back
-2. **Product Search**: User query → Backend analyzes with embeddings → SERP API search → Results filtered by relevance → Cached in Redis
-3. **Authentication**: Google OAuth popup → Backend validates token → JWT issued → Stored in localStorage + Zustand
+**WebSocket Architecture:**
+- Real-time chat communication via `/ws` endpoint
+- Redis Pub/Sub for cross-server message broadcasting (horizontal scaling ready)
+- Connection pooling per user with server ID tracking
+- Message types: `chat`, `response`, `products`, `quick_replies`, `sync`, `connection_ack`
 
-### Smart Grounding System
+**Key Services:**
+- **GeminiService** - AI response generation, grounding decisions
+- **SerpService** - Google Shopping search integration
+- **SessionService** - Session lifecycle management with 24h expiration
+- **MessageService** - Chat message persistence
+- **AuthService** - Email + Google OAuth authentication with JWT
+- **CacheService** - Redis caching layer
+- **EmbeddingService** - Text embeddings for context analysis
+- **CleanupService** - Background job for expired session cleanup
 
-The backend uses an intelligent "Smart Grounding" system to decide when to use Google Search grounding with Gemini:
+### Frontend Architecture
 
-**Modes** (configured via `GEMINI_GROUNDING_MODE`):
-- `conservative`: Minimal usage (~10-20% of requests) - cheapest
-- `balanced`: Optimal balance (~30-40% of requests) - **RECOMMENDED**
-- `aggressive`: Maximum usage (~60-80% of requests) - most accurate
+**Framework:** Next.js 16 App Router with route groups
 
-**Decision Factors** (see [grounding_strategy.go](backend/internal/services/grounding_strategy.go)):
-- Fresh info needs (recent products, current prices)
-- Specific product detection (brand + model number)
-- Dialogue drift (conversation deviates from initial search)
-- Electronics category (benefits more from fresh data)
+**Route Groups:**
+- `(marketing)` - Public pages: landing, policies (/, /privacy-policy, /terms-of-use)
+- `(auth)` - Authentication: /login
+- `(app)` - Protected routes with auth guard: /chat, /history, /settings
 
-### Key Technical Decisions
+**State Management:**
+- **Zustand** stores with localStorage persistence
+- **auth-store.ts** - User authentication state (tokens, user info)
+- **store.ts** - Chat state (messages, session, preferences, rate limits)
 
-1. **Monorepo Structure**: Frontend and backend in same repo for easier coordination
-2. **Optional Auth**: Most features work without login - sessions identified by anonymous session IDs
-3. **Ent ORM**: Type-safe, schema-first ORM with auto-generated query builders
-4. **Redis for Sessions**: Fast session/message storage with PostgreSQL sync for persistence
-5. **API Key Rotation**: Multiple API keys with automatic rotation on errors/rate limits
-6. **Embedding-based Filtering**: Semantic similarity for category detection and query comparison
-7. **Next.js Turbopack**: Faster development builds (still experimental)
+**Key Hooks:**
+- `useChat()` - WebSocket connection, message sending, rate limit tracking
+- `useApi()` - REST API calls with authentication headers
+- `useLocalStorage()` - Persistent local storage
 
-## Common Development Workflows
+**Feature Modules:** ([frontend/src/features/](frontend/src/features/))
+- **auth** - AuthDialog, UserMenu, OAuth integration
+- **chat** - ChatInterface, ChatMessages, ChatInput (main UI)
+- **products** - ProductCard, ProductDrawer, product display components
+- **search** - SearchHistory, SearchInput
 
-### Adding a New Backend Route
+### Database Schema (Ent ORM)
 
-1. Define handler in [internal/handlers/](internal/handlers/)
-2. Add route in [internal/app/routes.go](internal/app/routes.go)
-3. Add middleware if needed (auth, rate limiting)
+**Schema Location:** [backend/ent/schema/](backend/ent/schema/)
 
-### Adding New Database Model (Ent)
+**Entities:**
+- **User** - Email/Google OAuth users, password hashes, provider info
+- **ChatSession** - Conversation sessions with JSONB state (search state, cycle state, conversation context), 24h default TTL
+- **Message** - Chat messages (role: user/assistant, content)
+- **SearchHistory** - Search queries with product results (JSONB)
+- **UserPreference** - Locale, currency, country preferences
 
-1. Create schema in [backend/ent/schema/](backend/ent/schema/)
-2. Run `go generate ./ent` to generate code
-3. Create migration SQL in [backend/migrations/](backend/migrations/)
-4. Restart backend to apply migration
+**Migrations:** Numbered SQL files in [backend/migrations/](backend/migrations/) (001-010)
 
-### Adding New Service
+**Indexes:**
+- User: email (unique)
+- ChatSession: (user_id, expires_at), (expires_at), (session_id)
+- SearchHistory: (user_id, created_at)
 
-1. Create service in [internal/services/](internal/services/)
-2. Add to container in [internal/container/container.go](internal/container/container.go)
-3. Initialize in `initServices()` method
-4. Inject into handlers as needed
+**After Schema Changes:**
+1. Modify schema in `backend/ent/schema/`
+2. Run `go generate ./ent` to regenerate code
+3. Create a new migration SQL file in `backend/migrations/`
+4. Test migration locally before deploying
 
-### Adding Frontend Feature
+## Configuration
 
-1. Create feature directory in [src/features/](src/features/)
-2. Structure: `components/`, `hooks/`, `index.ts`
-3. Add page in [src/app/](src/app/) if needed
-4. Use path aliases for imports
+### Backend Environment Variables
 
-## Important Notes
+**File:** [backend/.env.example](backend/.env.example)
 
-- **CORS Configuration**: Backend `CORS_ORIGINS` must match frontend URLs exactly (no trailing slashes)
-- **OAuth Setup**: Google OAuth Client ID must be identical in both frontend and backend `.env` files
-- **Database Migrations**: Auto-run on startup - SQL files executed in order
-- **API Keys**: Use comma-separated values for multiple keys (automatic rotation)
-- **WebSocket Auth**: Token passed via query parameter (`?token=...`) for WebSocket connections
-- **Redis TTLs**: Different cache durations for different data types (see [backend/.env.example](backend/.env.example))
+**Critical Settings:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection (host:port)
+- `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` - Generate with `openssl rand -hex 32`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - OAuth credentials from Google Cloud Console
+- `GEMINI_API_KEYS` - Comma-separated Gemini API keys (supports rotation)
+- `SERP_API_KEYS` - Comma-separated SerpAPI keys (supports rotation)
+- `CORS_ORIGINS` - Comma-separated allowed origins for CORS
 
-## Monitoring & Debugging
+**Key Rotation:** The backend supports multiple API keys for both Gemini and SERP with automatic rotation on quota errors.
 
-### Quick Start Monitoring
+### Frontend Environment Variables
 
+**Required:**
+- `NEXT_PUBLIC_API_URL` - Backend API URL (e.g., http://localhost:8080)
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `NEXT_PUBLIC_SITE_URL` - Frontend URL (e.g., http://localhost:3000)
+
+## Common Development Tasks
+
+### Adding a New API Endpoint
+
+1. Create handler function in [backend/internal/handlers/](backend/internal/handlers/)
+2. Add business logic in [backend/internal/services/](backend/internal/services/)
+3. Register route in [backend/internal/app/routes.go](backend/internal/app/routes.go)
+4. Add middleware (auth, rate limit) as needed
+5. Test endpoint
+
+### Adding a New Database Entity
+
+1. Create schema file in [backend/ent/schema/](backend/ent/schema/)
+2. Run `go generate ./ent` to generate ORM code
+3. Create migration SQL file in [backend/migrations/](backend/migrations/)
+4. Add service methods in [backend/internal/services/](backend/internal/services/)
+5. Create handlers to expose via API
+
+### Adding a New Frontend Page
+
+1. Create route folder in [frontend/src/app/](frontend/src/app/)
+2. Add `page.tsx` component
+3. Create feature components in [frontend/src/features/](frontend/src/features/)
+4. Use `useApi()` hook for backend calls
+5. Update Zustand store if global state is needed ([frontend/src/shared/lib/store.ts](frontend/src/shared/lib/store.ts))
+
+### Working with WebSocket Messages
+
+**Backend:** [backend/internal/handlers/websocket.go](backend/internal/handlers/websocket.go), [backend/internal/handlers/processor.go](backend/internal/handlers/processor.go)
+
+**Frontend:** [frontend/src/features/chat/hooks/index.ts](frontend/src/features/chat/hooks/index.ts)
+
+**Message Flow:**
+1. User sends message via `useChat().sendMessage()`
+2. WebSocket sends to `/ws` endpoint
+3. Backend validates session ownership
+4. `ChatProcessor.ProcessChat()` handles message
+5. Gemini generates response (with optional grounding)
+6. SERP searches products if needed
+7. Response broadcast via Redis Pub/Sub
+8. Frontend receives and displays in ChatMessages component
+
+## Monitoring & Observability
+
+### Prometheus Metrics
+
+**Endpoint:** http://localhost:8080/metrics
+
+**Metrics Collected:**
+- HTTP request duration & count (by path, method, status)
+- WebSocket connections & messages
+- Gemini API usage (tokens, grounding decisions)
+- API key rotation events
+- Session lifecycle events
+
+### Logs (Loki)
+
+**Architecture:** Application (slog) → Promtail → Loki → Grafana
+
+**Structured Logging:** Uses Go's `slog` package with optional Loki integration
+
+**Log Levels:** Configured via `LOG_LEVEL` environment variable (debug, info, warn, error)
+
+### Grafana Dashboards
+
+**URL:** http://localhost:3001 (admin/admin)
+
+**Features:**
+- Pre-provisioned datasources (Prometheus, Loki)
+- Dashboard auto-loading from [grafana/dashboards/](grafana/dashboards/)
+- Query builder for custom metrics
+
+## Important Patterns
+
+### Dependency Injection Container
+
+All services are initialized once in [backend/internal/container/container.go](backend/internal/container/container.go) and passed to handlers. This pattern:
+- Simplifies testing (easy to mock services)
+- Ensures single database/Redis connection pool
+- Centralizes configuration
+- Makes dependencies explicit
+
+**Handler Pattern:**
+```go
+func NewMyHandler(container *container.Container) fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        // Access services via container.MyService
+    }
+}
+```
+
+### Service Layer Pattern
+
+Business logic lives in services, not handlers. Handlers are thin wrappers that:
+1. Parse/validate input
+2. Call service methods
+3. Format response
+4. Handle errors
+
+**Example:** Authentication flow uses `AuthService.SignUp()` → `JWTService.GenerateTokens()` → return to handler
+
+### Rate Limiting
+
+**HTTP Routes:** Redis-backed sliding window ([backend/internal/middleware/rate_limiter.go](backend/internal/middleware/rate_limiter.go))
+
+**WebSocket:** Per-connection token bucket with rate limit headers sent to client
+
+**Frontend Tracking:** Rate limit state tracked in Zustand store and displayed to user
+
+### State Management (Frontend)
+
+**Zustand Pattern:**
+- Store definition in [frontend/src/shared/lib/](frontend/src/shared/lib/)
+- Persist to localStorage for auth state
+- Sync preferences bidirectionally with backend
+- Actions as methods on store
+
+### Authentication Flow
+
+1. **Email Auth:** POST `/api/auth/signup` or `/api/auth/login` → JWT tokens
+2. **Google OAuth:** Google popup → POST `/api/auth/google` with OAuth token → JWT tokens
+3. **Token Storage:** Zustand + localStorage
+4. **Token Refresh:** Background interval checks expiry → POST `/api/auth/refresh`
+5. **Protected Routes:** Auth middleware validates JWT on API routes, layout guards frontend routes
+
+## Security Considerations
+
+- JWT secrets must be randomly generated in production (use `openssl rand -hex 32`)
+- Passwords are hashed with bcrypt (cost factor 10)
+- CORS origins must be explicitly configured via `CORS_ORIGINS` environment variable
+- Rate limiting prevents abuse on auth and WebSocket endpoints
+- Session ownership validated before any session operation
+- All user input sanitized before passing to Gemini/SERP APIs
+
+## Testing
+
+**Backend:**
 ```bash
-# Start monitoring stack (Prometheus, Grafana, Loki, Alertmanager)
-docker-compose -f docker-compose.monitoring.yml up -d
+# Run all tests
+go test ./...
+
+# Run specific package
+go test ./internal/services/
+
+# With coverage
+go test -cover ./...
+
+# Verbose output
+go test -v ./...
 ```
 
-### Monitoring Interfaces
+**Frontend:**
+No test files currently present in src/ directory. Consider adding:
+- Unit tests with Jest/Vitest
+- Component tests with React Testing Library
+- E2E tests with Playwright
 
-- **Grafana**: http://localhost:3001 (admin/admin)
-  - WebSocket Monitoring dashboard
-  - Loki logs viewer
-  - Custom dashboards
-- **Prometheus**: http://localhost:9090
-  - Metrics explorer
-  - Query interface
-  - Targets status
-- **Alertmanager**: http://localhost:9093
-  - Active alerts
-  - Silences management
-- **Backend Metrics**: http://localhost:8080/metrics (Prometheus format)
+## Performance Considerations
 
-### Key Dashboards
+- **Caching:** Redis caches session context, preferences, and search results
+- **API Key Rotation:** Automatic failover on quota errors reduces downtime
+- **WebSocket Scaling:** Redis Pub/Sub enables horizontal scaling across multiple backend instances
+- **Database Indexes:** Critical queries indexed (see schema files)
+- **Session Cleanup:** Background job (`CleanupService`) removes expired sessions to prevent table bloat
 
-1. **WebSocket Monitoring** (`websocket-monitoring`)
-   - Active connections
-   - Message throughput by type
-   - Rate limiting violations
-   - Processing latency (p50, p95, p99)
-   - Pub/Sub activity
+## Key Files Reference
 
-### Health & Stats Endpoints
+**Must-Read for New Contributors:**
+- [backend/cmd/api/main.go](backend/cmd/api/main.go) - Server initialization
+- [backend/internal/app/routes.go](backend/internal/app/routes.go) - All API routes
+- [backend/internal/container/container.go](backend/internal/container/container.go) - Dependency setup
+- [backend/internal/handlers/processor.go](backend/internal/handlers/processor.go) - Chat message processing
+- [backend/internal/services/gemini.go](backend/internal/services/gemini.go) - AI integration
+- [frontend/src/shared/lib/store.ts](frontend/src/shared/lib/store.ts) - Global state
+- [frontend/src/features/chat/hooks/index.ts](frontend/src/features/chat/hooks/index.ts) - WebSocket hook
+- [frontend/src/app/(app)/layout.tsx](frontend/src/app/(app)/layout.tsx) - Auth guard
+- [frontend/src/features/chat/components/ChatInterface.tsx](frontend/src/features/chat/components/ChatInterface.tsx) - Main UI
 
-- **Health Check**: GET http://localhost:8080/health
-- **Prometheus Metrics**: GET http://localhost:8080/metrics
-- **Stats Endpoints**:
-  - `/api/stats/keys` - API key rotation status
-  - `/api/stats/grounding` - Smart grounding statistics
-  - `/api/stats/tokens` - Token usage tracking
-  - `/api/stats/all` - All stats combined
+## Troubleshooting
 
-### Key Metrics
+**Database connection errors:**
+- Verify PostgreSQL is running: `docker-compose ps`
+- Check `DATABASE_URL` in `.env`
+- Ensure migrations ran: Check Docker logs
 
-**WebSocket:**
-- `websocket_connections_active` - Current active connections
-- `websocket_messages_sent_total` - Total messages sent
-- `websocket_rate_limit_exceeded_total` - Rate limit violations
+**Redis connection errors:**
+- Verify Redis is running: `docker-compose ps`
+- Check `REDIS_URL` in `.env`
 
-**HTTP API:**
-- `http_requests_total` - Total HTTP requests
-- `http_request_duration_seconds` - Request latency histogram
-- `rate_limit_exceeded_total` - HTTP rate limit violations
+**WebSocket not connecting:**
+- Check CORS origins configuration
+- Verify auth token is valid
+- Check browser console for errors
 
-**Sessions:**
-- `active_sessions_total` - Current active sessions
-- `session_cache_hit_total` / `session_cache_miss_total` - Cache performance
-- `message_persistence_failed_total` - Message save failures
+**Gemini/SERP API errors:**
+- Verify API keys are valid
+- Check quota limits
+- Review logs for specific error messages
 
-### Alerting
-
-Alerts are configured in `prometheus/alerts/` and managed by Alertmanager.
-
-**Critical Alerts:**
-- BackendDown - Backend API is unreachable
-- CriticalHTTPErrorRate - >20% HTTP 5xx errors
-- AllWebSocketConnectionsFailing - >80% WebSocket failures
-- MessagePersistenceFailures - Messages failing to save
-
-**Configure Notifications:**
-Edit `alertmanager/alertmanager.yml` to add Slack/Email/PagerDuty receivers.
-
-### Full Documentation
-
-See [MONITORING.md](MONITORING.md) for complete monitoring setup, metrics reference, and troubleshooting guide.
+**Rate limit errors:**
+- Check Redis connection (rate limiter stores state in Redis)
+- Review rate limit configuration in `.env`
+- Clear rate limit: Restart Redis or wait for TTL expiration

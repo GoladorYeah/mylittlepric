@@ -3,7 +3,8 @@
     "allow": [
       "Bash(tree -L 3 -I 'node_modules|.next|.git')",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
