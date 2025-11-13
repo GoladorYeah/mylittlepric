@@ -89,9 +89,16 @@ func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) error {
 	w := &fiberResponseWriter{ctx: c}
 
 	// Create http.Request from fiber.Ctx
+	// Convert fasthttp.URI to standard url.URL
+	uri := c.Context().URI()
+	path := string(uri.Path())
+	if len(uri.QueryString()) > 0 {
+		path = path + "?" + string(uri.QueryString())
+	}
+
 	req := &http.Request{
 		Method:     c.Method(),
-		URL:        c.Context().URI().URL(),
+		URL:        &http.URL{Path: path},
 		Header:     make(http.Header),
 		RemoteAddr: c.IP(),
 	}
