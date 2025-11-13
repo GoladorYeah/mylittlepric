@@ -100,10 +100,15 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const signingSessionRef = useRef(false); // Prevent duplicate session signing calls
 
   // Log component mount/unmount for debugging
+  // Static counter to track total instances
+  const instanceIdRef = useRef(`instance-${Math.random().toString(36).substring(7)}`);
+
   useEffect(() => {
-    console.log("🔵 useChat hook MOUNTED");
+    console.log(`🔵 useChat hook MOUNTED (${instanceIdRef.current})`);
+    console.log("📊 Stack trace:", new Error().stack?.split('\n').slice(2, 6).join('\n'));
+
     return () => {
-      console.log("🔴 useChat hook UNMOUNTED");
+      console.log(`🔴 useChat hook UNMOUNTED (${instanceIdRef.current})`);
     };
   }, []);
 
@@ -133,7 +138,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   // Memoize WebSocket URL to prevent creating multiple connections on re-renders
   const socketUrl = useMemo(() => {
     const url = getWebSocketUrl(accessToken);
-    console.log("🔗 WebSocket URL updated:", { hasToken: !!accessToken, url: url.substring(0, 50) + '...' });
+    console.log(`🔗 WebSocket URL updated (${instanceIdRef.current}):`, {
+      hasToken: !!accessToken,
+      url: url.substring(0, 50) + '...',
+      stackTrace: new Error().stack?.split('\n').slice(2, 5).join('\n')
+    });
     return url;
   }, [accessToken]);
 
