@@ -133,7 +133,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     checkSavedSearchPrompt,
   } = useChatStore();
 
-  const { accessToken } = useAuthStore();
+  const { accessToken, isTokenExpired, refreshToken } = useAuthStore();
 
   // Memoize WebSocket URL to prevent creating multiple connections on re-renders
   const socketUrl = useMemo(() => {
@@ -149,7 +149,29 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(
     socketUrl,
     {
-      shouldReconnect: () => true,
+      shouldReconnect: (closeEvent) => {
+        console.log("🔄 WebSocket reconnection check:", {
+          code: closeEvent?.code,
+          reason: closeEvent?.reason,
+          hasRefreshToken: !!refreshToken,
+          isExpired: isTokenExpired(),
+        });
+
+        // If token is expired and we have a refresh token, refresh before reconnecting
+        if (isTokenExpired() && refreshToken) {
+          console.log("🔐 Token expired, refreshing before reconnect...");
+          import('@/shared/lib/auth-api').then(({ authAPI }) => {
+            authAPI.refreshAccessToken().catch((error) => {
+              console.error("❌ Failed to refresh token on reconnect:", error);
+              useAuthStore.getState().clearAuth();
+            });
+          });
+          // Don't reconnect immediately, wait for token refresh to trigger new connection
+          return false;
+        }
+
+        return true;
+      },
       reconnectAttempts,
       reconnectInterval,
       onOpen: async () => {
@@ -218,6 +240,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           console.log("ℹ️ WebSocket closing (expected during navigation/reload):", errorInfo);
         } else {
           console.error("❌ WebSocket error:", errorInfo);
+
+          // Check if this might be an authentication error
+          if (accessToken && isTokenExpired()) {
+            console.warn("⚠️ WebSocket error may be due to expired token");
+          }
         }
       },
       onClose: (event) => {
@@ -244,6 +271,44 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       registerWebSocketSender(null);
     }
   }, [isConnected, sendJsonMessage, registerWebSocketSender]);
+
+  // Proactive token refresh mechanism
+  // Checks every 5 minutes if token is close to expiring and refreshes it
+  useEffect(() => {
+    // Only run for authenticated users
+    if (!accessToken || !refreshToken) {
+      return;
+    }
+
+    const checkAndRefreshToken = async () => {
+      // Check if token will expire in the next 2 minutes
+      const tokenExpiresAt = useAuthStore.getState().tokenExpiresAt;
+      if (!tokenExpiresAt) return;
+
+      const timeUntilExpiry = tokenExpiresAt - Date.now();
+      const twoMinutes = 2 * 60 * 1000;
+
+      if (timeUntilExpiry < twoMinutes && timeUntilExpiry > 0) {
+        console.log("🔐 Token expiring soon, refreshing proactively...");
+        try {
+          const { authAPI } = await import('@/shared/lib/auth-api');
+          await authAPI.refreshAccessToken();
+          console.log("✅ Token refreshed successfully");
+        } catch (error) {
+          console.error("❌ Failed to refresh token proactively:", error);
+          // Don't clear auth here, let it fail naturally on next request
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkAndRefreshToken();
+
+    // Then check every 5 minutes
+    const intervalId = setInterval(checkAndRefreshToken, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [accessToken, refreshToken]);
 
   // Initialize locale on mount
   useEffect(() => {
