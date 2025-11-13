@@ -52,6 +52,10 @@ func main() {
 
 	logger.Info("Container initialized successfully")
 
+	// Register all Prometheus metrics once at startup
+	middleware.RegisterMetrics()
+	c.RegisterMetrics() // Register WebSocket and Session metrics from container
+
 	// Initialize and start cleanup job
 	cleanupJob := jobs.NewCleanupJob(c.SearchHistoryService)
 	cleanupJob.Start()

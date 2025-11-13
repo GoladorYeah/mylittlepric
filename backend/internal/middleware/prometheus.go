@@ -3,105 +3,80 @@ package middleware
 import (
 	"log"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Prometheus metrics - using default registry
+// Prometheus metrics
 var (
 	// HTTP request metrics
-	httpRequestsTotal *prometheus.CounterVec
-	httpRequestDuration *prometheus.HistogramVec
-	httpRequestsInFlight prometheus.Gauge
-
-	// Rate limiting metrics
-	rateLimitExceeded *prometheus.CounterVec
+	httpRequestsTotal      *prometheus.CounterVec
+	httpRequestDuration    *prometheus.HistogramVec
+	httpRequestsInFlight   prometheus.Gauge
+	rateLimitExceeded      *prometheus.CounterVec
 	rateLimiterRedisErrors prometheus.Counter
+
+	// Ensure metrics are registered only once
+	metricsOnce sync.Once
+	metricsRegistered bool
 )
 
-// init registers metrics once
-func init() {
-	// Try to register metrics, ignore if already registered
-	httpRequestsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "http_requests_total",
-			Help: "Total number of HTTP requests",
-		},
-		[]string{"method", "handler", "status"},
-	)
-	if err := prometheus.Register(httpRequestsTotal); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			httpRequestsTotal = are.ExistingCollector.(*prometheus.CounterVec)
-			log.Printf("⚠️ http_requests_total already registered, reusing existing")
-		} else {
-			log.Printf("❌ Failed to register http_requests_total: %v", err)
-		}
-	}
+// RegisterMetrics registers all HTTP middleware metrics to default registry
+// Called explicitly to avoid issues with init() being called multiple times
+func RegisterMetrics() {
+	metricsOnce.Do(func() {
+		log.Printf("🔧 Registering HTTP middleware metrics")
 
-	httpRequestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "http_request_duration_seconds",
-			Help:    "HTTP request latencies in seconds",
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"method", "handler"},
-	)
-	if err := prometheus.Register(httpRequestDuration); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			httpRequestDuration = are.ExistingCollector.(*prometheus.HistogramVec)
-			log.Printf("⚠️ http_request_duration_seconds already registered, reusing existing")
-		} else {
-			log.Printf("❌ Failed to register http_request_duration_seconds: %v", err)
-		}
-	}
+		httpRequestsTotal = prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "http_requests_total",
+				Help: "Total number of HTTP requests",
+			},
+			[]string{"method", "handler", "status"},
+		)
+		prometheus.MustRegister(httpRequestsTotal)
 
-	httpRequestsInFlight = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "http_requests_in_flight",
-			Help: "Current number of HTTP requests being processed",
-		},
-	)
-	if err := prometheus.Register(httpRequestsInFlight); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			httpRequestsInFlight = are.ExistingCollector.(prometheus.Gauge)
-			log.Printf("⚠️ http_requests_in_flight already registered, reusing existing")
-		} else {
-			log.Printf("❌ Failed to register http_requests_in_flight: %v", err)
-		}
-	}
+		httpRequestDuration = prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "http_request_duration_seconds",
+				Help:    "HTTP request latencies in seconds",
+				Buckets: prometheus.DefBuckets,
+			},
+			[]string{"method", "handler"},
+		)
+		prometheus.MustRegister(httpRequestDuration)
 
-	rateLimitExceeded = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "rate_limit_exceeded_total",
-			Help: "Total number of requests that exceeded rate limit",
-		},
-		[]string{"endpoint"},
-	)
-	if err := prometheus.Register(rateLimitExceeded); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			rateLimitExceeded = are.ExistingCollector.(*prometheus.CounterVec)
-			log.Printf("⚠️ rate_limit_exceeded_total already registered, reusing existing")
-		} else {
-			log.Printf("❌ Failed to register rate_limit_exceeded_total: %v", err)
-		}
-	}
+		httpRequestsInFlight = prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "http_requests_in_flight",
+				Help: "Current number of HTTP requests being processed",
+			},
+		)
+		prometheus.MustRegister(httpRequestsInFlight)
 
-	rateLimiterRedisErrors = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "rate_limiter_redis_errors_total",
-			Help: "Total number of Redis errors in rate limiter",
-		},
-	)
-	if err := prometheus.Register(rateLimiterRedisErrors); err != nil {
-		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
-			rateLimiterRedisErrors = are.ExistingCollector.(prometheus.Counter)
-			log.Printf("⚠️ rate_limiter_redis_errors_total already registered, reusing existing")
-		} else {
-			log.Printf("❌ Failed to register rate_limiter_redis_errors_total: %v", err)
-		}
-	}
+		rateLimitExceeded = prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "rate_limit_exceeded_total",
+				Help: "Total number of requests that exceeded rate limit",
+			},
+			[]string{"endpoint"},
+		)
+		prometheus.MustRegister(rateLimitExceeded)
+
+		rateLimiterRedisErrors = prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "rate_limiter_redis_errors_total",
+				Help: "Total number of Redis errors in rate limiter",
+			},
+		)
+		prometheus.MustRegister(rateLimiterRedisErrors)
+
+		metricsRegistered = true
+		log.Printf("✅ HTTP middleware metrics registered successfully")
+	})
 }
 
 // PrometheusMiddleware creates a Fiber middleware that collects HTTP metrics

@@ -16,6 +16,7 @@ import (
 
 	"mylittleprice/ent"
 	"mylittleprice/internal/config"
+	"mylittleprice/internal/metrics"
 	"mylittleprice/internal/middleware"
 	"mylittleprice/internal/services"
 	"mylittleprice/internal/utils"
@@ -269,6 +270,12 @@ func (c *Container) Close() error {
 
 	utils.LogInfo(c.ctx, "container closed gracefully")
 	return nil
+}
+
+// RegisterMetrics registers all WebSocket and Session metrics
+func (c *Container) RegisterMetrics() {
+	metrics.RegisterWebSocketMetrics()
+	metrics.RegisterSessionMetrics()
 }
 
 func (c *Container) HealthCheck() map[string]interface{} {
