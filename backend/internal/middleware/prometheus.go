@@ -103,6 +103,11 @@ func PrometheusMiddleware() fiber.Handler {
 		method := c.Method()
 		status := strconv.Itoa(c.Response().StatusCode())
 
+		// Debug logging for /api/user/preferences
+		if path == "/api/user/preferences" && method == "PUT" {
+			log.Printf("📊 Recording metrics: method=%s, path=%s, status=%s, duration=%.4fs", method, path, status, duration)
+		}
+
 		// Record metrics
 		httpRequestsTotal.WithLabelValues(method, path, status).Inc()
 		httpRequestDuration.WithLabelValues(method, path).Observe(duration)
