@@ -8,14 +8,26 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"mylittleprice/internal/utils"
 )
 
 // MetricsHandler handles Prometheus metrics endpoint
-type MetricsHandler struct{}
+type MetricsHandler struct {
+	// Pre-created handler to avoid recreating on every request
+	handler fiber.Handler
+}
 
 // NewMetricsHandler creates a new metrics handler
 func NewMetricsHandler() *MetricsHandler {
-	return &MetricsHandler{}
+	// Create the Prometheus handler once at initialization
+	// This is more efficient and avoids potential issues with recreating handlers
+	promHandler := promhttp.Handler()
+	fiberHandler := adaptor.HTTPHandler(promHandler)
+
+	return &MetricsHandler{
+		handler: fiberHandler,
+	}
 }
 
 // GetMetrics returns Prometheus metrics
