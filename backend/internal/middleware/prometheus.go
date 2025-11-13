@@ -87,10 +87,23 @@ func RegisterMetrics() {
 			log.Printf("❌ Failed to gather metrics: %v", err)
 		} else {
 			log.Printf("📊 Total metric families in DefaultRegistry: %d", len(metrics))
+			httpRequestsCount := 0
+			httpDurationCount := 0
 			for _, m := range metrics {
-				if m.GetName() == "http_requests_total" || m.GetName() == "http_request_duration_seconds" {
-					log.Printf("  - %s: %d metrics", m.GetName(), len(m.GetMetric()))
+				if m.GetName() == "http_requests_total" {
+					httpRequestsCount++
+					log.Printf("  - http_requests_total [#%d]: %d metrics", httpRequestsCount, len(m.GetMetric()))
 				}
+				if m.GetName() == "http_request_duration_seconds" {
+					httpDurationCount++
+					log.Printf("  - http_request_duration_seconds [#%d]: %d metrics", httpDurationCount, len(m.GetMetric()))
+				}
+			}
+			if httpRequestsCount > 1 {
+				log.Printf("⚠️ WARNING: http_requests_total appears %d times in registry!", httpRequestsCount)
+			}
+			if httpDurationCount > 1 {
+				log.Printf("⚠️ WARNING: http_request_duration_seconds appears %d times in registry!", httpDurationCount)
 			}
 		}
 	})
