@@ -38,12 +38,14 @@ type fiberResponseWriter struct {
 	header     http.Header
 	statusCode int
 	written    bool
+	body       []byte // Capture body for debugging
 }
 
 func newFiberResponseWriter(ctx *fiber.Ctx) *fiberResponseWriter {
 	return &fiberResponseWriter{
 		ctx:    ctx,
 		header: make(http.Header),
+		body:   make([]byte, 0),
 	}
 }
 
@@ -52,6 +54,9 @@ func (w *fiberResponseWriter) Header() http.Header {
 }
 
 func (w *fiberResponseWriter) Write(b []byte) (int, error) {
+	// Capture body for debugging
+	w.body = append(w.body, b...)
+
 	if !w.written {
 		w.written = true
 		if w.statusCode == 0 {
@@ -137,7 +142,12 @@ func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) error {
 		h.handler.ServeHTTP(w, req)
 	}()
 
-	log.Printf("✅ Prometheus handler completed, statusCode: %d, headers: %v", w.statusCode, w.header)
+	// Log error body if status is not OK
+	if w.statusCode != http.StatusOK {
+		log.Printf("❌ Prometheus handler returned error %d, body: %s", w.statusCode, string(w.body))
+	} else {
+		log.Printf("✅ Prometheus handler completed successfully, statusCode: %d", w.statusCode)
+	}
 
 	return nil
 }
