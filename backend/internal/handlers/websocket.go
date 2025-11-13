@@ -96,6 +96,43 @@ func (h *WSHandler) HandleWebSocket(c *websocket.Conn) {
 	cleanup := h.recordConnectionStart()
 	defer cleanup()
 
+	// Configure ping/pong for connection keep-alive
+	// Set read deadline - connection will close if no message received within this time
+	pongWait := 60 * time.Second
+	pingInterval := (pongWait * 9) / 10 // Send ping before pong timeout
+
+	// Set initial read deadline
+	c.SetReadDeadline(time.Now().Add(pongWait))
+
+	// Set pong handler to reset read deadline when pong is received
+	c.SetPongHandler(func(string) error {
+		log.Printf("🏓 Pong received from client %s", clientID)
+		c.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	// Start ping ticker in a goroutine
+	done := make(chan struct{})
+	defer close(done)
+
+	go func() {
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				// Send ping message
+				if err := c.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+					log.Printf("⚠️ Failed to send ping to client %s: %v", clientID, err)
+					return
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+
 	// First message should contain access_token if user is authenticated
 	// We'll update userID as messages come in with access_token
 	client := &Client{
