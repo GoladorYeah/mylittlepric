@@ -27,16 +27,31 @@ func (h *WSHandler) recordConnectionFailed() {
 
 // recordMessageReceived records received WebSocket message
 func (h *WSHandler) recordMessageReceived(msgType string) {
+	// Prevent empty label values which cause Prometheus errors
+	if msgType == "" {
+		msgType = "unknown"
+	}
 	metrics.WebSocketMessagesReceived.WithLabelValues(msgType).Inc()
 }
 
 // recordMessageSent records sent WebSocket message
 func (h *WSHandler) recordMessageSent(msgType string) {
+	// Prevent empty label values which cause Prometheus errors
+	if msgType == "" {
+		msgType = "unknown"
+	}
 	metrics.WebSocketMessagesSent.WithLabelValues(msgType).Inc()
 }
 
 // recordMessageSendFailed records failed message send
 func (h *WSHandler) recordMessageSendFailed(msgType string, reason string) {
+	// Prevent empty label values which cause Prometheus errors
+	if msgType == "" {
+		msgType = "unknown"
+	}
+	if reason == "" {
+		reason = "unknown"
+	}
 	metrics.WebSocketMessagesSentFailed.WithLabelValues(msgType, reason).Inc()
 }
 
@@ -51,6 +66,10 @@ func (h *WSHandler) recordMessageProcessing() func() {
 
 // recordRateLimitViolation records WebSocket rate limit violation
 func (h *WSHandler) recordRateLimitViolation(level string) {
+	// Prevent empty label values which cause Prometheus errors
+	if level == "" {
+		level = "unknown"
+	}
 	metrics.WebSocketRateLimitExceeded.WithLabelValues(level).Inc()
 }
 
