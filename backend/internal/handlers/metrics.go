@@ -48,12 +48,16 @@ func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) error {
 	statusCode := c.Response().StatusCode()
 	log.Printf("📊 Metrics handler finished - status: %d, error: %v", statusCode, err)
 
-	if err != nil {
-		log.Printf("❌ Error from metrics handler: %v", err)
-		// Also log the response body if there's an error
+	// Log response body if status is 500 (even when err is nil, promhttp sets 500 on collection errors)
+	if statusCode >= 500 || err != nil {
+		if err != nil {
+			log.Printf("❌ Error from metrics handler: %v", err)
+		}
 		bodyBytes := c.Response().Body()
 		if len(bodyBytes) > 0 {
-			log.Printf("❌ Response body: %s", string(bodyBytes[:min(len(bodyBytes), 500)]))
+			log.Printf("❌ Response body (first 1000 chars): %s", string(bodyBytes[:min(len(bodyBytes), 1000)]))
+		} else {
+			log.Printf("⚠️ Response body is empty despite status %d", statusCode)
 		}
 	}
 
