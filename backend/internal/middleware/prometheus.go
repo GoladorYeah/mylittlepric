@@ -38,8 +38,9 @@ func RegisterMetrics() {
 			},
 			[]string{"method", "handler", "status"},
 		)
+		log.Printf("📍 httpRequestsTotal created at %p", httpRequestsTotal)
 		prometheus.MustRegister(httpRequestsTotal)
-		log.Printf("✅ Registered http_requests_total")
+		log.Printf("✅ Registered http_requests_total at %p", httpRequestsTotal)
 
 		httpRequestDuration = prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
