@@ -97,7 +97,9 @@ func RateLimiter(config RateLimiterConfig) fiber.Handler {
 			if endpoint == "" {
 				endpoint = c.Path()
 			}
-			RecordRateLimitExceeded(endpoint)
+			// Make immutable copy of Fiber string before using as Prometheus label
+			endpointCopy := string([]byte(endpoint))
+			RecordRateLimitExceeded(endpointCopy)
 
 			// Get TTL for Retry-After header
 			ttl, _ := config.Redis.TTL(ctx, key).Result()

@@ -131,17 +131,23 @@ func PrometheusMiddleware() fiber.Handler {
 			path = c.Path()
 		}
 
-		method := c.Method()
+		// CRITICAL FIX: Make immutable copies of Fiber strings before using as Prometheus labels
+		// Fiber reuses byte slices for performance, which causes race conditions with Prometheus
+		// See: https://github.com/prometheus/client_golang/issues/1269
+		method := string([]byte(c.Method()))
+		pathCopy := string([]byte(path))
 		status := strconv.Itoa(c.Response().StatusCode())
 
 		// Debug logging for /api/user/preferences
-		if path == "/api/user/preferences" && method == "PUT" {
-			log.Printf("📊 Recording metrics: method=%s, path=%s, status=%s, duration=%.4fs", method, path, status, duration)
+		if pathCopy == "/api/user/preferences" && method == "PUT" {
+			log.Printf("📊 Recording metrics: method=%s, path=%s, status=%s, duration=%.4fs, request_id=%p", method, pathCopy, status, duration, c)
 		}
 
 		// Record metrics
-		httpRequestsTotal.WithLabelValues(method, path, status).Inc()
-		httpRequestDuration.WithLabelValues(method, path).Observe(duration)
+		log.Printf("🔹 About to record: method=%s, path=%s, status=%s (req=%p)", method, pathCopy, status, c)
+		httpRequestsTotal.WithLabelValues(method, pathCopy, status).Inc()
+		httpRequestDuration.WithLabelValues(method, pathCopy).Observe(duration)
+		log.Printf("✅ Recorded: method=%s, path=%s, status=%s (req=%p)", method, pathCopy, status, c)
 
 		return err
 	}
