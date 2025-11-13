@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
-
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"mylittleprice/internal/utils"
@@ -41,8 +41,21 @@ func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) error {
 	log.Printf("📊 Metrics requested - starting handler")
 	utils.LogDebug(c.Context(), "📊 Metrics requested")
 
+	// Debug: Check metrics before gathering
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		log.Printf("❌ Failed to pre-gather metrics: %v", err)
+	} else {
+		log.Printf("📊 Pre-gather: Total metric families: %d", len(metrics))
+		for _, m := range metrics {
+			if m.GetName() == "http_requests_total" || m.GetName() == "http_request_duration_seconds" {
+				log.Printf("  - %s: %d metrics", m.GetName(), len(m.GetMetric()))
+			}
+		}
+	}
+
 	// Directly call the pre-created handler
-	err := h.handler(c)
+	err = h.handler(c)
 
 	// Log response status and any errors
 	statusCode := c.Response().StatusCode()
