@@ -58,9 +58,8 @@ export function ChatInput({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-4 pb-2">
-      <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border focus-within:border-primary transition-colors">
-        <CountrySelector />
+    <div className="w-full max-w-3xl mx-auto px-2 py-4 pb-2">
+      <div className="flex flex-col px-4 py-2 rounded-xl border bg-secondary border-border focus-within:border-primary transition-colors">
         <input
           type="text"
           value={input}
@@ -70,13 +69,19 @@ export function ChatInput({
           disabled={isDisabled}
           className="flex-1 px-2 py-3 bg-transparent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         />
+       <div className="flex justify-between items-center">
+        
+        <CountrySelector />
         <button
           onClick={handleSend}
           disabled={!input.trim() || isDisabled}
-          className="w-10 h-10 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center shrink-0"
+          className="w-8 h-8 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center shrink-0"
         >
-          <Send className="w-5 h-5" />
+          <Send className="w-4 h-4" />
         </button>
+
+        </div>
+         
       </div>
     </div>
   );

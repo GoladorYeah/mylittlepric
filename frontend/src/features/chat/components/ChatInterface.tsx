@@ -109,7 +109,7 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
         {/* Fixed input field - always visible at bottom (hidden when showing prompt) */}
         {!showSavedSearchPrompt && (
           <div
-            className={`fixed bottom-0 left-0 right-0 bg-background z-30 transition-[padding] duration-300 ease-in-out ${
+            className={`fixed bottom-0 left-0 right-0 z-30 transition-[padding] duration-300 ease-in-out ${
               isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
             }`}
           >

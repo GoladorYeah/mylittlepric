@@ -50,7 +50,8 @@ export function ChatHeader({
   };
 
   return (
-    <header className="bg-background sticky top-0 z-20 shadow-sm">
+    <header className="bg-background sticky top-0 z-30">
+      <div className="from-background via-background via-65% to-background-100/0 pointer-events-none absolute inset-0 -bottom-5 -z-1 bg-linear-to-b blur-sm"></div>
       <div className="container mx-auto px-4 h-12 flex items-center justify-between">
         {/* Mobile Sidebar Toggle Button */}
         <button

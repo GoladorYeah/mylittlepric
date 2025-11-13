@@ -73,23 +73,23 @@ export function ChatMessage({ message, onQuickReply, onRetry }: ChatMessageProps
   return (
     <div>
       <div
-        className={`${message.products && message.products.length > 0 ? 'w-full' : 'max-w-[80%]'} space-y-3`}
+        className={`${message.products && message.products.length > 0 ? 'w-full' : 'max-w-3xl'} space-y-3`}
       >
-        {message.content && message.content.trim() !== '' && (
+        {message.content && message.content.trim() !== '' && message.content.trim() !== '...' && (
           <div
             className={`${
               isUser
                 ? `rounded-2xl px-4 py-3 bg-secondary text-secondary-foreground flex items-start gap-3 ${isFailed ? 'opacity-60' : ''} ${isPending ? 'opacity-80' : ''}`
-                : "text-foreground"
+                : "text-foreground ml-3"
             }`}
           >
             {isUser && (
-              <div className="shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
+              <div className="shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm self-start">
                 {getInitials(user)}
               </div>
             )}
-            <div className="flex-1">
-              <p className="whitespace-pre-wrap">{message.content}</p>
+            <div className={isUser ? "min-w-0 pt-1.5" : ""}>
+              <p className="whitespace-pre-wrap wrap-break-word">{message.content}</p>
 
               {/* Status indicators for user messages */}
               {isUser && (isPending || isFailed) && (
@@ -143,7 +143,7 @@ export function ChatMessage({ message, onQuickReply, onRetry }: ChatMessageProps
                   </span>
 
                   {price && (
-                    <span className="text-xs px-2 py-0.5 rounded bg-primary/15 text-primary font-bold border border-primary/20">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-bold">
                       {price}
                     </span>
                   )}

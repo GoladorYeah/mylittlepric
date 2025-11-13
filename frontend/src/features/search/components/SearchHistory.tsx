@@ -79,16 +79,16 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
     <>
       {/* Sidebar Panel */}
       <div
-        className={`fixed left-0 top-0 bottom-0 backdrop-blur-xl shadow-2xl transform transition-[width,transform,background-color] duration-300 ease-in-out z-60 will-change-[width,transform] ${
+        className={`fixed left-0 top-0 bottom-0 border-r border-border transform transition-[width,transform,background-color] duration-300 ease-in-out z-60 will-change-[width,transform] ${
           isSidebarOpen
-            ? "w-80 translate-x-0 bg-card/95"
+            ? "w-80 translate-x-0 bg-card/95 bg-old-card/95"
             : "w-16 -translate-x-full lg:translate-x-0 lg:bg-background"
         }`}
       >
         {/* Main scrollable content area */}
         <div className="flex flex-col h-full relative overflow-hidden pb-[73px]">
           {/* Header - Desktop only */}
-          <div className="bg-linear-to-b from-background/50 to-transparent items-center justify-between gap-2 hidden lg:flex p-4">
+          <div className="to-transparent items-center justify-between gap-2 hidden lg:flex p-4">
             {/* Toggle button - always in the same position */}
             <button
               onClick={toggleSidebar}
@@ -225,7 +225,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
         </div>
 
         {/* Bottom Controls - outside overflow context */}
-        <div className="absolute bottom-0 left-0 right-0 backdrop-blur-sm">
+        <div className="absolute bottom-0 left-0 right-0">
           {/* Expanded - User Menu with name */}
           <div className={`p-4 flex items-start justify-start transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
             <UserMenu showName={true} />
@@ -239,7 +239,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
 
       {/* Overlay for mobile - only show when sidebar is open */}
       <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/50 z-50 lg:hidden transition-opacity duration-300 ${
           isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={toggleSidebar}
