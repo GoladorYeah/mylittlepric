@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 
 	"github.com/gofiber/fiber/v2"
@@ -98,7 +99,7 @@ func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) error {
 
 	req := &http.Request{
 		Method:     c.Method(),
-		URL:        &http.URL{Path: path},
+		URL:        &url.URL{Path: path},
 		Header:     make(http.Header),
 		RemoteAddr: c.IP(),
 	}
