@@ -18,6 +18,11 @@ export function RateLimitNotification() {
     }
 
     const interval = setInterval(() => {
+      if (!rateLimitState.expiresAt) {
+        clearInterval(interval);
+        return;
+      }
+
       const now = Date.now();
       const remaining = Math.max(
         0,
