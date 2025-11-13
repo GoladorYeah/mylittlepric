@@ -35,16 +35,20 @@ func NewMetricsHandler() *MetricsHandler {
 // fiberResponseWriter adapts fiber.Ctx to http.ResponseWriter
 type fiberResponseWriter struct {
 	ctx        *fiber.Ctx
+	header     http.Header
 	statusCode int
 	written    bool
 }
 
+func newFiberResponseWriter(ctx *fiber.Ctx) *fiberResponseWriter {
+	return &fiberResponseWriter{
+		ctx:    ctx,
+		header: make(http.Header),
+	}
+}
+
 func (w *fiberResponseWriter) Header() http.Header {
-	header := make(http.Header)
-	w.ctx.Request().Header.VisitAll(func(key, value []byte) {
-		header.Add(string(key), string(value))
-	})
-	return header
+	return w.header
 }
 
 func (w *fiberResponseWriter) Write(b []byte) (int, error) {
@@ -53,13 +57,24 @@ func (w *fiberResponseWriter) Write(b []byte) (int, error) {
 		if w.statusCode == 0 {
 			w.statusCode = http.StatusOK
 		}
+
+		// Write status code
 		w.ctx.Status(w.statusCode)
+
+		// Copy headers from our http.Header to fiber response
+		for key, values := range w.header {
+			for _, value := range values {
+				w.ctx.Set(key, value)
+			}
+		}
 	}
 	return w.ctx.Write(b)
 }
 
 func (w *fiberResponseWriter) WriteHeader(statusCode int) {
-	w.statusCode = statusCode
+	if !w.written {
+		w.statusCode = statusCode
+	}
 }
 
 // Hijack implements http.Hijacker
@@ -87,7 +102,7 @@ func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) error {
 	}()
 
 	// Create our custom ResponseWriter that wraps fiber.Ctx
-	w := &fiberResponseWriter{ctx: c}
+	w := newFiberResponseWriter(c)
 
 	// Create http.Request from fiber.Ctx
 	// Convert fasthttp.URI to standard url.URL
@@ -122,7 +137,7 @@ func (h *MetricsHandler) GetMetrics(c *fiber.Ctx) error {
 		h.handler.ServeHTTP(w, req)
 	}()
 
-	log.Printf("✅ Prometheus handler completed, statusCode: %d", w.statusCode)
+	log.Printf("✅ Prometheus handler completed, statusCode: %d, headers: %v", w.statusCode, w.header)
 
 	return nil
 }
