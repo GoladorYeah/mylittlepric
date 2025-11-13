@@ -27,8 +27,9 @@ var (
 // RegisterMetrics registers all HTTP middleware metrics to default registry
 // Called explicitly to avoid issues with init() being called multiple times
 func RegisterMetrics() {
+	log.Printf("🔵 RegisterMetrics() called")
 	metricsOnce.Do(func() {
-		log.Printf("🔧 Registering HTTP middleware metrics")
+		log.Printf("🔧 Registering HTTP middleware metrics (inside sync.Once)")
 
 		httpRequestsTotal = prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -38,6 +39,7 @@ func RegisterMetrics() {
 			[]string{"method", "handler", "status"},
 		)
 		prometheus.MustRegister(httpRequestsTotal)
+		log.Printf("✅ Registered http_requests_total")
 
 		httpRequestDuration = prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
@@ -48,6 +50,7 @@ func RegisterMetrics() {
 			[]string{"method", "handler"},
 		)
 		prometheus.MustRegister(httpRequestDuration)
+		log.Printf("✅ Registered http_request_duration_seconds")
 
 		httpRequestsInFlight = prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -76,11 +79,25 @@ func RegisterMetrics() {
 
 		metricsRegistered = true
 		log.Printf("✅ HTTP middleware metrics registered successfully")
+
+		// Debug: Check what's registered in DefaultRegistry
+		metrics, err := prometheus.DefaultGatherer.Gather()
+		if err != nil {
+			log.Printf("❌ Failed to gather metrics: %v", err)
+		} else {
+			log.Printf("📊 Total metric families in DefaultRegistry: %d", len(metrics))
+			for _, m := range metrics {
+				if m.GetName() == "http_requests_total" || m.GetName() == "http_request_duration_seconds" {
+					log.Printf("  - %s: %d metrics", m.GetName(), len(m.GetMetric()))
+				}
+			}
+		}
 	})
 }
 
 // PrometheusMiddleware creates a Fiber middleware that collects HTTP metrics
 func PrometheusMiddleware() fiber.Handler {
+	log.Printf("🟢 PrometheusMiddleware() called - creating new handler")
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 
