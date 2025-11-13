@@ -5,6 +5,7 @@ package ent
 import (
 	"fmt"
 	"mylittleprice/ent/user"
+	"mylittleprice/ent/userbehaviorprofile"
 	"mylittleprice/ent/userpreference"
 	"strings"
 	"time"
@@ -51,9 +52,15 @@ type UserEdges struct {
 	SearchHistory []*SearchHistory `json:"search_history,omitempty"`
 	// Preferences holds the value of the preferences edge.
 	Preferences *UserPreference `json:"preferences,omitempty"`
+	// BehaviorProfile holds the value of the behavior_profile edge.
+	BehaviorProfile *UserBehaviorProfile `json:"behavior_profile,omitempty"`
+	// ConversationAnalytics holds the value of the conversation_analytics edge.
+	ConversationAnalytics []*ConversationAnalytics `json:"conversation_analytics,omitempty"`
+	// ProductInteractions holds the value of the product_interactions edge.
+	ProductInteractions []*ProductInteraction `json:"product_interactions,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [6]bool
 }
 
 // SessionsOrErr returns the Sessions value or an error if the edge
@@ -83,6 +90,35 @@ func (e UserEdges) PreferencesOrErr() (*UserPreference, error) {
 		return nil, &NotFoundError{label: userpreference.Label}
 	}
 	return nil, &NotLoadedError{edge: "preferences"}
+}
+
+// BehaviorProfileOrErr returns the BehaviorProfile value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e UserEdges) BehaviorProfileOrErr() (*UserBehaviorProfile, error) {
+	if e.BehaviorProfile != nil {
+		return e.BehaviorProfile, nil
+	} else if e.loadedTypes[3] {
+		return nil, &NotFoundError{label: userbehaviorprofile.Label}
+	}
+	return nil, &NotLoadedError{edge: "behavior_profile"}
+}
+
+// ConversationAnalyticsOrErr returns the ConversationAnalytics value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ConversationAnalyticsOrErr() ([]*ConversationAnalytics, error) {
+	if e.loadedTypes[4] {
+		return e.ConversationAnalytics, nil
+	}
+	return nil, &NotLoadedError{edge: "conversation_analytics"}
+}
+
+// ProductInteractionsOrErr returns the ProductInteractions value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ProductInteractionsOrErr() ([]*ProductInteraction, error) {
+	if e.loadedTypes[5] {
+		return e.ProductInteractions, nil
+	}
+	return nil, &NotLoadedError{edge: "product_interactions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -197,6 +233,21 @@ func (_m *User) QuerySearchHistory() *SearchHistoryQuery {
 // QueryPreferences queries the "preferences" edge of the User entity.
 func (_m *User) QueryPreferences() *UserPreferenceQuery {
 	return NewUserClient(_m.config).QueryPreferences(_m)
+}
+
+// QueryBehaviorProfile queries the "behavior_profile" edge of the User entity.
+func (_m *User) QueryBehaviorProfile() *UserBehaviorProfileQuery {
+	return NewUserClient(_m.config).QueryBehaviorProfile(_m)
+}
+
+// QueryConversationAnalytics queries the "conversation_analytics" edge of the User entity.
+func (_m *User) QueryConversationAnalytics() *ConversationAnalyticsQuery {
+	return NewUserClient(_m.config).QueryConversationAnalytics(_m)
+}
+
+// QueryProductInteractions queries the "product_interactions" edge of the User entity.
+func (_m *User) QueryProductInteractions() *ProductInteractionQuery {
+	return NewUserClient(_m.config).QueryProductInteractions(_m)
 }
 
 // Update returns a builder for updating this User.

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/user"
 	"strings"
 	"time"
@@ -56,9 +57,11 @@ type ChatSessionEdges struct {
 	User *User `json:"user,omitempty"`
 	// Messages holds the value of the messages edge.
 	Messages []*Message `json:"messages,omitempty"`
+	// Analytics holds the value of the analytics edge.
+	Analytics *ConversationAnalytics `json:"analytics,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -79,6 +82,17 @@ func (e ChatSessionEdges) MessagesOrErr() ([]*Message, error) {
 		return e.Messages, nil
 	}
 	return nil, &NotLoadedError{edge: "messages"}
+}
+
+// AnalyticsOrErr returns the Analytics value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ChatSessionEdges) AnalyticsOrErr() (*ConversationAnalytics, error) {
+	if e.Analytics != nil {
+		return e.Analytics, nil
+	} else if e.loadedTypes[2] {
+		return nil, &NotFoundError{label: conversationanalytics.Label}
+	}
+	return nil, &NotLoadedError{edge: "analytics"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -216,6 +230,11 @@ func (_m *ChatSession) QueryUser() *UserQuery {
 // QueryMessages queries the "messages" edge of the ChatSession entity.
 func (_m *ChatSession) QueryMessages() *MessageQuery {
 	return NewChatSessionClient(_m.config).QueryMessages(_m)
+}
+
+// QueryAnalytics queries the "analytics" edge of the ChatSession entity.
+func (_m *ChatSession) QueryAnalytics() *ConversationAnalyticsQuery {
+	return NewChatSessionClient(_m.config).QueryAnalytics(_m)
 }
 
 // Update returns a builder for updating this ChatSession.

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/message"
 	"mylittleprice/ent/predicate"
 	"mylittleprice/ent/user"
@@ -192,6 +193,25 @@ func (_u *ChatSessionUpdate) AddMessages(v ...*Message) *ChatSessionUpdate {
 	return _u.AddMessageIDs(ids...)
 }
 
+// SetAnalyticsID sets the "analytics" edge to the ConversationAnalytics entity by ID.
+func (_u *ChatSessionUpdate) SetAnalyticsID(id uuid.UUID) *ChatSessionUpdate {
+	_u.mutation.SetAnalyticsID(id)
+	return _u
+}
+
+// SetNillableAnalyticsID sets the "analytics" edge to the ConversationAnalytics entity by ID if the given value is not nil.
+func (_u *ChatSessionUpdate) SetNillableAnalyticsID(id *uuid.UUID) *ChatSessionUpdate {
+	if id != nil {
+		_u = _u.SetAnalyticsID(*id)
+	}
+	return _u
+}
+
+// SetAnalytics sets the "analytics" edge to the ConversationAnalytics entity.
+func (_u *ChatSessionUpdate) SetAnalytics(v *ConversationAnalytics) *ChatSessionUpdate {
+	return _u.SetAnalyticsID(v.ID)
+}
+
 // Mutation returns the ChatSessionMutation object of the builder.
 func (_u *ChatSessionUpdate) Mutation() *ChatSessionMutation {
 	return _u.mutation
@@ -222,6 +242,12 @@ func (_u *ChatSessionUpdate) RemoveMessages(v ...*Message) *ChatSessionUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMessageIDs(ids...)
+}
+
+// ClearAnalytics clears the "analytics" edge to the ConversationAnalytics entity.
+func (_u *ChatSessionUpdate) ClearAnalytics() *ChatSessionUpdate {
+	_u.mutation.ClearAnalytics()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -385,6 +411,35 @@ func (_u *ChatSessionUpdate) sqlSave(ctx context.Context) (_node int, err error)
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(message.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AnalyticsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   chatsession.AnalyticsTable,
+			Columns: []string{chatsession.AnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AnalyticsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   chatsession.AnalyticsTable,
+			Columns: []string{chatsession.AnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -573,6 +628,25 @@ func (_u *ChatSessionUpdateOne) AddMessages(v ...*Message) *ChatSessionUpdateOne
 	return _u.AddMessageIDs(ids...)
 }
 
+// SetAnalyticsID sets the "analytics" edge to the ConversationAnalytics entity by ID.
+func (_u *ChatSessionUpdateOne) SetAnalyticsID(id uuid.UUID) *ChatSessionUpdateOne {
+	_u.mutation.SetAnalyticsID(id)
+	return _u
+}
+
+// SetNillableAnalyticsID sets the "analytics" edge to the ConversationAnalytics entity by ID if the given value is not nil.
+func (_u *ChatSessionUpdateOne) SetNillableAnalyticsID(id *uuid.UUID) *ChatSessionUpdateOne {
+	if id != nil {
+		_u = _u.SetAnalyticsID(*id)
+	}
+	return _u
+}
+
+// SetAnalytics sets the "analytics" edge to the ConversationAnalytics entity.
+func (_u *ChatSessionUpdateOne) SetAnalytics(v *ConversationAnalytics) *ChatSessionUpdateOne {
+	return _u.SetAnalyticsID(v.ID)
+}
+
 // Mutation returns the ChatSessionMutation object of the builder.
 func (_u *ChatSessionUpdateOne) Mutation() *ChatSessionMutation {
 	return _u.mutation
@@ -603,6 +677,12 @@ func (_u *ChatSessionUpdateOne) RemoveMessages(v ...*Message) *ChatSessionUpdate
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveMessageIDs(ids...)
+}
+
+// ClearAnalytics clears the "analytics" edge to the ConversationAnalytics entity.
+func (_u *ChatSessionUpdateOne) ClearAnalytics() *ChatSessionUpdateOne {
+	_u.mutation.ClearAnalytics()
+	return _u
 }
 
 // Where appends a list predicates to the ChatSessionUpdate builder.
@@ -796,6 +876,35 @@ func (_u *ChatSessionUpdateOne) sqlSave(ctx context.Context) (_node *ChatSession
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(message.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AnalyticsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   chatsession.AnalyticsTable,
+			Columns: []string{chatsession.AnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AnalyticsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   chatsession.AnalyticsTable,
+			Columns: []string{chatsession.AnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

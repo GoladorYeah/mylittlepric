@@ -53,6 +53,9 @@ func SetupRoutes(app *fiber.App, c *container.Container) {
 
 	// Stats routes
 	setupStatsRoutes(api, c)
+
+	// Analytics routes (authenticated)
+	setupAnalyticsRoutes(api, c)
 }
 
 func setupAuthRoutes(api fiber.Router, c *container.Container) {
@@ -244,4 +247,24 @@ func setupStatsRoutes(api fiber.Router, c *container.Container) {
 			"timestamp": time.Now(),
 		})
 	})
+}
+
+// setupAnalyticsRoutes configures analytics and tracking endpoints
+func setupAnalyticsRoutes(api fiber.Router, c *container.Container) {
+	analytics := api.Group("/analytics")
+	analyticsHandler := handlers.NewAnalyticsHandler(c)
+	authMiddleware := middleware.AuthMiddleware(c.JWTService)
+
+	// User behavior and recommendations (authenticated)
+	analytics.Get("/profile", authMiddleware, analyticsHandler.GetUserBehaviorProfile)
+	analytics.Get("/recommendations", authMiddleware, analyticsHandler.GetUserRecommendations)
+	analytics.Get("/summary", authMiddleware, analyticsHandler.GetUserAnalytics)
+	analytics.Get("/interactions", authMiddleware, analyticsHandler.GetProductInteractionStats)
+
+	// Session insights (no auth required - useful for anonymous users)
+	analytics.Get("/session/:sessionId", analyticsHandler.GetSessionInsights)
+
+	// Tracking endpoints (no auth required for anonymous tracking)
+	analytics.Post("/track/click", analyticsHandler.TrackProductClick)
+	analytics.Post("/finalize/:sessionId", analyticsHandler.FinalizeSession)
 }

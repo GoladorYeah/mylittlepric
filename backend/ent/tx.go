@@ -14,12 +14,18 @@ type Tx struct {
 	config
 	// ChatSession is the client for interacting with the ChatSession builders.
 	ChatSession *ChatSessionClient
+	// ConversationAnalytics is the client for interacting with the ConversationAnalytics builders.
+	ConversationAnalytics *ConversationAnalyticsClient
 	// Message is the client for interacting with the Message builders.
 	Message *MessageClient
+	// ProductInteraction is the client for interacting with the ProductInteraction builders.
+	ProductInteraction *ProductInteractionClient
 	// SearchHistory is the client for interacting with the SearchHistory builders.
 	SearchHistory *SearchHistoryClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// UserBehaviorProfile is the client for interacting with the UserBehaviorProfile builders.
+	UserBehaviorProfile *UserBehaviorProfileClient
 	// UserPreference is the client for interacting with the UserPreference builders.
 	UserPreference *UserPreferenceClient
 
@@ -154,9 +160,12 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.ChatSession = NewChatSessionClient(tx.config)
+	tx.ConversationAnalytics = NewConversationAnalyticsClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)
+	tx.ProductInteraction = NewProductInteractionClient(tx.config)
 	tx.SearchHistory = NewSearchHistoryClient(tx.config)
 	tx.User = NewUserClient(tx.config)
+	tx.UserBehaviorProfile = NewUserBehaviorProfileClient(tx.config)
 	tx.UserPreference = NewUserPreferenceClient(tx.config)
 }
 

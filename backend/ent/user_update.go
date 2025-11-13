@@ -7,9 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/predicate"
+	"mylittleprice/ent/productinteraction"
 	"mylittleprice/ent/searchhistory"
 	"mylittleprice/ent/user"
+	"mylittleprice/ent/userbehaviorprofile"
 	"mylittleprice/ent/userpreference"
 	"time"
 
@@ -215,6 +218,55 @@ func (_u *UserUpdate) SetPreferences(v *UserPreference) *UserUpdate {
 	return _u.SetPreferencesID(v.ID)
 }
 
+// SetBehaviorProfileID sets the "behavior_profile" edge to the UserBehaviorProfile entity by ID.
+func (_u *UserUpdate) SetBehaviorProfileID(id uuid.UUID) *UserUpdate {
+	_u.mutation.SetBehaviorProfileID(id)
+	return _u
+}
+
+// SetNillableBehaviorProfileID sets the "behavior_profile" edge to the UserBehaviorProfile entity by ID if the given value is not nil.
+func (_u *UserUpdate) SetNillableBehaviorProfileID(id *uuid.UUID) *UserUpdate {
+	if id != nil {
+		_u = _u.SetBehaviorProfileID(*id)
+	}
+	return _u
+}
+
+// SetBehaviorProfile sets the "behavior_profile" edge to the UserBehaviorProfile entity.
+func (_u *UserUpdate) SetBehaviorProfile(v *UserBehaviorProfile) *UserUpdate {
+	return _u.SetBehaviorProfileID(v.ID)
+}
+
+// AddConversationAnalyticIDs adds the "conversation_analytics" edge to the ConversationAnalytics entity by IDs.
+func (_u *UserUpdate) AddConversationAnalyticIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.AddConversationAnalyticIDs(ids...)
+	return _u
+}
+
+// AddConversationAnalytics adds the "conversation_analytics" edges to the ConversationAnalytics entity.
+func (_u *UserUpdate) AddConversationAnalytics(v ...*ConversationAnalytics) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddConversationAnalyticIDs(ids...)
+}
+
+// AddProductInteractionIDs adds the "product_interactions" edge to the ProductInteraction entity by IDs.
+func (_u *UserUpdate) AddProductInteractionIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.AddProductInteractionIDs(ids...)
+	return _u
+}
+
+// AddProductInteractions adds the "product_interactions" edges to the ProductInteraction entity.
+func (_u *UserUpdate) AddProductInteractions(v ...*ProductInteraction) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProductInteractionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -266,6 +318,54 @@ func (_u *UserUpdate) RemoveSearchHistory(v ...*SearchHistory) *UserUpdate {
 func (_u *UserUpdate) ClearPreferences() *UserUpdate {
 	_u.mutation.ClearPreferences()
 	return _u
+}
+
+// ClearBehaviorProfile clears the "behavior_profile" edge to the UserBehaviorProfile entity.
+func (_u *UserUpdate) ClearBehaviorProfile() *UserUpdate {
+	_u.mutation.ClearBehaviorProfile()
+	return _u
+}
+
+// ClearConversationAnalytics clears all "conversation_analytics" edges to the ConversationAnalytics entity.
+func (_u *UserUpdate) ClearConversationAnalytics() *UserUpdate {
+	_u.mutation.ClearConversationAnalytics()
+	return _u
+}
+
+// RemoveConversationAnalyticIDs removes the "conversation_analytics" edge to ConversationAnalytics entities by IDs.
+func (_u *UserUpdate) RemoveConversationAnalyticIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.RemoveConversationAnalyticIDs(ids...)
+	return _u
+}
+
+// RemoveConversationAnalytics removes "conversation_analytics" edges to ConversationAnalytics entities.
+func (_u *UserUpdate) RemoveConversationAnalytics(v ...*ConversationAnalytics) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveConversationAnalyticIDs(ids...)
+}
+
+// ClearProductInteractions clears all "product_interactions" edges to the ProductInteraction entity.
+func (_u *UserUpdate) ClearProductInteractions() *UserUpdate {
+	_u.mutation.ClearProductInteractions()
+	return _u
+}
+
+// RemoveProductInteractionIDs removes the "product_interactions" edge to ProductInteraction entities by IDs.
+func (_u *UserUpdate) RemoveProductInteractionIDs(ids ...uuid.UUID) *UserUpdate {
+	_u.mutation.RemoveProductInteractionIDs(ids...)
+	return _u
+}
+
+// RemoveProductInteractions removes "product_interactions" edges to ProductInteraction entities.
+func (_u *UserUpdate) RemoveProductInteractions(v ...*ProductInteraction) *UserUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProductInteractionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -484,6 +584,125 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.BehaviorProfileCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BehaviorProfileTable,
+			Columns: []string{user.BehaviorProfileColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbehaviorprofile.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BehaviorProfileIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BehaviorProfileTable,
+			Columns: []string{user.BehaviorProfileColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbehaviorprofile.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ConversationAnalyticsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ConversationAnalyticsTable,
+			Columns: []string{user.ConversationAnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedConversationAnalyticsIDs(); len(nodes) > 0 && !_u.mutation.ConversationAnalyticsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ConversationAnalyticsTable,
+			Columns: []string{user.ConversationAnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ConversationAnalyticsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ConversationAnalyticsTable,
+			Columns: []string{user.ConversationAnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProductInteractionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductInteractionsTable,
+			Columns: []string{user.ProductInteractionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productinteraction.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProductInteractionsIDs(); len(nodes) > 0 && !_u.mutation.ProductInteractionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductInteractionsTable,
+			Columns: []string{user.ProductInteractionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productinteraction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProductInteractionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductInteractionsTable,
+			Columns: []string{user.ProductInteractionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productinteraction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -687,6 +906,55 @@ func (_u *UserUpdateOne) SetPreferences(v *UserPreference) *UserUpdateOne {
 	return _u.SetPreferencesID(v.ID)
 }
 
+// SetBehaviorProfileID sets the "behavior_profile" edge to the UserBehaviorProfile entity by ID.
+func (_u *UserUpdateOne) SetBehaviorProfileID(id uuid.UUID) *UserUpdateOne {
+	_u.mutation.SetBehaviorProfileID(id)
+	return _u
+}
+
+// SetNillableBehaviorProfileID sets the "behavior_profile" edge to the UserBehaviorProfile entity by ID if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableBehaviorProfileID(id *uuid.UUID) *UserUpdateOne {
+	if id != nil {
+		_u = _u.SetBehaviorProfileID(*id)
+	}
+	return _u
+}
+
+// SetBehaviorProfile sets the "behavior_profile" edge to the UserBehaviorProfile entity.
+func (_u *UserUpdateOne) SetBehaviorProfile(v *UserBehaviorProfile) *UserUpdateOne {
+	return _u.SetBehaviorProfileID(v.ID)
+}
+
+// AddConversationAnalyticIDs adds the "conversation_analytics" edge to the ConversationAnalytics entity by IDs.
+func (_u *UserUpdateOne) AddConversationAnalyticIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.AddConversationAnalyticIDs(ids...)
+	return _u
+}
+
+// AddConversationAnalytics adds the "conversation_analytics" edges to the ConversationAnalytics entity.
+func (_u *UserUpdateOne) AddConversationAnalytics(v ...*ConversationAnalytics) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddConversationAnalyticIDs(ids...)
+}
+
+// AddProductInteractionIDs adds the "product_interactions" edge to the ProductInteraction entity by IDs.
+func (_u *UserUpdateOne) AddProductInteractionIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.AddProductInteractionIDs(ids...)
+	return _u
+}
+
+// AddProductInteractions adds the "product_interactions" edges to the ProductInteraction entity.
+func (_u *UserUpdateOne) AddProductInteractions(v ...*ProductInteraction) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddProductInteractionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -738,6 +1006,54 @@ func (_u *UserUpdateOne) RemoveSearchHistory(v ...*SearchHistory) *UserUpdateOne
 func (_u *UserUpdateOne) ClearPreferences() *UserUpdateOne {
 	_u.mutation.ClearPreferences()
 	return _u
+}
+
+// ClearBehaviorProfile clears the "behavior_profile" edge to the UserBehaviorProfile entity.
+func (_u *UserUpdateOne) ClearBehaviorProfile() *UserUpdateOne {
+	_u.mutation.ClearBehaviorProfile()
+	return _u
+}
+
+// ClearConversationAnalytics clears all "conversation_analytics" edges to the ConversationAnalytics entity.
+func (_u *UserUpdateOne) ClearConversationAnalytics() *UserUpdateOne {
+	_u.mutation.ClearConversationAnalytics()
+	return _u
+}
+
+// RemoveConversationAnalyticIDs removes the "conversation_analytics" edge to ConversationAnalytics entities by IDs.
+func (_u *UserUpdateOne) RemoveConversationAnalyticIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.RemoveConversationAnalyticIDs(ids...)
+	return _u
+}
+
+// RemoveConversationAnalytics removes "conversation_analytics" edges to ConversationAnalytics entities.
+func (_u *UserUpdateOne) RemoveConversationAnalytics(v ...*ConversationAnalytics) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveConversationAnalyticIDs(ids...)
+}
+
+// ClearProductInteractions clears all "product_interactions" edges to the ProductInteraction entity.
+func (_u *UserUpdateOne) ClearProductInteractions() *UserUpdateOne {
+	_u.mutation.ClearProductInteractions()
+	return _u
+}
+
+// RemoveProductInteractionIDs removes the "product_interactions" edge to ProductInteraction entities by IDs.
+func (_u *UserUpdateOne) RemoveProductInteractionIDs(ids ...uuid.UUID) *UserUpdateOne {
+	_u.mutation.RemoveProductInteractionIDs(ids...)
+	return _u
+}
+
+// RemoveProductInteractions removes "product_interactions" edges to ProductInteraction entities.
+func (_u *UserUpdateOne) RemoveProductInteractions(v ...*ProductInteraction) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveProductInteractionIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -979,6 +1295,125 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userpreference.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BehaviorProfileCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BehaviorProfileTable,
+			Columns: []string{user.BehaviorProfileColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbehaviorprofile.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BehaviorProfileIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BehaviorProfileTable,
+			Columns: []string{user.BehaviorProfileColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbehaviorprofile.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ConversationAnalyticsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ConversationAnalyticsTable,
+			Columns: []string{user.ConversationAnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedConversationAnalyticsIDs(); len(nodes) > 0 && !_u.mutation.ConversationAnalyticsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ConversationAnalyticsTable,
+			Columns: []string{user.ConversationAnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ConversationAnalyticsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ConversationAnalyticsTable,
+			Columns: []string{user.ConversationAnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProductInteractionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductInteractionsTable,
+			Columns: []string{user.ProductInteractionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productinteraction.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedProductInteractionsIDs(); len(nodes) > 0 && !_u.mutation.ProductInteractionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductInteractionsTable,
+			Columns: []string{user.ProductInteractionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productinteraction.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProductInteractionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductInteractionsTable,
+			Columns: []string{user.ProductInteractionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productinteraction.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

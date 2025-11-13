@@ -4,10 +4,13 @@ package ent
 
 import (
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/message"
+	"mylittleprice/ent/productinteraction"
 	"mylittleprice/ent/schema"
 	"mylittleprice/ent/searchhistory"
 	"mylittleprice/ent/user"
+	"mylittleprice/ent/userbehaviorprofile"
 	"mylittleprice/ent/userpreference"
 	"time"
 
@@ -66,6 +69,106 @@ func init() {
 	chatsessionDescID := chatsessionFields[0].Descriptor()
 	// chatsession.DefaultID holds the default value on creation for the id field.
 	chatsession.DefaultID = chatsessionDescID.Default.(func() uuid.UUID)
+	conversationanalyticsFields := schema.ConversationAnalytics{}.Fields()
+	_ = conversationanalyticsFields
+	// conversationanalyticsDescMessageCount is the schema descriptor for message_count field.
+	conversationanalyticsDescMessageCount := conversationanalyticsFields[3].Descriptor()
+	// conversationanalytics.DefaultMessageCount holds the default value on creation for the message_count field.
+	conversationanalytics.DefaultMessageCount = conversationanalyticsDescMessageCount.Default.(int)
+	// conversationanalyticsDescUserMessageCount is the schema descriptor for user_message_count field.
+	conversationanalyticsDescUserMessageCount := conversationanalyticsFields[4].Descriptor()
+	// conversationanalytics.DefaultUserMessageCount holds the default value on creation for the user_message_count field.
+	conversationanalytics.DefaultUserMessageCount = conversationanalyticsDescUserMessageCount.Default.(int)
+	// conversationanalyticsDescAssistantMessageCount is the schema descriptor for assistant_message_count field.
+	conversationanalyticsDescAssistantMessageCount := conversationanalyticsFields[5].Descriptor()
+	// conversationanalytics.DefaultAssistantMessageCount holds the default value on creation for the assistant_message_count field.
+	conversationanalytics.DefaultAssistantMessageCount = conversationanalyticsDescAssistantMessageCount.Default.(int)
+	// conversationanalyticsDescSearchCount is the schema descriptor for search_count field.
+	conversationanalyticsDescSearchCount := conversationanalyticsFields[6].Descriptor()
+	// conversationanalytics.DefaultSearchCount holds the default value on creation for the search_count field.
+	conversationanalytics.DefaultSearchCount = conversationanalyticsDescSearchCount.Default.(int)
+	// conversationanalyticsDescProductsShown is the schema descriptor for products_shown field.
+	conversationanalyticsDescProductsShown := conversationanalyticsFields[7].Descriptor()
+	// conversationanalytics.DefaultProductsShown holds the default value on creation for the products_shown field.
+	conversationanalytics.DefaultProductsShown = conversationanalyticsDescProductsShown.Default.(int)
+	// conversationanalyticsDescProductsClicked is the schema descriptor for products_clicked field.
+	conversationanalyticsDescProductsClicked := conversationanalyticsFields[8].Descriptor()
+	// conversationanalytics.DefaultProductsClicked holds the default value on creation for the products_clicked field.
+	conversationanalytics.DefaultProductsClicked = conversationanalyticsDescProductsClicked.Default.(int)
+	// conversationanalyticsDescSessionDuration is the schema descriptor for session_duration field.
+	conversationanalyticsDescSessionDuration := conversationanalyticsFields[9].Descriptor()
+	// conversationanalytics.DefaultSessionDuration holds the default value on creation for the session_duration field.
+	conversationanalytics.DefaultSessionDuration = conversationanalyticsDescSessionDuration.Default.(int)
+	// conversationanalyticsDescKeyTopics is the schema descriptor for key_topics field.
+	conversationanalyticsDescKeyTopics := conversationanalyticsFields[10].Descriptor()
+	// conversationanalytics.DefaultKeyTopics holds the default value on creation for the key_topics field.
+	conversationanalytics.DefaultKeyTopics = conversationanalyticsDescKeyTopics.Default.([]string)
+	// conversationanalyticsDescCategoriesExplored is the schema descriptor for categories_explored field.
+	conversationanalyticsDescCategoriesExplored := conversationanalyticsFields[11].Descriptor()
+	// conversationanalytics.DefaultCategoriesExplored holds the default value on creation for the categories_explored field.
+	conversationanalytics.DefaultCategoriesExplored = conversationanalyticsDescCategoriesExplored.Default.([]string)
+	// conversationanalyticsDescOverallSentiment is the schema descriptor for overall_sentiment field.
+	conversationanalyticsDescOverallSentiment := conversationanalyticsFields[12].Descriptor()
+	// conversationanalytics.DefaultOverallSentiment holds the default value on creation for the overall_sentiment field.
+	conversationanalytics.DefaultOverallSentiment = conversationanalyticsDescOverallSentiment.Default.(string)
+	// conversationanalyticsDescSentimentScore is the schema descriptor for sentiment_score field.
+	conversationanalyticsDescSentimentScore := conversationanalyticsFields[13].Descriptor()
+	// conversationanalytics.DefaultSentimentScore holds the default value on creation for the sentiment_score field.
+	conversationanalytics.DefaultSentimentScore = conversationanalyticsDescSentimentScore.Default.(float64)
+	// conversationanalyticsDescFoundProduct is the schema descriptor for found_product field.
+	conversationanalyticsDescFoundProduct := conversationanalyticsFields[15].Descriptor()
+	// conversationanalytics.DefaultFoundProduct holds the default value on creation for the found_product field.
+	conversationanalytics.DefaultFoundProduct = conversationanalyticsDescFoundProduct.Default.(bool)
+	// conversationanalyticsDescSessionCompleted is the schema descriptor for session_completed field.
+	conversationanalyticsDescSessionCompleted := conversationanalyticsFields[16].Descriptor()
+	// conversationanalytics.DefaultSessionCompleted holds the default value on creation for the session_completed field.
+	conversationanalytics.DefaultSessionCompleted = conversationanalyticsDescSessionCompleted.Default.(bool)
+	// conversationanalyticsDescAvgResponseTime is the schema descriptor for avg_response_time field.
+	conversationanalyticsDescAvgResponseTime := conversationanalyticsFields[18].Descriptor()
+	// conversationanalytics.DefaultAvgResponseTime holds the default value on creation for the avg_response_time field.
+	conversationanalytics.DefaultAvgResponseTime = conversationanalyticsDescAvgResponseTime.Default.(int)
+	// conversationanalyticsDescClarificationCount is the schema descriptor for clarification_count field.
+	conversationanalyticsDescClarificationCount := conversationanalyticsFields[19].Descriptor()
+	// conversationanalytics.DefaultClarificationCount holds the default value on creation for the clarification_count field.
+	conversationanalytics.DefaultClarificationCount = conversationanalyticsDescClarificationCount.Default.(int)
+	// conversationanalyticsDescSearchRefinementCount is the schema descriptor for search_refinement_count field.
+	conversationanalyticsDescSearchRefinementCount := conversationanalyticsFields[20].Descriptor()
+	// conversationanalytics.DefaultSearchRefinementCount holds the default value on creation for the search_refinement_count field.
+	conversationanalytics.DefaultSearchRefinementCount = conversationanalyticsDescSearchRefinementCount.Default.(int)
+	// conversationanalyticsDescFlowQualityScore is the schema descriptor for flow_quality_score field.
+	conversationanalyticsDescFlowQualityScore := conversationanalyticsFields[21].Descriptor()
+	// conversationanalytics.DefaultFlowQualityScore holds the default value on creation for the flow_quality_score field.
+	conversationanalytics.DefaultFlowQualityScore = conversationanalyticsDescFlowQualityScore.Default.(float64)
+	// conversationanalyticsDescExtractedPreferences is the schema descriptor for extracted_preferences field.
+	conversationanalyticsDescExtractedPreferences := conversationanalyticsFields[22].Descriptor()
+	// conversationanalytics.DefaultExtractedPreferences holds the default value on creation for the extracted_preferences field.
+	conversationanalytics.DefaultExtractedPreferences = conversationanalyticsDescExtractedPreferences.Default.(map[string]interface{})
+	// conversationanalyticsDescPriceMentions is the schema descriptor for price_mentions field.
+	conversationanalyticsDescPriceMentions := conversationanalyticsFields[23].Descriptor()
+	// conversationanalytics.DefaultPriceMentions holds the default value on creation for the price_mentions field.
+	conversationanalytics.DefaultPriceMentions = conversationanalyticsDescPriceMentions.Default.([]float64)
+	// conversationanalyticsDescBrandMentions is the schema descriptor for brand_mentions field.
+	conversationanalyticsDescBrandMentions := conversationanalyticsFields[24].Descriptor()
+	// conversationanalytics.DefaultBrandMentions holds the default value on creation for the brand_mentions field.
+	conversationanalytics.DefaultBrandMentions = conversationanalyticsDescBrandMentions.Default.([]string)
+	// conversationanalyticsDescSessionStartedAt is the schema descriptor for session_started_at field.
+	conversationanalyticsDescSessionStartedAt := conversationanalyticsFields[26].Descriptor()
+	// conversationanalytics.DefaultSessionStartedAt holds the default value on creation for the session_started_at field.
+	conversationanalytics.DefaultSessionStartedAt = conversationanalyticsDescSessionStartedAt.Default.(func() time.Time)
+	// conversationanalyticsDescCreatedAt is the schema descriptor for created_at field.
+	conversationanalyticsDescCreatedAt := conversationanalyticsFields[28].Descriptor()
+	// conversationanalytics.DefaultCreatedAt holds the default value on creation for the created_at field.
+	conversationanalytics.DefaultCreatedAt = conversationanalyticsDescCreatedAt.Default.(func() time.Time)
+	// conversationanalyticsDescUpdatedAt is the schema descriptor for updated_at field.
+	conversationanalyticsDescUpdatedAt := conversationanalyticsFields[29].Descriptor()
+	// conversationanalytics.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	conversationanalytics.DefaultUpdatedAt = conversationanalyticsDescUpdatedAt.Default.(func() time.Time)
+	// conversationanalytics.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	conversationanalytics.UpdateDefaultUpdatedAt = conversationanalyticsDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// conversationanalyticsDescID is the schema descriptor for id field.
+	conversationanalyticsDescID := conversationanalyticsFields[0].Descriptor()
+	// conversationanalytics.DefaultID holds the default value on creation for the id field.
+	conversationanalytics.DefaultID = conversationanalyticsDescID.Default.(func() uuid.UUID)
 	messageFields := schema.Message{}.Fields()
 	_ = messageFields
 	// messageDescRole is the schema descriptor for role field.
@@ -84,6 +187,74 @@ func init() {
 	messageDescID := messageFields[0].Descriptor()
 	// message.DefaultID holds the default value on creation for the id field.
 	message.DefaultID = messageDescID.Default.(func() uuid.UUID)
+	productinteractionFields := schema.ProductInteraction{}.Fields()
+	_ = productinteractionFields
+	// productinteractionDescSessionID is the schema descriptor for session_id field.
+	productinteractionDescSessionID := productinteractionFields[2].Descriptor()
+	// productinteraction.SessionIDValidator is a validator for the "session_id" field. It is called by the builders before save.
+	productinteraction.SessionIDValidator = productinteractionDescSessionID.Validators[0].(func(string) error)
+	// productinteractionDescProductID is the schema descriptor for product_id field.
+	productinteractionDescProductID := productinteractionFields[3].Descriptor()
+	// productinteraction.ProductIDValidator is a validator for the "product_id" field. It is called by the builders before save.
+	productinteraction.ProductIDValidator = productinteractionDescProductID.Validators[0].(func(string) error)
+	// productinteractionDescProductName is the schema descriptor for product_name field.
+	productinteractionDescProductName := productinteractionFields[4].Descriptor()
+	// productinteraction.ProductNameValidator is a validator for the "product_name" field. It is called by the builders before save.
+	productinteraction.ProductNameValidator = productinteractionDescProductName.Validators[0].(func(string) error)
+	// productinteractionDescInteractionType is the schema descriptor for interaction_type field.
+	productinteractionDescInteractionType := productinteractionFields[11].Descriptor()
+	// productinteraction.InteractionTypeValidator is a validator for the "interaction_type" field. It is called by the builders before save.
+	productinteraction.InteractionTypeValidator = productinteractionDescInteractionType.Validators[0].(func(string) error)
+	// productinteractionDescMessagePosition is the schema descriptor for message_position field.
+	productinteractionDescMessagePosition := productinteractionFields[12].Descriptor()
+	// productinteraction.DefaultMessagePosition holds the default value on creation for the message_position field.
+	productinteraction.DefaultMessagePosition = productinteractionDescMessagePosition.Default.(int)
+	// productinteractionDescViewDurationSeconds is the schema descriptor for view_duration_seconds field.
+	productinteractionDescViewDurationSeconds := productinteractionFields[13].Descriptor()
+	// productinteraction.DefaultViewDurationSeconds holds the default value on creation for the view_duration_seconds field.
+	productinteraction.DefaultViewDurationSeconds = productinteractionDescViewDurationSeconds.Default.(int)
+	// productinteractionDescClickCount is the schema descriptor for click_count field.
+	productinteractionDescClickCount := productinteractionFields[14].Descriptor()
+	// productinteraction.DefaultClickCount holds the default value on creation for the click_count field.
+	productinteraction.DefaultClickCount = productinteractionDescClickCount.Default.(int)
+	// productinteractionDescOpenedDetails is the schema descriptor for opened_details field.
+	productinteractionDescOpenedDetails := productinteractionFields[15].Descriptor()
+	// productinteraction.DefaultOpenedDetails holds the default value on creation for the opened_details field.
+	productinteraction.DefaultOpenedDetails = productinteractionDescOpenedDetails.Default.(bool)
+	// productinteractionDescAddedToComparison is the schema descriptor for added_to_comparison field.
+	productinteractionDescAddedToComparison := productinteractionFields[16].Descriptor()
+	// productinteraction.DefaultAddedToComparison holds the default value on creation for the added_to_comparison field.
+	productinteraction.DefaultAddedToComparison = productinteractionDescAddedToComparison.Default.(bool)
+	// productinteractionDescImplicitScore is the schema descriptor for implicit_score field.
+	productinteractionDescImplicitScore := productinteractionFields[18].Descriptor()
+	// productinteraction.DefaultImplicitScore holds the default value on creation for the implicit_score field.
+	productinteraction.DefaultImplicitScore = productinteractionDescImplicitScore.Default.(float64)
+	// productinteractionDescPositionInResults is the schema descriptor for position_in_results field.
+	productinteractionDescPositionInResults := productinteractionFields[21].Descriptor()
+	// productinteraction.DefaultPositionInResults holds the default value on creation for the position_in_results field.
+	productinteraction.DefaultPositionInResults = productinteractionDescPositionInResults.Default.(int)
+	// productinteractionDescInteractionSequence is the schema descriptor for interaction_sequence field.
+	productinteractionDescInteractionSequence := productinteractionFields[22].Descriptor()
+	// productinteraction.DefaultInteractionSequence holds the default value on creation for the interaction_sequence field.
+	productinteraction.DefaultInteractionSequence = productinteractionDescInteractionSequence.Default.(int)
+	// productinteractionDescInteractedAt is the schema descriptor for interacted_at field.
+	productinteractionDescInteractedAt := productinteractionFields[23].Descriptor()
+	// productinteraction.DefaultInteractedAt holds the default value on creation for the interacted_at field.
+	productinteraction.DefaultInteractedAt = productinteractionDescInteractedAt.Default.(func() time.Time)
+	// productinteractionDescCreatedAt is the schema descriptor for created_at field.
+	productinteractionDescCreatedAt := productinteractionFields[24].Descriptor()
+	// productinteraction.DefaultCreatedAt holds the default value on creation for the created_at field.
+	productinteraction.DefaultCreatedAt = productinteractionDescCreatedAt.Default.(func() time.Time)
+	// productinteractionDescUpdatedAt is the schema descriptor for updated_at field.
+	productinteractionDescUpdatedAt := productinteractionFields[25].Descriptor()
+	// productinteraction.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	productinteraction.DefaultUpdatedAt = productinteractionDescUpdatedAt.Default.(func() time.Time)
+	// productinteraction.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	productinteraction.UpdateDefaultUpdatedAt = productinteractionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// productinteractionDescID is the schema descriptor for id field.
+	productinteractionDescID := productinteractionFields[0].Descriptor()
+	// productinteraction.DefaultID holds the default value on creation for the id field.
+	productinteraction.DefaultID = productinteractionDescID.Default.(func() uuid.UUID)
 	searchhistoryFields := schema.SearchHistory{}.Fields()
 	_ = searchhistoryFields
 	// searchhistoryDescSearchQuery is the schema descriptor for search_query field.
@@ -142,6 +313,76 @@ func init() {
 	userDescID := userFields[0].Descriptor()
 	// user.DefaultID holds the default value on creation for the id field.
 	user.DefaultID = userDescID.Default.(func() uuid.UUID)
+	userbehaviorprofileFields := schema.UserBehaviorProfile{}.Fields()
+	_ = userbehaviorprofileFields
+	// userbehaviorprofileDescCategoryPreferences is the schema descriptor for category_preferences field.
+	userbehaviorprofileDescCategoryPreferences := userbehaviorprofileFields[2].Descriptor()
+	// userbehaviorprofile.DefaultCategoryPreferences holds the default value on creation for the category_preferences field.
+	userbehaviorprofile.DefaultCategoryPreferences = userbehaviorprofileDescCategoryPreferences.Default.(map[string]float64)
+	// userbehaviorprofileDescPriceRanges is the schema descriptor for price_ranges field.
+	userbehaviorprofileDescPriceRanges := userbehaviorprofileFields[3].Descriptor()
+	// userbehaviorprofile.DefaultPriceRanges holds the default value on creation for the price_ranges field.
+	userbehaviorprofile.DefaultPriceRanges = userbehaviorprofileDescPriceRanges.Default.(map[string]interface{})
+	// userbehaviorprofileDescBrandPreferences is the schema descriptor for brand_preferences field.
+	userbehaviorprofileDescBrandPreferences := userbehaviorprofileFields[4].Descriptor()
+	// userbehaviorprofile.DefaultBrandPreferences holds the default value on creation for the brand_preferences field.
+	userbehaviorprofile.DefaultBrandPreferences = userbehaviorprofileDescBrandPreferences.Default.(map[string]int)
+	// userbehaviorprofileDescCommunicationStyle is the schema descriptor for communication_style field.
+	userbehaviorprofileDescCommunicationStyle := userbehaviorprofileFields[5].Descriptor()
+	// userbehaviorprofile.DefaultCommunicationStyle holds the default value on creation for the communication_style field.
+	userbehaviorprofile.DefaultCommunicationStyle = userbehaviorprofileDescCommunicationStyle.Default.(string)
+	// userbehaviorprofileDescAvgSessionDuration is the schema descriptor for avg_session_duration field.
+	userbehaviorprofileDescAvgSessionDuration := userbehaviorprofileFields[7].Descriptor()
+	// userbehaviorprofile.DefaultAvgSessionDuration holds the default value on creation for the avg_session_duration field.
+	userbehaviorprofile.DefaultAvgSessionDuration = userbehaviorprofileDescAvgSessionDuration.Default.(float64)
+	// userbehaviorprofileDescAvgMessagesPerSession is the schema descriptor for avg_messages_per_session field.
+	userbehaviorprofileDescAvgMessagesPerSession := userbehaviorprofileFields[8].Descriptor()
+	// userbehaviorprofile.DefaultAvgMessagesPerSession holds the default value on creation for the avg_messages_per_session field.
+	userbehaviorprofile.DefaultAvgMessagesPerSession = userbehaviorprofileDescAvgMessagesPerSession.Default.(float64)
+	// userbehaviorprofileDescSuccessRate is the schema descriptor for success_rate field.
+	userbehaviorprofileDescSuccessRate := userbehaviorprofileFields[9].Descriptor()
+	// userbehaviorprofile.DefaultSuccessRate holds the default value on creation for the success_rate field.
+	userbehaviorprofile.DefaultSuccessRate = userbehaviorprofileDescSuccessRate.Default.(float64)
+	// userbehaviorprofileDescCommonKeywords is the schema descriptor for common_keywords field.
+	userbehaviorprofileDescCommonKeywords := userbehaviorprofileFields[10].Descriptor()
+	// userbehaviorprofile.DefaultCommonKeywords holds the default value on creation for the common_keywords field.
+	userbehaviorprofile.DefaultCommonKeywords = userbehaviorprofileDescCommonKeywords.Default.([]string)
+	// userbehaviorprofileDescTimePatterns is the schema descriptor for time_patterns field.
+	userbehaviorprofileDescTimePatterns := userbehaviorprofileFields[11].Descriptor()
+	// userbehaviorprofile.DefaultTimePatterns holds the default value on creation for the time_patterns field.
+	userbehaviorprofile.DefaultTimePatterns = userbehaviorprofileDescTimePatterns.Default.(map[string]interface{})
+	// userbehaviorprofileDescTotalSessions is the schema descriptor for total_sessions field.
+	userbehaviorprofileDescTotalSessions := userbehaviorprofileFields[12].Descriptor()
+	// userbehaviorprofile.DefaultTotalSessions holds the default value on creation for the total_sessions field.
+	userbehaviorprofile.DefaultTotalSessions = userbehaviorprofileDescTotalSessions.Default.(int)
+	// userbehaviorprofileDescTotalProductsViewed is the schema descriptor for total_products_viewed field.
+	userbehaviorprofileDescTotalProductsViewed := userbehaviorprofileFields[13].Descriptor()
+	// userbehaviorprofile.DefaultTotalProductsViewed holds the default value on creation for the total_products_viewed field.
+	userbehaviorprofile.DefaultTotalProductsViewed = userbehaviorprofileDescTotalProductsViewed.Default.(int)
+	// userbehaviorprofileDescTotalProductsClicked is the schema descriptor for total_products_clicked field.
+	userbehaviorprofileDescTotalProductsClicked := userbehaviorprofileFields[14].Descriptor()
+	// userbehaviorprofile.DefaultTotalProductsClicked holds the default value on creation for the total_products_clicked field.
+	userbehaviorprofile.DefaultTotalProductsClicked = userbehaviorprofileDescTotalProductsClicked.Default.(int)
+	// userbehaviorprofileDescLastLearningUpdate is the schema descriptor for last_learning_update field.
+	userbehaviorprofileDescLastLearningUpdate := userbehaviorprofileFields[15].Descriptor()
+	// userbehaviorprofile.DefaultLastLearningUpdate holds the default value on creation for the last_learning_update field.
+	userbehaviorprofile.DefaultLastLearningUpdate = userbehaviorprofileDescLastLearningUpdate.Default.(func() time.Time)
+	// userbehaviorprofile.UpdateDefaultLastLearningUpdate holds the default value on update for the last_learning_update field.
+	userbehaviorprofile.UpdateDefaultLastLearningUpdate = userbehaviorprofileDescLastLearningUpdate.UpdateDefault.(func() time.Time)
+	// userbehaviorprofileDescCreatedAt is the schema descriptor for created_at field.
+	userbehaviorprofileDescCreatedAt := userbehaviorprofileFields[16].Descriptor()
+	// userbehaviorprofile.DefaultCreatedAt holds the default value on creation for the created_at field.
+	userbehaviorprofile.DefaultCreatedAt = userbehaviorprofileDescCreatedAt.Default.(func() time.Time)
+	// userbehaviorprofileDescUpdatedAt is the schema descriptor for updated_at field.
+	userbehaviorprofileDescUpdatedAt := userbehaviorprofileFields[17].Descriptor()
+	// userbehaviorprofile.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	userbehaviorprofile.DefaultUpdatedAt = userbehaviorprofileDescUpdatedAt.Default.(func() time.Time)
+	// userbehaviorprofile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	userbehaviorprofile.UpdateDefaultUpdatedAt = userbehaviorprofileDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// userbehaviorprofileDescID is the schema descriptor for id field.
+	userbehaviorprofileDescID := userbehaviorprofileFields[0].Descriptor()
+	// userbehaviorprofile.DefaultID holds the default value on creation for the id field.
+	userbehaviorprofile.DefaultID = userbehaviorprofileDescID.Default.(func() uuid.UUID)
 	userpreferenceFields := schema.UserPreference{}.Fields()
 	_ = userpreferenceFields
 	// userpreferenceDescCreatedAt is the schema descriptor for created_at field.

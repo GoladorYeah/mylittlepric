@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/message"
 	"mylittleprice/ent/user"
 	"time"
@@ -191,6 +192,25 @@ func (_c *ChatSessionCreate) AddMessages(v ...*Message) *ChatSessionCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddMessageIDs(ids...)
+}
+
+// SetAnalyticsID sets the "analytics" edge to the ConversationAnalytics entity by ID.
+func (_c *ChatSessionCreate) SetAnalyticsID(id uuid.UUID) *ChatSessionCreate {
+	_c.mutation.SetAnalyticsID(id)
+	return _c
+}
+
+// SetNillableAnalyticsID sets the "analytics" edge to the ConversationAnalytics entity by ID if the given value is not nil.
+func (_c *ChatSessionCreate) SetNillableAnalyticsID(id *uuid.UUID) *ChatSessionCreate {
+	if id != nil {
+		_c = _c.SetAnalyticsID(*id)
+	}
+	return _c
+}
+
+// SetAnalytics sets the "analytics" edge to the ConversationAnalytics entity.
+func (_c *ChatSessionCreate) SetAnalytics(v *ConversationAnalytics) *ChatSessionCreate {
+	return _c.SetAnalyticsID(v.ID)
 }
 
 // Mutation returns the ChatSessionMutation object of the builder.
@@ -412,6 +432,22 @@ func (_c *ChatSessionCreate) createSpec() (*ChatSession, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(message.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AnalyticsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   chatsession.AnalyticsTable,
+			Columns: []string{chatsession.AnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

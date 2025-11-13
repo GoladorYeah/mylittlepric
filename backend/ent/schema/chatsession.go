@@ -72,6 +72,8 @@ func (ChatSession) Edges() []ent.Edge {
 			Field("user_id").
 			Unique(),
 		edge.To("messages", Message.Type),
+		edge.To("analytics", ConversationAnalytics.Type).
+			Unique(), // One-to-one relationship
 	}
 }
 

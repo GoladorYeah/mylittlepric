@@ -12,9 +12,12 @@ import (
 	"mylittleprice/ent/migrate"
 
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/message"
+	"mylittleprice/ent/productinteraction"
 	"mylittleprice/ent/searchhistory"
 	"mylittleprice/ent/user"
+	"mylittleprice/ent/userbehaviorprofile"
 	"mylittleprice/ent/userpreference"
 
 	"entgo.io/ent"
@@ -31,12 +34,18 @@ type Client struct {
 	Schema *migrate.Schema
 	// ChatSession is the client for interacting with the ChatSession builders.
 	ChatSession *ChatSessionClient
+	// ConversationAnalytics is the client for interacting with the ConversationAnalytics builders.
+	ConversationAnalytics *ConversationAnalyticsClient
 	// Message is the client for interacting with the Message builders.
 	Message *MessageClient
+	// ProductInteraction is the client for interacting with the ProductInteraction builders.
+	ProductInteraction *ProductInteractionClient
 	// SearchHistory is the client for interacting with the SearchHistory builders.
 	SearchHistory *SearchHistoryClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// UserBehaviorProfile is the client for interacting with the UserBehaviorProfile builders.
+	UserBehaviorProfile *UserBehaviorProfileClient
 	// UserPreference is the client for interacting with the UserPreference builders.
 	UserPreference *UserPreferenceClient
 }
@@ -51,9 +60,12 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.ChatSession = NewChatSessionClient(c.config)
+	c.ConversationAnalytics = NewConversationAnalyticsClient(c.config)
 	c.Message = NewMessageClient(c.config)
+	c.ProductInteraction = NewProductInteractionClient(c.config)
 	c.SearchHistory = NewSearchHistoryClient(c.config)
 	c.User = NewUserClient(c.config)
+	c.UserBehaviorProfile = NewUserBehaviorProfileClient(c.config)
 	c.UserPreference = NewUserPreferenceClient(c.config)
 }
 
@@ -145,13 +157,16 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:            ctx,
-		config:         cfg,
-		ChatSession:    NewChatSessionClient(cfg),
-		Message:        NewMessageClient(cfg),
-		SearchHistory:  NewSearchHistoryClient(cfg),
-		User:           NewUserClient(cfg),
-		UserPreference: NewUserPreferenceClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		ChatSession:           NewChatSessionClient(cfg),
+		ConversationAnalytics: NewConversationAnalyticsClient(cfg),
+		Message:               NewMessageClient(cfg),
+		ProductInteraction:    NewProductInteractionClient(cfg),
+		SearchHistory:         NewSearchHistoryClient(cfg),
+		User:                  NewUserClient(cfg),
+		UserBehaviorProfile:   NewUserBehaviorProfileClient(cfg),
+		UserPreference:        NewUserPreferenceClient(cfg),
 	}, nil
 }
 
@@ -169,13 +184,16 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:            ctx,
-		config:         cfg,
-		ChatSession:    NewChatSessionClient(cfg),
-		Message:        NewMessageClient(cfg),
-		SearchHistory:  NewSearchHistoryClient(cfg),
-		User:           NewUserClient(cfg),
-		UserPreference: NewUserPreferenceClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		ChatSession:           NewChatSessionClient(cfg),
+		ConversationAnalytics: NewConversationAnalyticsClient(cfg),
+		Message:               NewMessageClient(cfg),
+		ProductInteraction:    NewProductInteractionClient(cfg),
+		SearchHistory:         NewSearchHistoryClient(cfg),
+		User:                  NewUserClient(cfg),
+		UserBehaviorProfile:   NewUserBehaviorProfileClient(cfg),
+		UserPreference:        NewUserPreferenceClient(cfg),
 	}, nil
 }
 
@@ -204,21 +222,23 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.ChatSession.Use(hooks...)
-	c.Message.Use(hooks...)
-	c.SearchHistory.Use(hooks...)
-	c.User.Use(hooks...)
-	c.UserPreference.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.ChatSession, c.ConversationAnalytics, c.Message, c.ProductInteraction,
+		c.SearchHistory, c.User, c.UserBehaviorProfile, c.UserPreference,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.ChatSession.Intercept(interceptors...)
-	c.Message.Intercept(interceptors...)
-	c.SearchHistory.Intercept(interceptors...)
-	c.User.Intercept(interceptors...)
-	c.UserPreference.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.ChatSession, c.ConversationAnalytics, c.Message, c.ProductInteraction,
+		c.SearchHistory, c.User, c.UserBehaviorProfile, c.UserPreference,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -226,12 +246,18 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *ChatSessionMutation:
 		return c.ChatSession.mutate(ctx, m)
+	case *ConversationAnalyticsMutation:
+		return c.ConversationAnalytics.mutate(ctx, m)
 	case *MessageMutation:
 		return c.Message.mutate(ctx, m)
+	case *ProductInteractionMutation:
+		return c.ProductInteraction.mutate(ctx, m)
 	case *SearchHistoryMutation:
 		return c.SearchHistory.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
+	case *UserBehaviorProfileMutation:
+		return c.UserBehaviorProfile.mutate(ctx, m)
 	case *UserPreferenceMutation:
 		return c.UserPreference.mutate(ctx, m)
 	default:
@@ -379,6 +405,22 @@ func (c *ChatSessionClient) QueryMessages(_m *ChatSession) *MessageQuery {
 	return query
 }
 
+// QueryAnalytics queries the analytics edge of a ChatSession.
+func (c *ChatSessionClient) QueryAnalytics(_m *ChatSession) *ConversationAnalyticsQuery {
+	query := (&ConversationAnalyticsClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(chatsession.Table, chatsession.FieldID, id),
+			sqlgraph.To(conversationanalytics.Table, conversationanalytics.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, chatsession.AnalyticsTable, chatsession.AnalyticsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *ChatSessionClient) Hooks() []Hook {
 	return c.hooks.ChatSession
@@ -401,6 +443,171 @@ func (c *ChatSessionClient) mutate(ctx context.Context, m *ChatSessionMutation) 
 		return (&ChatSessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ChatSession mutation op: %q", m.Op())
+	}
+}
+
+// ConversationAnalyticsClient is a client for the ConversationAnalytics schema.
+type ConversationAnalyticsClient struct {
+	config
+}
+
+// NewConversationAnalyticsClient returns a client for the ConversationAnalytics from the given config.
+func NewConversationAnalyticsClient(c config) *ConversationAnalyticsClient {
+	return &ConversationAnalyticsClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `conversationanalytics.Hooks(f(g(h())))`.
+func (c *ConversationAnalyticsClient) Use(hooks ...Hook) {
+	c.hooks.ConversationAnalytics = append(c.hooks.ConversationAnalytics, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `conversationanalytics.Intercept(f(g(h())))`.
+func (c *ConversationAnalyticsClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ConversationAnalytics = append(c.inters.ConversationAnalytics, interceptors...)
+}
+
+// Create returns a builder for creating a ConversationAnalytics entity.
+func (c *ConversationAnalyticsClient) Create() *ConversationAnalyticsCreate {
+	mutation := newConversationAnalyticsMutation(c.config, OpCreate)
+	return &ConversationAnalyticsCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ConversationAnalytics entities.
+func (c *ConversationAnalyticsClient) CreateBulk(builders ...*ConversationAnalyticsCreate) *ConversationAnalyticsCreateBulk {
+	return &ConversationAnalyticsCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ConversationAnalyticsClient) MapCreateBulk(slice any, setFunc func(*ConversationAnalyticsCreate, int)) *ConversationAnalyticsCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ConversationAnalyticsCreateBulk{err: fmt.Errorf("calling to ConversationAnalyticsClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ConversationAnalyticsCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ConversationAnalyticsCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ConversationAnalytics.
+func (c *ConversationAnalyticsClient) Update() *ConversationAnalyticsUpdate {
+	mutation := newConversationAnalyticsMutation(c.config, OpUpdate)
+	return &ConversationAnalyticsUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ConversationAnalyticsClient) UpdateOne(_m *ConversationAnalytics) *ConversationAnalyticsUpdateOne {
+	mutation := newConversationAnalyticsMutation(c.config, OpUpdateOne, withConversationAnalytics(_m))
+	return &ConversationAnalyticsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ConversationAnalyticsClient) UpdateOneID(id uuid.UUID) *ConversationAnalyticsUpdateOne {
+	mutation := newConversationAnalyticsMutation(c.config, OpUpdateOne, withConversationAnalyticsID(id))
+	return &ConversationAnalyticsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ConversationAnalytics.
+func (c *ConversationAnalyticsClient) Delete() *ConversationAnalyticsDelete {
+	mutation := newConversationAnalyticsMutation(c.config, OpDelete)
+	return &ConversationAnalyticsDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ConversationAnalyticsClient) DeleteOne(_m *ConversationAnalytics) *ConversationAnalyticsDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ConversationAnalyticsClient) DeleteOneID(id uuid.UUID) *ConversationAnalyticsDeleteOne {
+	builder := c.Delete().Where(conversationanalytics.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ConversationAnalyticsDeleteOne{builder}
+}
+
+// Query returns a query builder for ConversationAnalytics.
+func (c *ConversationAnalyticsClient) Query() *ConversationAnalyticsQuery {
+	return &ConversationAnalyticsQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeConversationAnalytics},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ConversationAnalytics entity by its id.
+func (c *ConversationAnalyticsClient) Get(ctx context.Context, id uuid.UUID) (*ConversationAnalytics, error) {
+	return c.Query().Where(conversationanalytics.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ConversationAnalyticsClient) GetX(ctx context.Context, id uuid.UUID) *ConversationAnalytics {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a ConversationAnalytics.
+func (c *ConversationAnalyticsClient) QueryUser(_m *ConversationAnalytics) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(conversationanalytics.Table, conversationanalytics.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, conversationanalytics.UserTable, conversationanalytics.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySession queries the session edge of a ConversationAnalytics.
+func (c *ConversationAnalyticsClient) QuerySession(_m *ConversationAnalytics) *ChatSessionQuery {
+	query := (&ChatSessionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(conversationanalytics.Table, conversationanalytics.FieldID, id),
+			sqlgraph.To(chatsession.Table, chatsession.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, conversationanalytics.SessionTable, conversationanalytics.SessionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ConversationAnalyticsClient) Hooks() []Hook {
+	return c.hooks.ConversationAnalytics
+}
+
+// Interceptors returns the client interceptors.
+func (c *ConversationAnalyticsClient) Interceptors() []Interceptor {
+	return c.inters.ConversationAnalytics
+}
+
+func (c *ConversationAnalyticsClient) mutate(ctx context.Context, m *ConversationAnalyticsMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ConversationAnalyticsCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ConversationAnalyticsUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ConversationAnalyticsUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ConversationAnalyticsDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ConversationAnalytics mutation op: %q", m.Op())
 	}
 }
 
@@ -550,6 +757,155 @@ func (c *MessageClient) mutate(ctx context.Context, m *MessageMutation) (Value, 
 		return (&MessageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Message mutation op: %q", m.Op())
+	}
+}
+
+// ProductInteractionClient is a client for the ProductInteraction schema.
+type ProductInteractionClient struct {
+	config
+}
+
+// NewProductInteractionClient returns a client for the ProductInteraction from the given config.
+func NewProductInteractionClient(c config) *ProductInteractionClient {
+	return &ProductInteractionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `productinteraction.Hooks(f(g(h())))`.
+func (c *ProductInteractionClient) Use(hooks ...Hook) {
+	c.hooks.ProductInteraction = append(c.hooks.ProductInteraction, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `productinteraction.Intercept(f(g(h())))`.
+func (c *ProductInteractionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProductInteraction = append(c.inters.ProductInteraction, interceptors...)
+}
+
+// Create returns a builder for creating a ProductInteraction entity.
+func (c *ProductInteractionClient) Create() *ProductInteractionCreate {
+	mutation := newProductInteractionMutation(c.config, OpCreate)
+	return &ProductInteractionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProductInteraction entities.
+func (c *ProductInteractionClient) CreateBulk(builders ...*ProductInteractionCreate) *ProductInteractionCreateBulk {
+	return &ProductInteractionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProductInteractionClient) MapCreateBulk(slice any, setFunc func(*ProductInteractionCreate, int)) *ProductInteractionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProductInteractionCreateBulk{err: fmt.Errorf("calling to ProductInteractionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProductInteractionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProductInteractionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProductInteraction.
+func (c *ProductInteractionClient) Update() *ProductInteractionUpdate {
+	mutation := newProductInteractionMutation(c.config, OpUpdate)
+	return &ProductInteractionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProductInteractionClient) UpdateOne(_m *ProductInteraction) *ProductInteractionUpdateOne {
+	mutation := newProductInteractionMutation(c.config, OpUpdateOne, withProductInteraction(_m))
+	return &ProductInteractionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProductInteractionClient) UpdateOneID(id uuid.UUID) *ProductInteractionUpdateOne {
+	mutation := newProductInteractionMutation(c.config, OpUpdateOne, withProductInteractionID(id))
+	return &ProductInteractionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProductInteraction.
+func (c *ProductInteractionClient) Delete() *ProductInteractionDelete {
+	mutation := newProductInteractionMutation(c.config, OpDelete)
+	return &ProductInteractionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProductInteractionClient) DeleteOne(_m *ProductInteraction) *ProductInteractionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProductInteractionClient) DeleteOneID(id uuid.UUID) *ProductInteractionDeleteOne {
+	builder := c.Delete().Where(productinteraction.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProductInteractionDeleteOne{builder}
+}
+
+// Query returns a query builder for ProductInteraction.
+func (c *ProductInteractionClient) Query() *ProductInteractionQuery {
+	return &ProductInteractionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProductInteraction},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProductInteraction entity by its id.
+func (c *ProductInteractionClient) Get(ctx context.Context, id uuid.UUID) (*ProductInteraction, error) {
+	return c.Query().Where(productinteraction.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProductInteractionClient) GetX(ctx context.Context, id uuid.UUID) *ProductInteraction {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a ProductInteraction.
+func (c *ProductInteractionClient) QueryUser(_m *ProductInteraction) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(productinteraction.Table, productinteraction.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, productinteraction.UserTable, productinteraction.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ProductInteractionClient) Hooks() []Hook {
+	return c.hooks.ProductInteraction
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProductInteractionClient) Interceptors() []Interceptor {
+	return c.inters.ProductInteraction
+}
+
+func (c *ProductInteractionClient) mutate(ctx context.Context, m *ProductInteractionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProductInteractionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProductInteractionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProductInteractionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProductInteractionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProductInteraction mutation op: %q", m.Op())
 	}
 }
 
@@ -858,6 +1214,54 @@ func (c *UserClient) QueryPreferences(_m *User) *UserPreferenceQuery {
 	return query
 }
 
+// QueryBehaviorProfile queries the behavior_profile edge of a User.
+func (c *UserClient) QueryBehaviorProfile(_m *User) *UserBehaviorProfileQuery {
+	query := (&UserBehaviorProfileClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(userbehaviorprofile.Table, userbehaviorprofile.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.BehaviorProfileTable, user.BehaviorProfileColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryConversationAnalytics queries the conversation_analytics edge of a User.
+func (c *UserClient) QueryConversationAnalytics(_m *User) *ConversationAnalyticsQuery {
+	query := (&ConversationAnalyticsClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(conversationanalytics.Table, conversationanalytics.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ConversationAnalyticsTable, user.ConversationAnalyticsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryProductInteractions queries the product_interactions edge of a User.
+func (c *UserClient) QueryProductInteractions(_m *User) *ProductInteractionQuery {
+	query := (&ProductInteractionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(productinteraction.Table, productinteraction.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ProductInteractionsTable, user.ProductInteractionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
@@ -880,6 +1284,155 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 		return (&UserDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown User mutation op: %q", m.Op())
+	}
+}
+
+// UserBehaviorProfileClient is a client for the UserBehaviorProfile schema.
+type UserBehaviorProfileClient struct {
+	config
+}
+
+// NewUserBehaviorProfileClient returns a client for the UserBehaviorProfile from the given config.
+func NewUserBehaviorProfileClient(c config) *UserBehaviorProfileClient {
+	return &UserBehaviorProfileClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `userbehaviorprofile.Hooks(f(g(h())))`.
+func (c *UserBehaviorProfileClient) Use(hooks ...Hook) {
+	c.hooks.UserBehaviorProfile = append(c.hooks.UserBehaviorProfile, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `userbehaviorprofile.Intercept(f(g(h())))`.
+func (c *UserBehaviorProfileClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserBehaviorProfile = append(c.inters.UserBehaviorProfile, interceptors...)
+}
+
+// Create returns a builder for creating a UserBehaviorProfile entity.
+func (c *UserBehaviorProfileClient) Create() *UserBehaviorProfileCreate {
+	mutation := newUserBehaviorProfileMutation(c.config, OpCreate)
+	return &UserBehaviorProfileCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserBehaviorProfile entities.
+func (c *UserBehaviorProfileClient) CreateBulk(builders ...*UserBehaviorProfileCreate) *UserBehaviorProfileCreateBulk {
+	return &UserBehaviorProfileCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserBehaviorProfileClient) MapCreateBulk(slice any, setFunc func(*UserBehaviorProfileCreate, int)) *UserBehaviorProfileCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserBehaviorProfileCreateBulk{err: fmt.Errorf("calling to UserBehaviorProfileClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserBehaviorProfileCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserBehaviorProfileCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserBehaviorProfile.
+func (c *UserBehaviorProfileClient) Update() *UserBehaviorProfileUpdate {
+	mutation := newUserBehaviorProfileMutation(c.config, OpUpdate)
+	return &UserBehaviorProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserBehaviorProfileClient) UpdateOne(_m *UserBehaviorProfile) *UserBehaviorProfileUpdateOne {
+	mutation := newUserBehaviorProfileMutation(c.config, OpUpdateOne, withUserBehaviorProfile(_m))
+	return &UserBehaviorProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserBehaviorProfileClient) UpdateOneID(id uuid.UUID) *UserBehaviorProfileUpdateOne {
+	mutation := newUserBehaviorProfileMutation(c.config, OpUpdateOne, withUserBehaviorProfileID(id))
+	return &UserBehaviorProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserBehaviorProfile.
+func (c *UserBehaviorProfileClient) Delete() *UserBehaviorProfileDelete {
+	mutation := newUserBehaviorProfileMutation(c.config, OpDelete)
+	return &UserBehaviorProfileDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserBehaviorProfileClient) DeleteOne(_m *UserBehaviorProfile) *UserBehaviorProfileDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserBehaviorProfileClient) DeleteOneID(id uuid.UUID) *UserBehaviorProfileDeleteOne {
+	builder := c.Delete().Where(userbehaviorprofile.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserBehaviorProfileDeleteOne{builder}
+}
+
+// Query returns a query builder for UserBehaviorProfile.
+func (c *UserBehaviorProfileClient) Query() *UserBehaviorProfileQuery {
+	return &UserBehaviorProfileQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserBehaviorProfile},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserBehaviorProfile entity by its id.
+func (c *UserBehaviorProfileClient) Get(ctx context.Context, id uuid.UUID) (*UserBehaviorProfile, error) {
+	return c.Query().Where(userbehaviorprofile.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserBehaviorProfileClient) GetX(ctx context.Context, id uuid.UUID) *UserBehaviorProfile {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserBehaviorProfile.
+func (c *UserBehaviorProfileClient) QueryUser(_m *UserBehaviorProfile) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userbehaviorprofile.Table, userbehaviorprofile.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, userbehaviorprofile.UserTable, userbehaviorprofile.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserBehaviorProfileClient) Hooks() []Hook {
+	return c.hooks.UserBehaviorProfile
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserBehaviorProfileClient) Interceptors() []Interceptor {
+	return c.inters.UserBehaviorProfile
+}
+
+func (c *UserBehaviorProfileClient) mutate(ctx context.Context, m *UserBehaviorProfileMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserBehaviorProfileCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserBehaviorProfileUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserBehaviorProfileUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserBehaviorProfileDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserBehaviorProfile mutation op: %q", m.Op())
 	}
 }
 
@@ -1035,9 +1588,11 @@ func (c *UserPreferenceClient) mutate(ctx context.Context, m *UserPreferenceMuta
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		ChatSession, Message, SearchHistory, User, UserPreference []ent.Hook
+		ChatSession, ConversationAnalytics, Message, ProductInteraction, SearchHistory,
+		User, UserBehaviorProfile, UserPreference []ent.Hook
 	}
 	inters struct {
-		ChatSession, Message, SearchHistory, User, UserPreference []ent.Interceptor
+		ChatSession, ConversationAnalytics, Message, ProductInteraction, SearchHistory,
+		User, UserBehaviorProfile, UserPreference []ent.Interceptor
 	}
 )

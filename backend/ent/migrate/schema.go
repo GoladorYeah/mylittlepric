@@ -56,6 +56,81 @@ var (
 			},
 		},
 	}
+	// ConversationAnalyticsColumns holds the columns for the "conversation_analytics" table.
+	ConversationAnalyticsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "message_count", Type: field.TypeInt, Default: 0},
+		{Name: "user_message_count", Type: field.TypeInt, Default: 0},
+		{Name: "assistant_message_count", Type: field.TypeInt, Default: 0},
+		{Name: "search_count", Type: field.TypeInt, Default: 0},
+		{Name: "products_shown", Type: field.TypeInt, Default: 0},
+		{Name: "products_clicked", Type: field.TypeInt, Default: 0},
+		{Name: "session_duration", Type: field.TypeInt, Default: 0},
+		{Name: "key_topics", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "categories_explored", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "overall_sentiment", Type: field.TypeString, Default: "neutral"},
+		{Name: "sentiment_score", Type: field.TypeFloat64, Default: 0},
+		{Name: "primary_intent", Type: field.TypeString, Nullable: true},
+		{Name: "found_product", Type: field.TypeBool, Default: false},
+		{Name: "session_completed", Type: field.TypeBool, Default: false},
+		{Name: "user_satisfied", Type: field.TypeBool, Nullable: true},
+		{Name: "avg_response_time", Type: field.TypeInt, Default: 0},
+		{Name: "clarification_count", Type: field.TypeInt, Default: 0},
+		{Name: "search_refinement_count", Type: field.TypeInt, Default: 0},
+		{Name: "flow_quality_score", Type: field.TypeFloat64, Default: 0},
+		{Name: "extracted_preferences", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "price_mentions", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "brand_mentions", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "summary", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "session_started_at", Type: field.TypeTime},
+		{Name: "session_ended_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "session_id", Type: field.TypeUUID, Unique: true},
+		{Name: "user_id", Type: field.TypeUUID, Nullable: true},
+	}
+	// ConversationAnalyticsTable holds the schema information for the "conversation_analytics" table.
+	ConversationAnalyticsTable = &schema.Table{
+		Name:       "conversation_analytics",
+		Columns:    ConversationAnalyticsColumns,
+		PrimaryKey: []*schema.Column{ConversationAnalyticsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "conversation_analytics_chat_sessions_analytics",
+				Columns:    []*schema.Column{ConversationAnalyticsColumns[28]},
+				RefColumns: []*schema.Column{ChatSessionsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "conversation_analytics_users_conversation_analytics",
+				Columns:    []*schema.Column{ConversationAnalyticsColumns[29]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "conversationanalytics_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ConversationAnalyticsColumns[29], ConversationAnalyticsColumns[26]},
+			},
+			{
+				Name:    "conversationanalytics_session_id",
+				Unique:  true,
+				Columns: []*schema.Column{ConversationAnalyticsColumns[28]},
+			},
+			{
+				Name:    "conversationanalytics_user_id_found_product_user_satisfied",
+				Unique:  false,
+				Columns: []*schema.Column{ConversationAnalyticsColumns[29], ConversationAnalyticsColumns[13], ConversationAnalyticsColumns[15]},
+			},
+			{
+				Name:    "conversationanalytics_primary_intent_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ConversationAnalyticsColumns[12], ConversationAnalyticsColumns[26]},
+			},
+		},
+	}
 	// MessagesColumns holds the columns for the "messages" table.
 	MessagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -86,6 +161,76 @@ var (
 				Name:    "message_session_id_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{MessagesColumns[8], MessagesColumns[7]},
+			},
+		},
+	}
+	// ProductInteractionsColumns holds the columns for the "product_interactions" table.
+	ProductInteractionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "session_id", Type: field.TypeString},
+		{Name: "product_id", Type: field.TypeString},
+		{Name: "product_name", Type: field.TypeString},
+		{Name: "product_price", Type: field.TypeFloat64, Nullable: true},
+		{Name: "product_currency", Type: field.TypeString, Nullable: true},
+		{Name: "product_category", Type: field.TypeString, Nullable: true},
+		{Name: "product_brand", Type: field.TypeString, Nullable: true},
+		{Name: "product_url", Type: field.TypeString, Nullable: true},
+		{Name: "product_data", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "interaction_type", Type: field.TypeString},
+		{Name: "message_position", Type: field.TypeInt, Default: 0},
+		{Name: "view_duration_seconds", Type: field.TypeInt, Default: 0},
+		{Name: "click_count", Type: field.TypeInt, Default: 0},
+		{Name: "opened_details", Type: field.TypeBool, Default: false},
+		{Name: "added_to_comparison", Type: field.TypeBool, Default: false},
+		{Name: "feedback", Type: field.TypeString, Nullable: true},
+		{Name: "implicit_score", Type: field.TypeFloat64, Default: 0},
+		{Name: "search_query", Type: field.TypeString, Nullable: true},
+		{Name: "search_type", Type: field.TypeString, Nullable: true},
+		{Name: "position_in_results", Type: field.TypeInt, Default: 0},
+		{Name: "interaction_sequence", Type: field.TypeInt, Default: 0},
+		{Name: "interacted_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeUUID, Nullable: true},
+	}
+	// ProductInteractionsTable holds the schema information for the "product_interactions" table.
+	ProductInteractionsTable = &schema.Table{
+		Name:       "product_interactions",
+		Columns:    ProductInteractionsColumns,
+		PrimaryKey: []*schema.Column{ProductInteractionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "product_interactions_users_product_interactions",
+				Columns:    []*schema.Column{ProductInteractionsColumns[25]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "productinteraction_user_id_interacted_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProductInteractionsColumns[25], ProductInteractionsColumns[22]},
+			},
+			{
+				Name:    "productinteraction_session_id_interaction_sequence",
+				Unique:  false,
+				Columns: []*schema.Column{ProductInteractionsColumns[1], ProductInteractionsColumns[21]},
+			},
+			{
+				Name:    "productinteraction_product_id_interaction_type_interacted_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProductInteractionsColumns[2], ProductInteractionsColumns[10], ProductInteractionsColumns[22]},
+			},
+			{
+				Name:    "productinteraction_user_id_product_category_implicit_score",
+				Unique:  false,
+				Columns: []*schema.Column{ProductInteractionsColumns[25], ProductInteractionsColumns[6], ProductInteractionsColumns[17]},
+			},
+			{
+				Name:    "productinteraction_user_id_product_brand",
+				Unique:  false,
+				Columns: []*schema.Column{ProductInteractionsColumns[25], ProductInteractionsColumns[7]},
 			},
 		},
 	}
@@ -172,6 +317,53 @@ var (
 			},
 		},
 	}
+	// UserBehaviorProfilesColumns holds the columns for the "user_behavior_profiles" table.
+	UserBehaviorProfilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "category_preferences", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "price_ranges", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "brand_preferences", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "communication_style", Type: field.TypeString, Default: "balanced"},
+		{Name: "preferred_search_type", Type: field.TypeString, Nullable: true},
+		{Name: "avg_session_duration", Type: field.TypeFloat64, Default: 0},
+		{Name: "avg_messages_per_session", Type: field.TypeFloat64, Default: 0},
+		{Name: "success_rate", Type: field.TypeFloat64, Default: 0},
+		{Name: "common_keywords", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "time_patterns", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "total_sessions", Type: field.TypeInt, Default: 0},
+		{Name: "total_products_viewed", Type: field.TypeInt, Default: 0},
+		{Name: "total_products_clicked", Type: field.TypeInt, Default: 0},
+		{Name: "last_learning_update", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeUUID, Unique: true},
+	}
+	// UserBehaviorProfilesTable holds the schema information for the "user_behavior_profiles" table.
+	UserBehaviorProfilesTable = &schema.Table{
+		Name:       "user_behavior_profiles",
+		Columns:    UserBehaviorProfilesColumns,
+		PrimaryKey: []*schema.Column{UserBehaviorProfilesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_behavior_profiles_users_behavior_profile",
+				Columns:    []*schema.Column{UserBehaviorProfilesColumns[17]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "userbehaviorprofile_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{UserBehaviorProfilesColumns[17]},
+			},
+			{
+				Name:    "userbehaviorprofile_last_learning_update",
+				Unique:  false,
+				Columns: []*schema.Column{UserBehaviorProfilesColumns[14]},
+			},
+		},
+	}
 	// UserPreferencesColumns holds the columns for the "user_preferences" table.
 	UserPreferencesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -203,16 +395,23 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		ChatSessionsTable,
+		ConversationAnalyticsTable,
 		MessagesTable,
+		ProductInteractionsTable,
 		SearchHistoriesTable,
 		UsersTable,
+		UserBehaviorProfilesTable,
 		UserPreferencesTable,
 	}
 )
 
 func init() {
 	ChatSessionsTable.ForeignKeys[0].RefTable = UsersTable
+	ConversationAnalyticsTable.ForeignKeys[0].RefTable = ChatSessionsTable
+	ConversationAnalyticsTable.ForeignKeys[1].RefTable = UsersTable
 	MessagesTable.ForeignKeys[0].RefTable = ChatSessionsTable
+	ProductInteractionsTable.ForeignKeys[0].RefTable = UsersTable
 	SearchHistoriesTable.ForeignKeys[0].RefTable = UsersTable
+	UserBehaviorProfilesTable.ForeignKeys[0].RefTable = UsersTable
 	UserPreferencesTable.ForeignKeys[0].RefTable = UsersTable
 }

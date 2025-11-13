@@ -54,6 +54,10 @@ func (User) Edges() []ent.Edge {
 		edge.To("search_history", SearchHistory.Type),
 		edge.To("preferences", UserPreference.Type).
 			Unique(), // One-to-one relationship
+		edge.To("behavior_profile", UserBehaviorProfile.Type).
+			Unique(), // One-to-one relationship
+		edge.To("conversation_analytics", ConversationAnalytics.Type),
+		edge.To("product_interactions", ProductInteraction.Type),
 	}
 }
 

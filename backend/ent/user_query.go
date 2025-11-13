@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"math"
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/predicate"
+	"mylittleprice/ent/productinteraction"
 	"mylittleprice/ent/searchhistory"
 	"mylittleprice/ent/user"
+	"mylittleprice/ent/userbehaviorprofile"
 	"mylittleprice/ent/userpreference"
 
 	"entgo.io/ent"
@@ -23,13 +26,16 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx               *QueryContext
-	order             []user.OrderOption
-	inters            []Interceptor
-	predicates        []predicate.User
-	withSessions      *ChatSessionQuery
-	withSearchHistory *SearchHistoryQuery
-	withPreferences   *UserPreferenceQuery
+	ctx                       *QueryContext
+	order                     []user.OrderOption
+	inters                    []Interceptor
+	predicates                []predicate.User
+	withSessions              *ChatSessionQuery
+	withSearchHistory         *SearchHistoryQuery
+	withPreferences           *UserPreferenceQuery
+	withBehaviorProfile       *UserBehaviorProfileQuery
+	withConversationAnalytics *ConversationAnalyticsQuery
+	withProductInteractions   *ProductInteractionQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -125,6 +131,72 @@ func (_q *UserQuery) QueryPreferences() *UserPreferenceQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(userpreference.Table, userpreference.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, user.PreferencesTable, user.PreferencesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryBehaviorProfile chains the current query on the "behavior_profile" edge.
+func (_q *UserQuery) QueryBehaviorProfile() *UserBehaviorProfileQuery {
+	query := (&UserBehaviorProfileClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(userbehaviorprofile.Table, userbehaviorprofile.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.BehaviorProfileTable, user.BehaviorProfileColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryConversationAnalytics chains the current query on the "conversation_analytics" edge.
+func (_q *UserQuery) QueryConversationAnalytics() *ConversationAnalyticsQuery {
+	query := (&ConversationAnalyticsClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(conversationanalytics.Table, conversationanalytics.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ConversationAnalyticsTable, user.ConversationAnalyticsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProductInteractions chains the current query on the "product_interactions" edge.
+func (_q *UserQuery) QueryProductInteractions() *ProductInteractionQuery {
+	query := (&ProductInteractionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(productinteraction.Table, productinteraction.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ProductInteractionsTable, user.ProductInteractionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -319,14 +391,17 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:            _q.config,
-		ctx:               _q.ctx.Clone(),
-		order:             append([]user.OrderOption{}, _q.order...),
-		inters:            append([]Interceptor{}, _q.inters...),
-		predicates:        append([]predicate.User{}, _q.predicates...),
-		withSessions:      _q.withSessions.Clone(),
-		withSearchHistory: _q.withSearchHistory.Clone(),
-		withPreferences:   _q.withPreferences.Clone(),
+		config:                    _q.config,
+		ctx:                       _q.ctx.Clone(),
+		order:                     append([]user.OrderOption{}, _q.order...),
+		inters:                    append([]Interceptor{}, _q.inters...),
+		predicates:                append([]predicate.User{}, _q.predicates...),
+		withSessions:              _q.withSessions.Clone(),
+		withSearchHistory:         _q.withSearchHistory.Clone(),
+		withPreferences:           _q.withPreferences.Clone(),
+		withBehaviorProfile:       _q.withBehaviorProfile.Clone(),
+		withConversationAnalytics: _q.withConversationAnalytics.Clone(),
+		withProductInteractions:   _q.withProductInteractions.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -363,6 +438,39 @@ func (_q *UserQuery) WithPreferences(opts ...func(*UserPreferenceQuery)) *UserQu
 		opt(query)
 	}
 	_q.withPreferences = query
+	return _q
+}
+
+// WithBehaviorProfile tells the query-builder to eager-load the nodes that are connected to
+// the "behavior_profile" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithBehaviorProfile(opts ...func(*UserBehaviorProfileQuery)) *UserQuery {
+	query := (&UserBehaviorProfileClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBehaviorProfile = query
+	return _q
+}
+
+// WithConversationAnalytics tells the query-builder to eager-load the nodes that are connected to
+// the "conversation_analytics" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithConversationAnalytics(opts ...func(*ConversationAnalyticsQuery)) *UserQuery {
+	query := (&ConversationAnalyticsClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withConversationAnalytics = query
+	return _q
+}
+
+// WithProductInteractions tells the query-builder to eager-load the nodes that are connected to
+// the "product_interactions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithProductInteractions(opts ...func(*ProductInteractionQuery)) *UserQuery {
+	query := (&ProductInteractionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProductInteractions = query
 	return _q
 }
 
@@ -444,10 +552,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [6]bool{
 			_q.withSessions != nil,
 			_q.withSearchHistory != nil,
 			_q.withPreferences != nil,
+			_q.withBehaviorProfile != nil,
+			_q.withConversationAnalytics != nil,
+			_q.withProductInteractions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -485,6 +596,30 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	if query := _q.withPreferences; query != nil {
 		if err := _q.loadPreferences(ctx, query, nodes, nil,
 			func(n *User, e *UserPreference) { n.Edges.Preferences = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withBehaviorProfile; query != nil {
+		if err := _q.loadBehaviorProfile(ctx, query, nodes, nil,
+			func(n *User, e *UserBehaviorProfile) { n.Edges.BehaviorProfile = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withConversationAnalytics; query != nil {
+		if err := _q.loadConversationAnalytics(ctx, query, nodes,
+			func(n *User) { n.Edges.ConversationAnalytics = []*ConversationAnalytics{} },
+			func(n *User, e *ConversationAnalytics) {
+				n.Edges.ConversationAnalytics = append(n.Edges.ConversationAnalytics, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProductInteractions; query != nil {
+		if err := _q.loadProductInteractions(ctx, query, nodes,
+			func(n *User) { n.Edges.ProductInteractions = []*ProductInteraction{} },
+			func(n *User, e *ProductInteraction) {
+				n.Edges.ProductInteractions = append(n.Edges.ProductInteractions, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -563,6 +698,93 @@ func (_q *UserQuery) loadPreferences(ctx context.Context, query *UserPreferenceQ
 	}
 	query.Where(predicate.UserPreference(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.PreferencesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadBehaviorProfile(ctx context.Context, query *UserBehaviorProfileQuery, nodes []*User, init func(*User), assign func(*User, *UserBehaviorProfile)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(userbehaviorprofile.FieldUserID)
+	}
+	query.Where(predicate.UserBehaviorProfile(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.BehaviorProfileColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadConversationAnalytics(ctx context.Context, query *ConversationAnalyticsQuery, nodes []*User, init func(*User), assign func(*User, *ConversationAnalytics)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(conversationanalytics.FieldUserID)
+	}
+	query.Where(predicate.ConversationAnalytics(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ConversationAnalyticsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadProductInteractions(ctx context.Context, query *ProductInteractionQuery, nodes []*User, init func(*User), assign func(*User, *ProductInteraction)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(productinteraction.FieldUserID)
+	}
+	query.Where(predicate.ProductInteraction(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ProductInteractionsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

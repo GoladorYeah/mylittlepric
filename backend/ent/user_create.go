@@ -7,8 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
+	"mylittleprice/ent/productinteraction"
 	"mylittleprice/ent/searchhistory"
 	"mylittleprice/ent/user"
+	"mylittleprice/ent/userbehaviorprofile"
 	"mylittleprice/ent/userpreference"
 	"time"
 
@@ -205,6 +208,55 @@ func (_c *UserCreate) SetPreferences(v *UserPreference) *UserCreate {
 	return _c.SetPreferencesID(v.ID)
 }
 
+// SetBehaviorProfileID sets the "behavior_profile" edge to the UserBehaviorProfile entity by ID.
+func (_c *UserCreate) SetBehaviorProfileID(id uuid.UUID) *UserCreate {
+	_c.mutation.SetBehaviorProfileID(id)
+	return _c
+}
+
+// SetNillableBehaviorProfileID sets the "behavior_profile" edge to the UserBehaviorProfile entity by ID if the given value is not nil.
+func (_c *UserCreate) SetNillableBehaviorProfileID(id *uuid.UUID) *UserCreate {
+	if id != nil {
+		_c = _c.SetBehaviorProfileID(*id)
+	}
+	return _c
+}
+
+// SetBehaviorProfile sets the "behavior_profile" edge to the UserBehaviorProfile entity.
+func (_c *UserCreate) SetBehaviorProfile(v *UserBehaviorProfile) *UserCreate {
+	return _c.SetBehaviorProfileID(v.ID)
+}
+
+// AddConversationAnalyticIDs adds the "conversation_analytics" edge to the ConversationAnalytics entity by IDs.
+func (_c *UserCreate) AddConversationAnalyticIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddConversationAnalyticIDs(ids...)
+	return _c
+}
+
+// AddConversationAnalytics adds the "conversation_analytics" edges to the ConversationAnalytics entity.
+func (_c *UserCreate) AddConversationAnalytics(v ...*ConversationAnalytics) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddConversationAnalyticIDs(ids...)
+}
+
+// AddProductInteractionIDs adds the "product_interactions" edge to the ProductInteraction entity by IDs.
+func (_c *UserCreate) AddProductInteractionIDs(ids ...uuid.UUID) *UserCreate {
+	_c.mutation.AddProductInteractionIDs(ids...)
+	return _c
+}
+
+// AddProductInteractions adds the "product_interactions" edges to the ProductInteraction entity.
+func (_c *UserCreate) AddProductInteractions(v ...*ProductInteraction) *UserCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddProductInteractionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_c *UserCreate) Mutation() *UserMutation {
 	return _c.mutation
@@ -389,6 +441,54 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userpreference.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.BehaviorProfileIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BehaviorProfileTable,
+			Columns: []string{user.BehaviorProfileColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbehaviorprofile.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ConversationAnalyticsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ConversationAnalyticsTable,
+			Columns: []string{user.ConversationAnalyticsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(conversationanalytics.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ProductInteractionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductInteractionsTable,
+			Columns: []string{user.ProductInteractionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productinteraction.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

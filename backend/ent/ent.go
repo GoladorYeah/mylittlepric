@@ -7,9 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/message"
+	"mylittleprice/ent/productinteraction"
 	"mylittleprice/ent/searchhistory"
 	"mylittleprice/ent/user"
+	"mylittleprice/ent/userbehaviorprofile"
 	"mylittleprice/ent/userpreference"
 	"reflect"
 	"sync"
@@ -77,11 +80,14 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			chatsession.Table:    chatsession.ValidColumn,
-			message.Table:        message.ValidColumn,
-			searchhistory.Table:  searchhistory.ValidColumn,
-			user.Table:           user.ValidColumn,
-			userpreference.Table: userpreference.ValidColumn,
+			chatsession.Table:           chatsession.ValidColumn,
+			conversationanalytics.Table: conversationanalytics.ValidColumn,
+			message.Table:               message.ValidColumn,
+			productinteraction.Table:    productinteraction.ValidColumn,
+			searchhistory.Table:         searchhistory.ValidColumn,
+			user.Table:                  user.ValidColumn,
+			userbehaviorprofile.Table:   userbehaviorprofile.ValidColumn,
+			userpreference.Table:        userpreference.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

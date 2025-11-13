@@ -43,6 +43,8 @@ const (
 	EdgeUser = "user"
 	// EdgeMessages holds the string denoting the messages edge name in mutations.
 	EdgeMessages = "messages"
+	// EdgeAnalytics holds the string denoting the analytics edge name in mutations.
+	EdgeAnalytics = "analytics"
 	// Table holds the table name of the chatsession in the database.
 	Table = "chat_sessions"
 	// UserTable is the table that holds the user relation/edge.
@@ -59,6 +61,13 @@ const (
 	MessagesInverseTable = "messages"
 	// MessagesColumn is the table column denoting the messages relation/edge.
 	MessagesColumn = "session_id"
+	// AnalyticsTable is the table that holds the analytics relation/edge.
+	AnalyticsTable = "conversation_analytics"
+	// AnalyticsInverseTable is the table name for the ConversationAnalytics entity.
+	// It exists in this package in order to avoid circular dependency with the "conversationanalytics" package.
+	AnalyticsInverseTable = "conversation_analytics"
+	// AnalyticsColumn is the table column denoting the analytics relation/edge.
+	AnalyticsColumn = "session_id"
 )
 
 // Columns holds all SQL columns for chatsession fields.
@@ -188,6 +197,13 @@ func ByMessages(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newMessagesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByAnalyticsField orders the results by analytics field.
+func ByAnalyticsField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAnalyticsStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -200,5 +216,12 @@ func newMessagesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(MessagesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, MessagesTable, MessagesColumn),
+	)
+}
+func newAnalyticsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AnalyticsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, AnalyticsTable, AnalyticsColumn),
 	)
 }

@@ -9,14 +9,23 @@ import (
 // ChatSession is the predicate function for chatsession builders.
 type ChatSession func(*sql.Selector)
 
+// ConversationAnalytics is the predicate function for conversationanalytics builders.
+type ConversationAnalytics func(*sql.Selector)
+
 // Message is the predicate function for message builders.
 type Message func(*sql.Selector)
+
+// ProductInteraction is the predicate function for productinteraction builders.
+type ProductInteraction func(*sql.Selector)
 
 // SearchHistory is the predicate function for searchhistory builders.
 type SearchHistory func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
+
+// UserBehaviorProfile is the predicate function for userbehaviorprofile builders.
+type UserBehaviorProfile func(*sql.Selector)
 
 // UserPreference is the predicate function for userpreference builders.
 type UserPreference func(*sql.Selector)

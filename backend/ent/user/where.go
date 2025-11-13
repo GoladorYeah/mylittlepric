@@ -730,6 +730,75 @@ func HasPreferencesWith(preds ...predicate.UserPreference) predicate.User {
 	})
 }
 
+// HasBehaviorProfile applies the HasEdge predicate on the "behavior_profile" edge.
+func HasBehaviorProfile() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, BehaviorProfileTable, BehaviorProfileColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasBehaviorProfileWith applies the HasEdge predicate on the "behavior_profile" edge with a given conditions (other predicates).
+func HasBehaviorProfileWith(preds ...predicate.UserBehaviorProfile) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newBehaviorProfileStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasConversationAnalytics applies the HasEdge predicate on the "conversation_analytics" edge.
+func HasConversationAnalytics() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ConversationAnalyticsTable, ConversationAnalyticsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasConversationAnalyticsWith applies the HasEdge predicate on the "conversation_analytics" edge with a given conditions (other predicates).
+func HasConversationAnalyticsWith(preds ...predicate.ConversationAnalytics) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newConversationAnalyticsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasProductInteractions applies the HasEdge predicate on the "product_interactions" edge.
+func HasProductInteractions() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProductInteractionsTable, ProductInteractionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProductInteractionsWith applies the HasEdge predicate on the "product_interactions" edge with a given conditions (other predicates).
+func HasProductInteractionsWith(preds ...predicate.ProductInteraction) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newProductInteractionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.User) predicate.User {
 	return predicate.User(sql.AndPredicates(predicates...))

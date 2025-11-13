@@ -20,6 +20,18 @@ func (f ChatSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChatSessionMutation", m)
 }
 
+// The ConversationAnalyticsFunc type is an adapter to allow the use of ordinary
+// function as ConversationAnalytics mutator.
+type ConversationAnalyticsFunc func(context.Context, *ent.ConversationAnalyticsMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ConversationAnalyticsFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ConversationAnalyticsMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ConversationAnalyticsMutation", m)
+}
+
 // The MessageFunc type is an adapter to allow the use of ordinary
 // function as Message mutator.
 type MessageFunc func(context.Context, *ent.MessageMutation) (ent.Value, error)
@@ -30,6 +42,18 @@ func (f MessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MessageMutation", m)
+}
+
+// The ProductInteractionFunc type is an adapter to allow the use of ordinary
+// function as ProductInteraction mutator.
+type ProductInteractionFunc func(context.Context, *ent.ProductInteractionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProductInteractionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProductInteractionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProductInteractionMutation", m)
 }
 
 // The SearchHistoryFunc type is an adapter to allow the use of ordinary
@@ -54,6 +78,18 @@ func (f UserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMutation", m)
+}
+
+// The UserBehaviorProfileFunc type is an adapter to allow the use of ordinary
+// function as UserBehaviorProfile mutator.
+type UserBehaviorProfileFunc func(context.Context, *ent.UserBehaviorProfileMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserBehaviorProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserBehaviorProfileMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserBehaviorProfileMutation", m)
 }
 
 // The UserPreferenceFunc type is an adapter to allow the use of ordinary

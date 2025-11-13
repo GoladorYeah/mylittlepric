@@ -47,6 +47,12 @@ type Container struct {
 	PreferencesService      *services.PreferencesService
 	CleanupService          *services.CleanupService
 	SessionOwnershipChecker *middleware.SessionOwnershipValidator
+
+	// New tracking and analytics services
+	UserBehaviorService          *services.UserBehaviorService
+	ConversationAnalyticsService *services.ConversationAnalyticsService
+	ProductInteractionService    *services.ProductInteractionService
+	MessageAnalysisService       *services.MessageAnalysisService
 }
 
 func NewContainer(cfg *config.Config) (*Container, error) {
@@ -243,7 +249,20 @@ func (c *Container) initServices() error {
 	c.SessionOwnershipChecker = middleware.NewSessionOwnershipValidator(&services.SessionAdapter{SessionService: c.SessionService}, c.Config.JWTAccessSecret)
 	utils.LogInfo(c.ctx, "Session ownership validation initialized")
 
-	utils.LogInfo(c.ctx, "all services initialized")
+	// Initialize tracking and analytics services
+	c.MessageAnalysisService = services.NewMessageAnalysisService(c.EmbeddingService)
+	utils.LogInfo(c.ctx, "Message analysis service initialized")
+
+	c.UserBehaviorService = services.NewUserBehaviorService(c.Ent, c.Redis)
+	utils.LogInfo(c.ctx, "User behavior service initialized")
+
+	c.ConversationAnalyticsService = services.NewConversationAnalyticsService(c.Ent, c.EmbeddingService)
+	utils.LogInfo(c.ctx, "Conversation analytics service initialized")
+
+	c.ProductInteractionService = services.NewProductInteractionService(c.Ent)
+	utils.LogInfo(c.ctx, "Product interaction service initialized")
+
+	utils.LogInfo(c.ctx, "all services initialized (including tracking & analytics)")
 	return nil
 }
 

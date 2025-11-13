@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"mylittleprice/ent/chatsession"
+	"mylittleprice/ent/conversationanalytics"
 	"mylittleprice/ent/message"
 	"mylittleprice/ent/predicate"
+	"mylittleprice/ent/productinteraction"
 	"mylittleprice/ent/searchhistory"
 	"mylittleprice/ent/user"
+	"mylittleprice/ent/userbehaviorprofile"
 	"mylittleprice/ent/userpreference"
 	"sync"
 	"time"
@@ -29,11 +32,14 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeChatSession    = "ChatSession"
-	TypeMessage        = "Message"
-	TypeSearchHistory  = "SearchHistory"
-	TypeUser           = "User"
-	TypeUserPreference = "UserPreference"
+	TypeChatSession           = "ChatSession"
+	TypeConversationAnalytics = "ConversationAnalytics"
+	TypeMessage               = "Message"
+	TypeProductInteraction    = "ProductInteraction"
+	TypeSearchHistory         = "SearchHistory"
+	TypeUser                  = "User"
+	TypeUserBehaviorProfile   = "UserBehaviorProfile"
+	TypeUserPreference        = "UserPreference"
 )
 
 // ChatSessionMutation represents an operation that mutates the ChatSession nodes in the graph.
@@ -60,6 +66,8 @@ type ChatSessionMutation struct {
 	messages             map[uuid.UUID]struct{}
 	removedmessages      map[uuid.UUID]struct{}
 	clearedmessages      bool
+	analytics            *uuid.UUID
+	clearedanalytics     bool
 	done                 bool
 	oldValue             func(context.Context) (*ChatSession, error)
 	predicates           []predicate.ChatSession
@@ -728,6 +736,45 @@ func (m *ChatSessionMutation) ResetMessages() {
 	m.removedmessages = nil
 }
 
+// SetAnalyticsID sets the "analytics" edge to the ConversationAnalytics entity by id.
+func (m *ChatSessionMutation) SetAnalyticsID(id uuid.UUID) {
+	m.analytics = &id
+}
+
+// ClearAnalytics clears the "analytics" edge to the ConversationAnalytics entity.
+func (m *ChatSessionMutation) ClearAnalytics() {
+	m.clearedanalytics = true
+}
+
+// AnalyticsCleared reports if the "analytics" edge to the ConversationAnalytics entity was cleared.
+func (m *ChatSessionMutation) AnalyticsCleared() bool {
+	return m.clearedanalytics
+}
+
+// AnalyticsID returns the "analytics" edge ID in the mutation.
+func (m *ChatSessionMutation) AnalyticsID() (id uuid.UUID, exists bool) {
+	if m.analytics != nil {
+		return *m.analytics, true
+	}
+	return
+}
+
+// AnalyticsIDs returns the "analytics" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AnalyticsID instead. It exists only for internal usage by the builders.
+func (m *ChatSessionMutation) AnalyticsIDs() (ids []uuid.UUID) {
+	if id := m.analytics; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAnalytics resets all changes to the "analytics" edge.
+func (m *ChatSessionMutation) ResetAnalytics() {
+	m.analytics = nil
+	m.clearedanalytics = false
+}
+
 // Where appends a list predicates to the ChatSessionMutation builder.
 func (m *ChatSessionMutation) Where(ps ...predicate.ChatSession) {
 	m.predicates = append(m.predicates, ps...)
@@ -1078,12 +1125,15 @@ func (m *ChatSessionMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *ChatSessionMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.user != nil {
 		edges = append(edges, chatsession.EdgeUser)
 	}
 	if m.messages != nil {
 		edges = append(edges, chatsession.EdgeMessages)
+	}
+	if m.analytics != nil {
+		edges = append(edges, chatsession.EdgeAnalytics)
 	}
 	return edges
 }
@@ -1102,13 +1152,17 @@ func (m *ChatSessionMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case chatsession.EdgeAnalytics:
+		if id := m.analytics; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *ChatSessionMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedmessages != nil {
 		edges = append(edges, chatsession.EdgeMessages)
 	}
@@ -1131,12 +1185,15 @@ func (m *ChatSessionMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *ChatSessionMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.cleareduser {
 		edges = append(edges, chatsession.EdgeUser)
 	}
 	if m.clearedmessages {
 		edges = append(edges, chatsession.EdgeMessages)
+	}
+	if m.clearedanalytics {
+		edges = append(edges, chatsession.EdgeAnalytics)
 	}
 	return edges
 }
@@ -1149,6 +1206,8 @@ func (m *ChatSessionMutation) EdgeCleared(name string) bool {
 		return m.cleareduser
 	case chatsession.EdgeMessages:
 		return m.clearedmessages
+	case chatsession.EdgeAnalytics:
+		return m.clearedanalytics
 	}
 	return false
 }
@@ -1159,6 +1218,9 @@ func (m *ChatSessionMutation) ClearEdge(name string) error {
 	switch name {
 	case chatsession.EdgeUser:
 		m.ClearUser()
+		return nil
+	case chatsession.EdgeAnalytics:
+		m.ClearAnalytics()
 		return nil
 	}
 	return fmt.Errorf("unknown ChatSession unique edge %s", name)
@@ -1174,8 +1236,2516 @@ func (m *ChatSessionMutation) ResetEdge(name string) error {
 	case chatsession.EdgeMessages:
 		m.ResetMessages()
 		return nil
+	case chatsession.EdgeAnalytics:
+		m.ResetAnalytics()
+		return nil
 	}
 	return fmt.Errorf("unknown ChatSession edge %s", name)
+}
+
+// ConversationAnalyticsMutation represents an operation that mutates the ConversationAnalytics nodes in the graph.
+type ConversationAnalyticsMutation struct {
+	config
+	op                         Op
+	typ                        string
+	id                         *uuid.UUID
+	message_count              *int
+	addmessage_count           *int
+	user_message_count         *int
+	adduser_message_count      *int
+	assistant_message_count    *int
+	addassistant_message_count *int
+	search_count               *int
+	addsearch_count            *int
+	products_shown             *int
+	addproducts_shown          *int
+	products_clicked           *int
+	addproducts_clicked        *int
+	session_duration           *int
+	addsession_duration        *int
+	key_topics                 *[]string
+	appendkey_topics           []string
+	categories_explored        *[]string
+	appendcategories_explored  []string
+	overall_sentiment          *string
+	sentiment_score            *float64
+	addsentiment_score         *float64
+	primary_intent             *string
+	found_product              *bool
+	session_completed          *bool
+	user_satisfied             *bool
+	avg_response_time          *int
+	addavg_response_time       *int
+	clarification_count        *int
+	addclarification_count     *int
+	search_refinement_count    *int
+	addsearch_refinement_count *int
+	flow_quality_score         *float64
+	addflow_quality_score      *float64
+	extracted_preferences      *map[string]interface{}
+	price_mentions             *[]float64
+	appendprice_mentions       []float64
+	brand_mentions             *[]string
+	appendbrand_mentions       []string
+	summary                    *string
+	session_started_at         *time.Time
+	session_ended_at           *time.Time
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	clearedFields              map[string]struct{}
+	user                       *uuid.UUID
+	cleareduser                bool
+	session                    *uuid.UUID
+	clearedsession             bool
+	done                       bool
+	oldValue                   func(context.Context) (*ConversationAnalytics, error)
+	predicates                 []predicate.ConversationAnalytics
+}
+
+var _ ent.Mutation = (*ConversationAnalyticsMutation)(nil)
+
+// conversationanalyticsOption allows management of the mutation configuration using functional options.
+type conversationanalyticsOption func(*ConversationAnalyticsMutation)
+
+// newConversationAnalyticsMutation creates new mutation for the ConversationAnalytics entity.
+func newConversationAnalyticsMutation(c config, op Op, opts ...conversationanalyticsOption) *ConversationAnalyticsMutation {
+	m := &ConversationAnalyticsMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeConversationAnalytics,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withConversationAnalyticsID sets the ID field of the mutation.
+func withConversationAnalyticsID(id uuid.UUID) conversationanalyticsOption {
+	return func(m *ConversationAnalyticsMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ConversationAnalytics
+		)
+		m.oldValue = func(ctx context.Context) (*ConversationAnalytics, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ConversationAnalytics.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withConversationAnalytics sets the old ConversationAnalytics of the mutation.
+func withConversationAnalytics(node *ConversationAnalytics) conversationanalyticsOption {
+	return func(m *ConversationAnalyticsMutation) {
+		m.oldValue = func(context.Context) (*ConversationAnalytics, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ConversationAnalyticsMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ConversationAnalyticsMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ConversationAnalytics entities.
+func (m *ConversationAnalyticsMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ConversationAnalyticsMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ConversationAnalyticsMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ConversationAnalytics.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *ConversationAnalyticsMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *ConversationAnalyticsMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (m *ConversationAnalyticsMutation) ClearUserID() {
+	m.user = nil
+	m.clearedFields[conversationanalytics.FieldUserID] = struct{}{}
+}
+
+// UserIDCleared returns if the "user_id" field was cleared in this mutation.
+func (m *ConversationAnalyticsMutation) UserIDCleared() bool {
+	_, ok := m.clearedFields[conversationanalytics.FieldUserID]
+	return ok
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *ConversationAnalyticsMutation) ResetUserID() {
+	m.user = nil
+	delete(m.clearedFields, conversationanalytics.FieldUserID)
+}
+
+// SetSessionID sets the "session_id" field.
+func (m *ConversationAnalyticsMutation) SetSessionID(u uuid.UUID) {
+	m.session = &u
+}
+
+// SessionID returns the value of the "session_id" field in the mutation.
+func (m *ConversationAnalyticsMutation) SessionID() (r uuid.UUID, exists bool) {
+	v := m.session
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSessionID returns the old "session_id" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSessionID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSessionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSessionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSessionID: %w", err)
+	}
+	return oldValue.SessionID, nil
+}
+
+// ResetSessionID resets all changes to the "session_id" field.
+func (m *ConversationAnalyticsMutation) ResetSessionID() {
+	m.session = nil
+}
+
+// SetMessageCount sets the "message_count" field.
+func (m *ConversationAnalyticsMutation) SetMessageCount(i int) {
+	m.message_count = &i
+	m.addmessage_count = nil
+}
+
+// MessageCount returns the value of the "message_count" field in the mutation.
+func (m *ConversationAnalyticsMutation) MessageCount() (r int, exists bool) {
+	v := m.message_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMessageCount returns the old "message_count" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldMessageCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMessageCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMessageCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMessageCount: %w", err)
+	}
+	return oldValue.MessageCount, nil
+}
+
+// AddMessageCount adds i to the "message_count" field.
+func (m *ConversationAnalyticsMutation) AddMessageCount(i int) {
+	if m.addmessage_count != nil {
+		*m.addmessage_count += i
+	} else {
+		m.addmessage_count = &i
+	}
+}
+
+// AddedMessageCount returns the value that was added to the "message_count" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedMessageCount() (r int, exists bool) {
+	v := m.addmessage_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMessageCount resets all changes to the "message_count" field.
+func (m *ConversationAnalyticsMutation) ResetMessageCount() {
+	m.message_count = nil
+	m.addmessage_count = nil
+}
+
+// SetUserMessageCount sets the "user_message_count" field.
+func (m *ConversationAnalyticsMutation) SetUserMessageCount(i int) {
+	m.user_message_count = &i
+	m.adduser_message_count = nil
+}
+
+// UserMessageCount returns the value of the "user_message_count" field in the mutation.
+func (m *ConversationAnalyticsMutation) UserMessageCount() (r int, exists bool) {
+	v := m.user_message_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserMessageCount returns the old "user_message_count" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldUserMessageCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserMessageCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserMessageCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserMessageCount: %w", err)
+	}
+	return oldValue.UserMessageCount, nil
+}
+
+// AddUserMessageCount adds i to the "user_message_count" field.
+func (m *ConversationAnalyticsMutation) AddUserMessageCount(i int) {
+	if m.adduser_message_count != nil {
+		*m.adduser_message_count += i
+	} else {
+		m.adduser_message_count = &i
+	}
+}
+
+// AddedUserMessageCount returns the value that was added to the "user_message_count" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedUserMessageCount() (r int, exists bool) {
+	v := m.adduser_message_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserMessageCount resets all changes to the "user_message_count" field.
+func (m *ConversationAnalyticsMutation) ResetUserMessageCount() {
+	m.user_message_count = nil
+	m.adduser_message_count = nil
+}
+
+// SetAssistantMessageCount sets the "assistant_message_count" field.
+func (m *ConversationAnalyticsMutation) SetAssistantMessageCount(i int) {
+	m.assistant_message_count = &i
+	m.addassistant_message_count = nil
+}
+
+// AssistantMessageCount returns the value of the "assistant_message_count" field in the mutation.
+func (m *ConversationAnalyticsMutation) AssistantMessageCount() (r int, exists bool) {
+	v := m.assistant_message_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssistantMessageCount returns the old "assistant_message_count" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldAssistantMessageCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssistantMessageCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssistantMessageCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssistantMessageCount: %w", err)
+	}
+	return oldValue.AssistantMessageCount, nil
+}
+
+// AddAssistantMessageCount adds i to the "assistant_message_count" field.
+func (m *ConversationAnalyticsMutation) AddAssistantMessageCount(i int) {
+	if m.addassistant_message_count != nil {
+		*m.addassistant_message_count += i
+	} else {
+		m.addassistant_message_count = &i
+	}
+}
+
+// AddedAssistantMessageCount returns the value that was added to the "assistant_message_count" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedAssistantMessageCount() (r int, exists bool) {
+	v := m.addassistant_message_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAssistantMessageCount resets all changes to the "assistant_message_count" field.
+func (m *ConversationAnalyticsMutation) ResetAssistantMessageCount() {
+	m.assistant_message_count = nil
+	m.addassistant_message_count = nil
+}
+
+// SetSearchCount sets the "search_count" field.
+func (m *ConversationAnalyticsMutation) SetSearchCount(i int) {
+	m.search_count = &i
+	m.addsearch_count = nil
+}
+
+// SearchCount returns the value of the "search_count" field in the mutation.
+func (m *ConversationAnalyticsMutation) SearchCount() (r int, exists bool) {
+	v := m.search_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSearchCount returns the old "search_count" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSearchCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSearchCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSearchCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSearchCount: %w", err)
+	}
+	return oldValue.SearchCount, nil
+}
+
+// AddSearchCount adds i to the "search_count" field.
+func (m *ConversationAnalyticsMutation) AddSearchCount(i int) {
+	if m.addsearch_count != nil {
+		*m.addsearch_count += i
+	} else {
+		m.addsearch_count = &i
+	}
+}
+
+// AddedSearchCount returns the value that was added to the "search_count" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedSearchCount() (r int, exists bool) {
+	v := m.addsearch_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSearchCount resets all changes to the "search_count" field.
+func (m *ConversationAnalyticsMutation) ResetSearchCount() {
+	m.search_count = nil
+	m.addsearch_count = nil
+}
+
+// SetProductsShown sets the "products_shown" field.
+func (m *ConversationAnalyticsMutation) SetProductsShown(i int) {
+	m.products_shown = &i
+	m.addproducts_shown = nil
+}
+
+// ProductsShown returns the value of the "products_shown" field in the mutation.
+func (m *ConversationAnalyticsMutation) ProductsShown() (r int, exists bool) {
+	v := m.products_shown
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductsShown returns the old "products_shown" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldProductsShown(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductsShown is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductsShown requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductsShown: %w", err)
+	}
+	return oldValue.ProductsShown, nil
+}
+
+// AddProductsShown adds i to the "products_shown" field.
+func (m *ConversationAnalyticsMutation) AddProductsShown(i int) {
+	if m.addproducts_shown != nil {
+		*m.addproducts_shown += i
+	} else {
+		m.addproducts_shown = &i
+	}
+}
+
+// AddedProductsShown returns the value that was added to the "products_shown" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedProductsShown() (r int, exists bool) {
+	v := m.addproducts_shown
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProductsShown resets all changes to the "products_shown" field.
+func (m *ConversationAnalyticsMutation) ResetProductsShown() {
+	m.products_shown = nil
+	m.addproducts_shown = nil
+}
+
+// SetProductsClicked sets the "products_clicked" field.
+func (m *ConversationAnalyticsMutation) SetProductsClicked(i int) {
+	m.products_clicked = &i
+	m.addproducts_clicked = nil
+}
+
+// ProductsClicked returns the value of the "products_clicked" field in the mutation.
+func (m *ConversationAnalyticsMutation) ProductsClicked() (r int, exists bool) {
+	v := m.products_clicked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductsClicked returns the old "products_clicked" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldProductsClicked(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductsClicked is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductsClicked requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductsClicked: %w", err)
+	}
+	return oldValue.ProductsClicked, nil
+}
+
+// AddProductsClicked adds i to the "products_clicked" field.
+func (m *ConversationAnalyticsMutation) AddProductsClicked(i int) {
+	if m.addproducts_clicked != nil {
+		*m.addproducts_clicked += i
+	} else {
+		m.addproducts_clicked = &i
+	}
+}
+
+// AddedProductsClicked returns the value that was added to the "products_clicked" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedProductsClicked() (r int, exists bool) {
+	v := m.addproducts_clicked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProductsClicked resets all changes to the "products_clicked" field.
+func (m *ConversationAnalyticsMutation) ResetProductsClicked() {
+	m.products_clicked = nil
+	m.addproducts_clicked = nil
+}
+
+// SetSessionDuration sets the "session_duration" field.
+func (m *ConversationAnalyticsMutation) SetSessionDuration(i int) {
+	m.session_duration = &i
+	m.addsession_duration = nil
+}
+
+// SessionDuration returns the value of the "session_duration" field in the mutation.
+func (m *ConversationAnalyticsMutation) SessionDuration() (r int, exists bool) {
+	v := m.session_duration
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSessionDuration returns the old "session_duration" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSessionDuration(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSessionDuration is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSessionDuration requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSessionDuration: %w", err)
+	}
+	return oldValue.SessionDuration, nil
+}
+
+// AddSessionDuration adds i to the "session_duration" field.
+func (m *ConversationAnalyticsMutation) AddSessionDuration(i int) {
+	if m.addsession_duration != nil {
+		*m.addsession_duration += i
+	} else {
+		m.addsession_duration = &i
+	}
+}
+
+// AddedSessionDuration returns the value that was added to the "session_duration" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedSessionDuration() (r int, exists bool) {
+	v := m.addsession_duration
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSessionDuration resets all changes to the "session_duration" field.
+func (m *ConversationAnalyticsMutation) ResetSessionDuration() {
+	m.session_duration = nil
+	m.addsession_duration = nil
+}
+
+// SetKeyTopics sets the "key_topics" field.
+func (m *ConversationAnalyticsMutation) SetKeyTopics(s []string) {
+	m.key_topics = &s
+	m.appendkey_topics = nil
+}
+
+// KeyTopics returns the value of the "key_topics" field in the mutation.
+func (m *ConversationAnalyticsMutation) KeyTopics() (r []string, exists bool) {
+	v := m.key_topics
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyTopics returns the old "key_topics" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldKeyTopics(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyTopics is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyTopics requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyTopics: %w", err)
+	}
+	return oldValue.KeyTopics, nil
+}
+
+// AppendKeyTopics adds s to the "key_topics" field.
+func (m *ConversationAnalyticsMutation) AppendKeyTopics(s []string) {
+	m.appendkey_topics = append(m.appendkey_topics, s...)
+}
+
+// AppendedKeyTopics returns the list of values that were appended to the "key_topics" field in this mutation.
+func (m *ConversationAnalyticsMutation) AppendedKeyTopics() ([]string, bool) {
+	if len(m.appendkey_topics) == 0 {
+		return nil, false
+	}
+	return m.appendkey_topics, true
+}
+
+// ResetKeyTopics resets all changes to the "key_topics" field.
+func (m *ConversationAnalyticsMutation) ResetKeyTopics() {
+	m.key_topics = nil
+	m.appendkey_topics = nil
+}
+
+// SetCategoriesExplored sets the "categories_explored" field.
+func (m *ConversationAnalyticsMutation) SetCategoriesExplored(s []string) {
+	m.categories_explored = &s
+	m.appendcategories_explored = nil
+}
+
+// CategoriesExplored returns the value of the "categories_explored" field in the mutation.
+func (m *ConversationAnalyticsMutation) CategoriesExplored() (r []string, exists bool) {
+	v := m.categories_explored
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategoriesExplored returns the old "categories_explored" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldCategoriesExplored(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategoriesExplored is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategoriesExplored requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategoriesExplored: %w", err)
+	}
+	return oldValue.CategoriesExplored, nil
+}
+
+// AppendCategoriesExplored adds s to the "categories_explored" field.
+func (m *ConversationAnalyticsMutation) AppendCategoriesExplored(s []string) {
+	m.appendcategories_explored = append(m.appendcategories_explored, s...)
+}
+
+// AppendedCategoriesExplored returns the list of values that were appended to the "categories_explored" field in this mutation.
+func (m *ConversationAnalyticsMutation) AppendedCategoriesExplored() ([]string, bool) {
+	if len(m.appendcategories_explored) == 0 {
+		return nil, false
+	}
+	return m.appendcategories_explored, true
+}
+
+// ResetCategoriesExplored resets all changes to the "categories_explored" field.
+func (m *ConversationAnalyticsMutation) ResetCategoriesExplored() {
+	m.categories_explored = nil
+	m.appendcategories_explored = nil
+}
+
+// SetOverallSentiment sets the "overall_sentiment" field.
+func (m *ConversationAnalyticsMutation) SetOverallSentiment(s string) {
+	m.overall_sentiment = &s
+}
+
+// OverallSentiment returns the value of the "overall_sentiment" field in the mutation.
+func (m *ConversationAnalyticsMutation) OverallSentiment() (r string, exists bool) {
+	v := m.overall_sentiment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOverallSentiment returns the old "overall_sentiment" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldOverallSentiment(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOverallSentiment is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOverallSentiment requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOverallSentiment: %w", err)
+	}
+	return oldValue.OverallSentiment, nil
+}
+
+// ResetOverallSentiment resets all changes to the "overall_sentiment" field.
+func (m *ConversationAnalyticsMutation) ResetOverallSentiment() {
+	m.overall_sentiment = nil
+}
+
+// SetSentimentScore sets the "sentiment_score" field.
+func (m *ConversationAnalyticsMutation) SetSentimentScore(f float64) {
+	m.sentiment_score = &f
+	m.addsentiment_score = nil
+}
+
+// SentimentScore returns the value of the "sentiment_score" field in the mutation.
+func (m *ConversationAnalyticsMutation) SentimentScore() (r float64, exists bool) {
+	v := m.sentiment_score
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSentimentScore returns the old "sentiment_score" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSentimentScore(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSentimentScore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSentimentScore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSentimentScore: %w", err)
+	}
+	return oldValue.SentimentScore, nil
+}
+
+// AddSentimentScore adds f to the "sentiment_score" field.
+func (m *ConversationAnalyticsMutation) AddSentimentScore(f float64) {
+	if m.addsentiment_score != nil {
+		*m.addsentiment_score += f
+	} else {
+		m.addsentiment_score = &f
+	}
+}
+
+// AddedSentimentScore returns the value that was added to the "sentiment_score" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedSentimentScore() (r float64, exists bool) {
+	v := m.addsentiment_score
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSentimentScore resets all changes to the "sentiment_score" field.
+func (m *ConversationAnalyticsMutation) ResetSentimentScore() {
+	m.sentiment_score = nil
+	m.addsentiment_score = nil
+}
+
+// SetPrimaryIntent sets the "primary_intent" field.
+func (m *ConversationAnalyticsMutation) SetPrimaryIntent(s string) {
+	m.primary_intent = &s
+}
+
+// PrimaryIntent returns the value of the "primary_intent" field in the mutation.
+func (m *ConversationAnalyticsMutation) PrimaryIntent() (r string, exists bool) {
+	v := m.primary_intent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrimaryIntent returns the old "primary_intent" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldPrimaryIntent(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrimaryIntent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrimaryIntent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrimaryIntent: %w", err)
+	}
+	return oldValue.PrimaryIntent, nil
+}
+
+// ClearPrimaryIntent clears the value of the "primary_intent" field.
+func (m *ConversationAnalyticsMutation) ClearPrimaryIntent() {
+	m.primary_intent = nil
+	m.clearedFields[conversationanalytics.FieldPrimaryIntent] = struct{}{}
+}
+
+// PrimaryIntentCleared returns if the "primary_intent" field was cleared in this mutation.
+func (m *ConversationAnalyticsMutation) PrimaryIntentCleared() bool {
+	_, ok := m.clearedFields[conversationanalytics.FieldPrimaryIntent]
+	return ok
+}
+
+// ResetPrimaryIntent resets all changes to the "primary_intent" field.
+func (m *ConversationAnalyticsMutation) ResetPrimaryIntent() {
+	m.primary_intent = nil
+	delete(m.clearedFields, conversationanalytics.FieldPrimaryIntent)
+}
+
+// SetFoundProduct sets the "found_product" field.
+func (m *ConversationAnalyticsMutation) SetFoundProduct(b bool) {
+	m.found_product = &b
+}
+
+// FoundProduct returns the value of the "found_product" field in the mutation.
+func (m *ConversationAnalyticsMutation) FoundProduct() (r bool, exists bool) {
+	v := m.found_product
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFoundProduct returns the old "found_product" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldFoundProduct(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFoundProduct is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFoundProduct requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFoundProduct: %w", err)
+	}
+	return oldValue.FoundProduct, nil
+}
+
+// ResetFoundProduct resets all changes to the "found_product" field.
+func (m *ConversationAnalyticsMutation) ResetFoundProduct() {
+	m.found_product = nil
+}
+
+// SetSessionCompleted sets the "session_completed" field.
+func (m *ConversationAnalyticsMutation) SetSessionCompleted(b bool) {
+	m.session_completed = &b
+}
+
+// SessionCompleted returns the value of the "session_completed" field in the mutation.
+func (m *ConversationAnalyticsMutation) SessionCompleted() (r bool, exists bool) {
+	v := m.session_completed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSessionCompleted returns the old "session_completed" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSessionCompleted(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSessionCompleted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSessionCompleted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSessionCompleted: %w", err)
+	}
+	return oldValue.SessionCompleted, nil
+}
+
+// ResetSessionCompleted resets all changes to the "session_completed" field.
+func (m *ConversationAnalyticsMutation) ResetSessionCompleted() {
+	m.session_completed = nil
+}
+
+// SetUserSatisfied sets the "user_satisfied" field.
+func (m *ConversationAnalyticsMutation) SetUserSatisfied(b bool) {
+	m.user_satisfied = &b
+}
+
+// UserSatisfied returns the value of the "user_satisfied" field in the mutation.
+func (m *ConversationAnalyticsMutation) UserSatisfied() (r bool, exists bool) {
+	v := m.user_satisfied
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserSatisfied returns the old "user_satisfied" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldUserSatisfied(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserSatisfied is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserSatisfied requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserSatisfied: %w", err)
+	}
+	return oldValue.UserSatisfied, nil
+}
+
+// ClearUserSatisfied clears the value of the "user_satisfied" field.
+func (m *ConversationAnalyticsMutation) ClearUserSatisfied() {
+	m.user_satisfied = nil
+	m.clearedFields[conversationanalytics.FieldUserSatisfied] = struct{}{}
+}
+
+// UserSatisfiedCleared returns if the "user_satisfied" field was cleared in this mutation.
+func (m *ConversationAnalyticsMutation) UserSatisfiedCleared() bool {
+	_, ok := m.clearedFields[conversationanalytics.FieldUserSatisfied]
+	return ok
+}
+
+// ResetUserSatisfied resets all changes to the "user_satisfied" field.
+func (m *ConversationAnalyticsMutation) ResetUserSatisfied() {
+	m.user_satisfied = nil
+	delete(m.clearedFields, conversationanalytics.FieldUserSatisfied)
+}
+
+// SetAvgResponseTime sets the "avg_response_time" field.
+func (m *ConversationAnalyticsMutation) SetAvgResponseTime(i int) {
+	m.avg_response_time = &i
+	m.addavg_response_time = nil
+}
+
+// AvgResponseTime returns the value of the "avg_response_time" field in the mutation.
+func (m *ConversationAnalyticsMutation) AvgResponseTime() (r int, exists bool) {
+	v := m.avg_response_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvgResponseTime returns the old "avg_response_time" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldAvgResponseTime(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvgResponseTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvgResponseTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvgResponseTime: %w", err)
+	}
+	return oldValue.AvgResponseTime, nil
+}
+
+// AddAvgResponseTime adds i to the "avg_response_time" field.
+func (m *ConversationAnalyticsMutation) AddAvgResponseTime(i int) {
+	if m.addavg_response_time != nil {
+		*m.addavg_response_time += i
+	} else {
+		m.addavg_response_time = &i
+	}
+}
+
+// AddedAvgResponseTime returns the value that was added to the "avg_response_time" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedAvgResponseTime() (r int, exists bool) {
+	v := m.addavg_response_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAvgResponseTime resets all changes to the "avg_response_time" field.
+func (m *ConversationAnalyticsMutation) ResetAvgResponseTime() {
+	m.avg_response_time = nil
+	m.addavg_response_time = nil
+}
+
+// SetClarificationCount sets the "clarification_count" field.
+func (m *ConversationAnalyticsMutation) SetClarificationCount(i int) {
+	m.clarification_count = &i
+	m.addclarification_count = nil
+}
+
+// ClarificationCount returns the value of the "clarification_count" field in the mutation.
+func (m *ConversationAnalyticsMutation) ClarificationCount() (r int, exists bool) {
+	v := m.clarification_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClarificationCount returns the old "clarification_count" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldClarificationCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClarificationCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClarificationCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClarificationCount: %w", err)
+	}
+	return oldValue.ClarificationCount, nil
+}
+
+// AddClarificationCount adds i to the "clarification_count" field.
+func (m *ConversationAnalyticsMutation) AddClarificationCount(i int) {
+	if m.addclarification_count != nil {
+		*m.addclarification_count += i
+	} else {
+		m.addclarification_count = &i
+	}
+}
+
+// AddedClarificationCount returns the value that was added to the "clarification_count" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedClarificationCount() (r int, exists bool) {
+	v := m.addclarification_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetClarificationCount resets all changes to the "clarification_count" field.
+func (m *ConversationAnalyticsMutation) ResetClarificationCount() {
+	m.clarification_count = nil
+	m.addclarification_count = nil
+}
+
+// SetSearchRefinementCount sets the "search_refinement_count" field.
+func (m *ConversationAnalyticsMutation) SetSearchRefinementCount(i int) {
+	m.search_refinement_count = &i
+	m.addsearch_refinement_count = nil
+}
+
+// SearchRefinementCount returns the value of the "search_refinement_count" field in the mutation.
+func (m *ConversationAnalyticsMutation) SearchRefinementCount() (r int, exists bool) {
+	v := m.search_refinement_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSearchRefinementCount returns the old "search_refinement_count" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSearchRefinementCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSearchRefinementCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSearchRefinementCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSearchRefinementCount: %w", err)
+	}
+	return oldValue.SearchRefinementCount, nil
+}
+
+// AddSearchRefinementCount adds i to the "search_refinement_count" field.
+func (m *ConversationAnalyticsMutation) AddSearchRefinementCount(i int) {
+	if m.addsearch_refinement_count != nil {
+		*m.addsearch_refinement_count += i
+	} else {
+		m.addsearch_refinement_count = &i
+	}
+}
+
+// AddedSearchRefinementCount returns the value that was added to the "search_refinement_count" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedSearchRefinementCount() (r int, exists bool) {
+	v := m.addsearch_refinement_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSearchRefinementCount resets all changes to the "search_refinement_count" field.
+func (m *ConversationAnalyticsMutation) ResetSearchRefinementCount() {
+	m.search_refinement_count = nil
+	m.addsearch_refinement_count = nil
+}
+
+// SetFlowQualityScore sets the "flow_quality_score" field.
+func (m *ConversationAnalyticsMutation) SetFlowQualityScore(f float64) {
+	m.flow_quality_score = &f
+	m.addflow_quality_score = nil
+}
+
+// FlowQualityScore returns the value of the "flow_quality_score" field in the mutation.
+func (m *ConversationAnalyticsMutation) FlowQualityScore() (r float64, exists bool) {
+	v := m.flow_quality_score
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFlowQualityScore returns the old "flow_quality_score" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldFlowQualityScore(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFlowQualityScore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFlowQualityScore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFlowQualityScore: %w", err)
+	}
+	return oldValue.FlowQualityScore, nil
+}
+
+// AddFlowQualityScore adds f to the "flow_quality_score" field.
+func (m *ConversationAnalyticsMutation) AddFlowQualityScore(f float64) {
+	if m.addflow_quality_score != nil {
+		*m.addflow_quality_score += f
+	} else {
+		m.addflow_quality_score = &f
+	}
+}
+
+// AddedFlowQualityScore returns the value that was added to the "flow_quality_score" field in this mutation.
+func (m *ConversationAnalyticsMutation) AddedFlowQualityScore() (r float64, exists bool) {
+	v := m.addflow_quality_score
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFlowQualityScore resets all changes to the "flow_quality_score" field.
+func (m *ConversationAnalyticsMutation) ResetFlowQualityScore() {
+	m.flow_quality_score = nil
+	m.addflow_quality_score = nil
+}
+
+// SetExtractedPreferences sets the "extracted_preferences" field.
+func (m *ConversationAnalyticsMutation) SetExtractedPreferences(value map[string]interface{}) {
+	m.extracted_preferences = &value
+}
+
+// ExtractedPreferences returns the value of the "extracted_preferences" field in the mutation.
+func (m *ConversationAnalyticsMutation) ExtractedPreferences() (r map[string]interface{}, exists bool) {
+	v := m.extracted_preferences
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExtractedPreferences returns the old "extracted_preferences" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldExtractedPreferences(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExtractedPreferences is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExtractedPreferences requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExtractedPreferences: %w", err)
+	}
+	return oldValue.ExtractedPreferences, nil
+}
+
+// ResetExtractedPreferences resets all changes to the "extracted_preferences" field.
+func (m *ConversationAnalyticsMutation) ResetExtractedPreferences() {
+	m.extracted_preferences = nil
+}
+
+// SetPriceMentions sets the "price_mentions" field.
+func (m *ConversationAnalyticsMutation) SetPriceMentions(f []float64) {
+	m.price_mentions = &f
+	m.appendprice_mentions = nil
+}
+
+// PriceMentions returns the value of the "price_mentions" field in the mutation.
+func (m *ConversationAnalyticsMutation) PriceMentions() (r []float64, exists bool) {
+	v := m.price_mentions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceMentions returns the old "price_mentions" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldPriceMentions(ctx context.Context) (v []float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceMentions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceMentions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceMentions: %w", err)
+	}
+	return oldValue.PriceMentions, nil
+}
+
+// AppendPriceMentions adds f to the "price_mentions" field.
+func (m *ConversationAnalyticsMutation) AppendPriceMentions(f []float64) {
+	m.appendprice_mentions = append(m.appendprice_mentions, f...)
+}
+
+// AppendedPriceMentions returns the list of values that were appended to the "price_mentions" field in this mutation.
+func (m *ConversationAnalyticsMutation) AppendedPriceMentions() ([]float64, bool) {
+	if len(m.appendprice_mentions) == 0 {
+		return nil, false
+	}
+	return m.appendprice_mentions, true
+}
+
+// ResetPriceMentions resets all changes to the "price_mentions" field.
+func (m *ConversationAnalyticsMutation) ResetPriceMentions() {
+	m.price_mentions = nil
+	m.appendprice_mentions = nil
+}
+
+// SetBrandMentions sets the "brand_mentions" field.
+func (m *ConversationAnalyticsMutation) SetBrandMentions(s []string) {
+	m.brand_mentions = &s
+	m.appendbrand_mentions = nil
+}
+
+// BrandMentions returns the value of the "brand_mentions" field in the mutation.
+func (m *ConversationAnalyticsMutation) BrandMentions() (r []string, exists bool) {
+	v := m.brand_mentions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBrandMentions returns the old "brand_mentions" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldBrandMentions(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBrandMentions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBrandMentions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBrandMentions: %w", err)
+	}
+	return oldValue.BrandMentions, nil
+}
+
+// AppendBrandMentions adds s to the "brand_mentions" field.
+func (m *ConversationAnalyticsMutation) AppendBrandMentions(s []string) {
+	m.appendbrand_mentions = append(m.appendbrand_mentions, s...)
+}
+
+// AppendedBrandMentions returns the list of values that were appended to the "brand_mentions" field in this mutation.
+func (m *ConversationAnalyticsMutation) AppendedBrandMentions() ([]string, bool) {
+	if len(m.appendbrand_mentions) == 0 {
+		return nil, false
+	}
+	return m.appendbrand_mentions, true
+}
+
+// ResetBrandMentions resets all changes to the "brand_mentions" field.
+func (m *ConversationAnalyticsMutation) ResetBrandMentions() {
+	m.brand_mentions = nil
+	m.appendbrand_mentions = nil
+}
+
+// SetSummary sets the "summary" field.
+func (m *ConversationAnalyticsMutation) SetSummary(s string) {
+	m.summary = &s
+}
+
+// Summary returns the value of the "summary" field in the mutation.
+func (m *ConversationAnalyticsMutation) Summary() (r string, exists bool) {
+	v := m.summary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSummary returns the old "summary" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSummary(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSummary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSummary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSummary: %w", err)
+	}
+	return oldValue.Summary, nil
+}
+
+// ClearSummary clears the value of the "summary" field.
+func (m *ConversationAnalyticsMutation) ClearSummary() {
+	m.summary = nil
+	m.clearedFields[conversationanalytics.FieldSummary] = struct{}{}
+}
+
+// SummaryCleared returns if the "summary" field was cleared in this mutation.
+func (m *ConversationAnalyticsMutation) SummaryCleared() bool {
+	_, ok := m.clearedFields[conversationanalytics.FieldSummary]
+	return ok
+}
+
+// ResetSummary resets all changes to the "summary" field.
+func (m *ConversationAnalyticsMutation) ResetSummary() {
+	m.summary = nil
+	delete(m.clearedFields, conversationanalytics.FieldSummary)
+}
+
+// SetSessionStartedAt sets the "session_started_at" field.
+func (m *ConversationAnalyticsMutation) SetSessionStartedAt(t time.Time) {
+	m.session_started_at = &t
+}
+
+// SessionStartedAt returns the value of the "session_started_at" field in the mutation.
+func (m *ConversationAnalyticsMutation) SessionStartedAt() (r time.Time, exists bool) {
+	v := m.session_started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSessionStartedAt returns the old "session_started_at" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSessionStartedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSessionStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSessionStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSessionStartedAt: %w", err)
+	}
+	return oldValue.SessionStartedAt, nil
+}
+
+// ResetSessionStartedAt resets all changes to the "session_started_at" field.
+func (m *ConversationAnalyticsMutation) ResetSessionStartedAt() {
+	m.session_started_at = nil
+}
+
+// SetSessionEndedAt sets the "session_ended_at" field.
+func (m *ConversationAnalyticsMutation) SetSessionEndedAt(t time.Time) {
+	m.session_ended_at = &t
+}
+
+// SessionEndedAt returns the value of the "session_ended_at" field in the mutation.
+func (m *ConversationAnalyticsMutation) SessionEndedAt() (r time.Time, exists bool) {
+	v := m.session_ended_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSessionEndedAt returns the old "session_ended_at" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldSessionEndedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSessionEndedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSessionEndedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSessionEndedAt: %w", err)
+	}
+	return oldValue.SessionEndedAt, nil
+}
+
+// ClearSessionEndedAt clears the value of the "session_ended_at" field.
+func (m *ConversationAnalyticsMutation) ClearSessionEndedAt() {
+	m.session_ended_at = nil
+	m.clearedFields[conversationanalytics.FieldSessionEndedAt] = struct{}{}
+}
+
+// SessionEndedAtCleared returns if the "session_ended_at" field was cleared in this mutation.
+func (m *ConversationAnalyticsMutation) SessionEndedAtCleared() bool {
+	_, ok := m.clearedFields[conversationanalytics.FieldSessionEndedAt]
+	return ok
+}
+
+// ResetSessionEndedAt resets all changes to the "session_ended_at" field.
+func (m *ConversationAnalyticsMutation) ResetSessionEndedAt() {
+	m.session_ended_at = nil
+	delete(m.clearedFields, conversationanalytics.FieldSessionEndedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ConversationAnalyticsMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ConversationAnalyticsMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ConversationAnalyticsMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ConversationAnalyticsMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ConversationAnalyticsMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ConversationAnalytics entity.
+// If the ConversationAnalytics object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ConversationAnalyticsMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ConversationAnalyticsMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *ConversationAnalyticsMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[conversationanalytics.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *ConversationAnalyticsMutation) UserCleared() bool {
+	return m.UserIDCleared() || m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *ConversationAnalyticsMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *ConversationAnalyticsMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// ClearSession clears the "session" edge to the ChatSession entity.
+func (m *ConversationAnalyticsMutation) ClearSession() {
+	m.clearedsession = true
+	m.clearedFields[conversationanalytics.FieldSessionID] = struct{}{}
+}
+
+// SessionCleared reports if the "session" edge to the ChatSession entity was cleared.
+func (m *ConversationAnalyticsMutation) SessionCleared() bool {
+	return m.clearedsession
+}
+
+// SessionIDs returns the "session" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SessionID instead. It exists only for internal usage by the builders.
+func (m *ConversationAnalyticsMutation) SessionIDs() (ids []uuid.UUID) {
+	if id := m.session; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSession resets all changes to the "session" edge.
+func (m *ConversationAnalyticsMutation) ResetSession() {
+	m.session = nil
+	m.clearedsession = false
+}
+
+// Where appends a list predicates to the ConversationAnalyticsMutation builder.
+func (m *ConversationAnalyticsMutation) Where(ps ...predicate.ConversationAnalytics) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ConversationAnalyticsMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ConversationAnalyticsMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ConversationAnalytics, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ConversationAnalyticsMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ConversationAnalyticsMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ConversationAnalytics).
+func (m *ConversationAnalyticsMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ConversationAnalyticsMutation) Fields() []string {
+	fields := make([]string, 0, 29)
+	if m.user != nil {
+		fields = append(fields, conversationanalytics.FieldUserID)
+	}
+	if m.session != nil {
+		fields = append(fields, conversationanalytics.FieldSessionID)
+	}
+	if m.message_count != nil {
+		fields = append(fields, conversationanalytics.FieldMessageCount)
+	}
+	if m.user_message_count != nil {
+		fields = append(fields, conversationanalytics.FieldUserMessageCount)
+	}
+	if m.assistant_message_count != nil {
+		fields = append(fields, conversationanalytics.FieldAssistantMessageCount)
+	}
+	if m.search_count != nil {
+		fields = append(fields, conversationanalytics.FieldSearchCount)
+	}
+	if m.products_shown != nil {
+		fields = append(fields, conversationanalytics.FieldProductsShown)
+	}
+	if m.products_clicked != nil {
+		fields = append(fields, conversationanalytics.FieldProductsClicked)
+	}
+	if m.session_duration != nil {
+		fields = append(fields, conversationanalytics.FieldSessionDuration)
+	}
+	if m.key_topics != nil {
+		fields = append(fields, conversationanalytics.FieldKeyTopics)
+	}
+	if m.categories_explored != nil {
+		fields = append(fields, conversationanalytics.FieldCategoriesExplored)
+	}
+	if m.overall_sentiment != nil {
+		fields = append(fields, conversationanalytics.FieldOverallSentiment)
+	}
+	if m.sentiment_score != nil {
+		fields = append(fields, conversationanalytics.FieldSentimentScore)
+	}
+	if m.primary_intent != nil {
+		fields = append(fields, conversationanalytics.FieldPrimaryIntent)
+	}
+	if m.found_product != nil {
+		fields = append(fields, conversationanalytics.FieldFoundProduct)
+	}
+	if m.session_completed != nil {
+		fields = append(fields, conversationanalytics.FieldSessionCompleted)
+	}
+	if m.user_satisfied != nil {
+		fields = append(fields, conversationanalytics.FieldUserSatisfied)
+	}
+	if m.avg_response_time != nil {
+		fields = append(fields, conversationanalytics.FieldAvgResponseTime)
+	}
+	if m.clarification_count != nil {
+		fields = append(fields, conversationanalytics.FieldClarificationCount)
+	}
+	if m.search_refinement_count != nil {
+		fields = append(fields, conversationanalytics.FieldSearchRefinementCount)
+	}
+	if m.flow_quality_score != nil {
+		fields = append(fields, conversationanalytics.FieldFlowQualityScore)
+	}
+	if m.extracted_preferences != nil {
+		fields = append(fields, conversationanalytics.FieldExtractedPreferences)
+	}
+	if m.price_mentions != nil {
+		fields = append(fields, conversationanalytics.FieldPriceMentions)
+	}
+	if m.brand_mentions != nil {
+		fields = append(fields, conversationanalytics.FieldBrandMentions)
+	}
+	if m.summary != nil {
+		fields = append(fields, conversationanalytics.FieldSummary)
+	}
+	if m.session_started_at != nil {
+		fields = append(fields, conversationanalytics.FieldSessionStartedAt)
+	}
+	if m.session_ended_at != nil {
+		fields = append(fields, conversationanalytics.FieldSessionEndedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, conversationanalytics.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, conversationanalytics.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ConversationAnalyticsMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case conversationanalytics.FieldUserID:
+		return m.UserID()
+	case conversationanalytics.FieldSessionID:
+		return m.SessionID()
+	case conversationanalytics.FieldMessageCount:
+		return m.MessageCount()
+	case conversationanalytics.FieldUserMessageCount:
+		return m.UserMessageCount()
+	case conversationanalytics.FieldAssistantMessageCount:
+		return m.AssistantMessageCount()
+	case conversationanalytics.FieldSearchCount:
+		return m.SearchCount()
+	case conversationanalytics.FieldProductsShown:
+		return m.ProductsShown()
+	case conversationanalytics.FieldProductsClicked:
+		return m.ProductsClicked()
+	case conversationanalytics.FieldSessionDuration:
+		return m.SessionDuration()
+	case conversationanalytics.FieldKeyTopics:
+		return m.KeyTopics()
+	case conversationanalytics.FieldCategoriesExplored:
+		return m.CategoriesExplored()
+	case conversationanalytics.FieldOverallSentiment:
+		return m.OverallSentiment()
+	case conversationanalytics.FieldSentimentScore:
+		return m.SentimentScore()
+	case conversationanalytics.FieldPrimaryIntent:
+		return m.PrimaryIntent()
+	case conversationanalytics.FieldFoundProduct:
+		return m.FoundProduct()
+	case conversationanalytics.FieldSessionCompleted:
+		return m.SessionCompleted()
+	case conversationanalytics.FieldUserSatisfied:
+		return m.UserSatisfied()
+	case conversationanalytics.FieldAvgResponseTime:
+		return m.AvgResponseTime()
+	case conversationanalytics.FieldClarificationCount:
+		return m.ClarificationCount()
+	case conversationanalytics.FieldSearchRefinementCount:
+		return m.SearchRefinementCount()
+	case conversationanalytics.FieldFlowQualityScore:
+		return m.FlowQualityScore()
+	case conversationanalytics.FieldExtractedPreferences:
+		return m.ExtractedPreferences()
+	case conversationanalytics.FieldPriceMentions:
+		return m.PriceMentions()
+	case conversationanalytics.FieldBrandMentions:
+		return m.BrandMentions()
+	case conversationanalytics.FieldSummary:
+		return m.Summary()
+	case conversationanalytics.FieldSessionStartedAt:
+		return m.SessionStartedAt()
+	case conversationanalytics.FieldSessionEndedAt:
+		return m.SessionEndedAt()
+	case conversationanalytics.FieldCreatedAt:
+		return m.CreatedAt()
+	case conversationanalytics.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ConversationAnalyticsMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case conversationanalytics.FieldUserID:
+		return m.OldUserID(ctx)
+	case conversationanalytics.FieldSessionID:
+		return m.OldSessionID(ctx)
+	case conversationanalytics.FieldMessageCount:
+		return m.OldMessageCount(ctx)
+	case conversationanalytics.FieldUserMessageCount:
+		return m.OldUserMessageCount(ctx)
+	case conversationanalytics.FieldAssistantMessageCount:
+		return m.OldAssistantMessageCount(ctx)
+	case conversationanalytics.FieldSearchCount:
+		return m.OldSearchCount(ctx)
+	case conversationanalytics.FieldProductsShown:
+		return m.OldProductsShown(ctx)
+	case conversationanalytics.FieldProductsClicked:
+		return m.OldProductsClicked(ctx)
+	case conversationanalytics.FieldSessionDuration:
+		return m.OldSessionDuration(ctx)
+	case conversationanalytics.FieldKeyTopics:
+		return m.OldKeyTopics(ctx)
+	case conversationanalytics.FieldCategoriesExplored:
+		return m.OldCategoriesExplored(ctx)
+	case conversationanalytics.FieldOverallSentiment:
+		return m.OldOverallSentiment(ctx)
+	case conversationanalytics.FieldSentimentScore:
+		return m.OldSentimentScore(ctx)
+	case conversationanalytics.FieldPrimaryIntent:
+		return m.OldPrimaryIntent(ctx)
+	case conversationanalytics.FieldFoundProduct:
+		return m.OldFoundProduct(ctx)
+	case conversationanalytics.FieldSessionCompleted:
+		return m.OldSessionCompleted(ctx)
+	case conversationanalytics.FieldUserSatisfied:
+		return m.OldUserSatisfied(ctx)
+	case conversationanalytics.FieldAvgResponseTime:
+		return m.OldAvgResponseTime(ctx)
+	case conversationanalytics.FieldClarificationCount:
+		return m.OldClarificationCount(ctx)
+	case conversationanalytics.FieldSearchRefinementCount:
+		return m.OldSearchRefinementCount(ctx)
+	case conversationanalytics.FieldFlowQualityScore:
+		return m.OldFlowQualityScore(ctx)
+	case conversationanalytics.FieldExtractedPreferences:
+		return m.OldExtractedPreferences(ctx)
+	case conversationanalytics.FieldPriceMentions:
+		return m.OldPriceMentions(ctx)
+	case conversationanalytics.FieldBrandMentions:
+		return m.OldBrandMentions(ctx)
+	case conversationanalytics.FieldSummary:
+		return m.OldSummary(ctx)
+	case conversationanalytics.FieldSessionStartedAt:
+		return m.OldSessionStartedAt(ctx)
+	case conversationanalytics.FieldSessionEndedAt:
+		return m.OldSessionEndedAt(ctx)
+	case conversationanalytics.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case conversationanalytics.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ConversationAnalytics field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ConversationAnalyticsMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case conversationanalytics.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case conversationanalytics.FieldSessionID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSessionID(v)
+		return nil
+	case conversationanalytics.FieldMessageCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMessageCount(v)
+		return nil
+	case conversationanalytics.FieldUserMessageCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserMessageCount(v)
+		return nil
+	case conversationanalytics.FieldAssistantMessageCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssistantMessageCount(v)
+		return nil
+	case conversationanalytics.FieldSearchCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSearchCount(v)
+		return nil
+	case conversationanalytics.FieldProductsShown:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductsShown(v)
+		return nil
+	case conversationanalytics.FieldProductsClicked:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductsClicked(v)
+		return nil
+	case conversationanalytics.FieldSessionDuration:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSessionDuration(v)
+		return nil
+	case conversationanalytics.FieldKeyTopics:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyTopics(v)
+		return nil
+	case conversationanalytics.FieldCategoriesExplored:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategoriesExplored(v)
+		return nil
+	case conversationanalytics.FieldOverallSentiment:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOverallSentiment(v)
+		return nil
+	case conversationanalytics.FieldSentimentScore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSentimentScore(v)
+		return nil
+	case conversationanalytics.FieldPrimaryIntent:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrimaryIntent(v)
+		return nil
+	case conversationanalytics.FieldFoundProduct:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFoundProduct(v)
+		return nil
+	case conversationanalytics.FieldSessionCompleted:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSessionCompleted(v)
+		return nil
+	case conversationanalytics.FieldUserSatisfied:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserSatisfied(v)
+		return nil
+	case conversationanalytics.FieldAvgResponseTime:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvgResponseTime(v)
+		return nil
+	case conversationanalytics.FieldClarificationCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClarificationCount(v)
+		return nil
+	case conversationanalytics.FieldSearchRefinementCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSearchRefinementCount(v)
+		return nil
+	case conversationanalytics.FieldFlowQualityScore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFlowQualityScore(v)
+		return nil
+	case conversationanalytics.FieldExtractedPreferences:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExtractedPreferences(v)
+		return nil
+	case conversationanalytics.FieldPriceMentions:
+		v, ok := value.([]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceMentions(v)
+		return nil
+	case conversationanalytics.FieldBrandMentions:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBrandMentions(v)
+		return nil
+	case conversationanalytics.FieldSummary:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSummary(v)
+		return nil
+	case conversationanalytics.FieldSessionStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSessionStartedAt(v)
+		return nil
+	case conversationanalytics.FieldSessionEndedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSessionEndedAt(v)
+		return nil
+	case conversationanalytics.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case conversationanalytics.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ConversationAnalytics field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ConversationAnalyticsMutation) AddedFields() []string {
+	var fields []string
+	if m.addmessage_count != nil {
+		fields = append(fields, conversationanalytics.FieldMessageCount)
+	}
+	if m.adduser_message_count != nil {
+		fields = append(fields, conversationanalytics.FieldUserMessageCount)
+	}
+	if m.addassistant_message_count != nil {
+		fields = append(fields, conversationanalytics.FieldAssistantMessageCount)
+	}
+	if m.addsearch_count != nil {
+		fields = append(fields, conversationanalytics.FieldSearchCount)
+	}
+	if m.addproducts_shown != nil {
+		fields = append(fields, conversationanalytics.FieldProductsShown)
+	}
+	if m.addproducts_clicked != nil {
+		fields = append(fields, conversationanalytics.FieldProductsClicked)
+	}
+	if m.addsession_duration != nil {
+		fields = append(fields, conversationanalytics.FieldSessionDuration)
+	}
+	if m.addsentiment_score != nil {
+		fields = append(fields, conversationanalytics.FieldSentimentScore)
+	}
+	if m.addavg_response_time != nil {
+		fields = append(fields, conversationanalytics.FieldAvgResponseTime)
+	}
+	if m.addclarification_count != nil {
+		fields = append(fields, conversationanalytics.FieldClarificationCount)
+	}
+	if m.addsearch_refinement_count != nil {
+		fields = append(fields, conversationanalytics.FieldSearchRefinementCount)
+	}
+	if m.addflow_quality_score != nil {
+		fields = append(fields, conversationanalytics.FieldFlowQualityScore)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ConversationAnalyticsMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case conversationanalytics.FieldMessageCount:
+		return m.AddedMessageCount()
+	case conversationanalytics.FieldUserMessageCount:
+		return m.AddedUserMessageCount()
+	case conversationanalytics.FieldAssistantMessageCount:
+		return m.AddedAssistantMessageCount()
+	case conversationanalytics.FieldSearchCount:
+		return m.AddedSearchCount()
+	case conversationanalytics.FieldProductsShown:
+		return m.AddedProductsShown()
+	case conversationanalytics.FieldProductsClicked:
+		return m.AddedProductsClicked()
+	case conversationanalytics.FieldSessionDuration:
+		return m.AddedSessionDuration()
+	case conversationanalytics.FieldSentimentScore:
+		return m.AddedSentimentScore()
+	case conversationanalytics.FieldAvgResponseTime:
+		return m.AddedAvgResponseTime()
+	case conversationanalytics.FieldClarificationCount:
+		return m.AddedClarificationCount()
+	case conversationanalytics.FieldSearchRefinementCount:
+		return m.AddedSearchRefinementCount()
+	case conversationanalytics.FieldFlowQualityScore:
+		return m.AddedFlowQualityScore()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ConversationAnalyticsMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case conversationanalytics.FieldMessageCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMessageCount(v)
+		return nil
+	case conversationanalytics.FieldUserMessageCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserMessageCount(v)
+		return nil
+	case conversationanalytics.FieldAssistantMessageCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAssistantMessageCount(v)
+		return nil
+	case conversationanalytics.FieldSearchCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSearchCount(v)
+		return nil
+	case conversationanalytics.FieldProductsShown:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProductsShown(v)
+		return nil
+	case conversationanalytics.FieldProductsClicked:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProductsClicked(v)
+		return nil
+	case conversationanalytics.FieldSessionDuration:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSessionDuration(v)
+		return nil
+	case conversationanalytics.FieldSentimentScore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSentimentScore(v)
+		return nil
+	case conversationanalytics.FieldAvgResponseTime:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAvgResponseTime(v)
+		return nil
+	case conversationanalytics.FieldClarificationCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddClarificationCount(v)
+		return nil
+	case conversationanalytics.FieldSearchRefinementCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSearchRefinementCount(v)
+		return nil
+	case conversationanalytics.FieldFlowQualityScore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFlowQualityScore(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ConversationAnalytics numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ConversationAnalyticsMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(conversationanalytics.FieldUserID) {
+		fields = append(fields, conversationanalytics.FieldUserID)
+	}
+	if m.FieldCleared(conversationanalytics.FieldPrimaryIntent) {
+		fields = append(fields, conversationanalytics.FieldPrimaryIntent)
+	}
+	if m.FieldCleared(conversationanalytics.FieldUserSatisfied) {
+		fields = append(fields, conversationanalytics.FieldUserSatisfied)
+	}
+	if m.FieldCleared(conversationanalytics.FieldSummary) {
+		fields = append(fields, conversationanalytics.FieldSummary)
+	}
+	if m.FieldCleared(conversationanalytics.FieldSessionEndedAt) {
+		fields = append(fields, conversationanalytics.FieldSessionEndedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ConversationAnalyticsMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ConversationAnalyticsMutation) ClearField(name string) error {
+	switch name {
+	case conversationanalytics.FieldUserID:
+		m.ClearUserID()
+		return nil
+	case conversationanalytics.FieldPrimaryIntent:
+		m.ClearPrimaryIntent()
+		return nil
+	case conversationanalytics.FieldUserSatisfied:
+		m.ClearUserSatisfied()
+		return nil
+	case conversationanalytics.FieldSummary:
+		m.ClearSummary()
+		return nil
+	case conversationanalytics.FieldSessionEndedAt:
+		m.ClearSessionEndedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ConversationAnalytics nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ConversationAnalyticsMutation) ResetField(name string) error {
+	switch name {
+	case conversationanalytics.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case conversationanalytics.FieldSessionID:
+		m.ResetSessionID()
+		return nil
+	case conversationanalytics.FieldMessageCount:
+		m.ResetMessageCount()
+		return nil
+	case conversationanalytics.FieldUserMessageCount:
+		m.ResetUserMessageCount()
+		return nil
+	case conversationanalytics.FieldAssistantMessageCount:
+		m.ResetAssistantMessageCount()
+		return nil
+	case conversationanalytics.FieldSearchCount:
+		m.ResetSearchCount()
+		return nil
+	case conversationanalytics.FieldProductsShown:
+		m.ResetProductsShown()
+		return nil
+	case conversationanalytics.FieldProductsClicked:
+		m.ResetProductsClicked()
+		return nil
+	case conversationanalytics.FieldSessionDuration:
+		m.ResetSessionDuration()
+		return nil
+	case conversationanalytics.FieldKeyTopics:
+		m.ResetKeyTopics()
+		return nil
+	case conversationanalytics.FieldCategoriesExplored:
+		m.ResetCategoriesExplored()
+		return nil
+	case conversationanalytics.FieldOverallSentiment:
+		m.ResetOverallSentiment()
+		return nil
+	case conversationanalytics.FieldSentimentScore:
+		m.ResetSentimentScore()
+		return nil
+	case conversationanalytics.FieldPrimaryIntent:
+		m.ResetPrimaryIntent()
+		return nil
+	case conversationanalytics.FieldFoundProduct:
+		m.ResetFoundProduct()
+		return nil
+	case conversationanalytics.FieldSessionCompleted:
+		m.ResetSessionCompleted()
+		return nil
+	case conversationanalytics.FieldUserSatisfied:
+		m.ResetUserSatisfied()
+		return nil
+	case conversationanalytics.FieldAvgResponseTime:
+		m.ResetAvgResponseTime()
+		return nil
+	case conversationanalytics.FieldClarificationCount:
+		m.ResetClarificationCount()
+		return nil
+	case conversationanalytics.FieldSearchRefinementCount:
+		m.ResetSearchRefinementCount()
+		return nil
+	case conversationanalytics.FieldFlowQualityScore:
+		m.ResetFlowQualityScore()
+		return nil
+	case conversationanalytics.FieldExtractedPreferences:
+		m.ResetExtractedPreferences()
+		return nil
+	case conversationanalytics.FieldPriceMentions:
+		m.ResetPriceMentions()
+		return nil
+	case conversationanalytics.FieldBrandMentions:
+		m.ResetBrandMentions()
+		return nil
+	case conversationanalytics.FieldSummary:
+		m.ResetSummary()
+		return nil
+	case conversationanalytics.FieldSessionStartedAt:
+		m.ResetSessionStartedAt()
+		return nil
+	case conversationanalytics.FieldSessionEndedAt:
+		m.ResetSessionEndedAt()
+		return nil
+	case conversationanalytics.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case conversationanalytics.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ConversationAnalytics field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ConversationAnalyticsMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.user != nil {
+		edges = append(edges, conversationanalytics.EdgeUser)
+	}
+	if m.session != nil {
+		edges = append(edges, conversationanalytics.EdgeSession)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ConversationAnalyticsMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case conversationanalytics.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case conversationanalytics.EdgeSession:
+		if id := m.session; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ConversationAnalyticsMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ConversationAnalyticsMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ConversationAnalyticsMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareduser {
+		edges = append(edges, conversationanalytics.EdgeUser)
+	}
+	if m.clearedsession {
+		edges = append(edges, conversationanalytics.EdgeSession)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ConversationAnalyticsMutation) EdgeCleared(name string) bool {
+	switch name {
+	case conversationanalytics.EdgeUser:
+		return m.cleareduser
+	case conversationanalytics.EdgeSession:
+		return m.clearedsession
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ConversationAnalyticsMutation) ClearEdge(name string) error {
+	switch name {
+	case conversationanalytics.EdgeUser:
+		m.ClearUser()
+		return nil
+	case conversationanalytics.EdgeSession:
+		m.ClearSession()
+		return nil
+	}
+	return fmt.Errorf("unknown ConversationAnalytics unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ConversationAnalyticsMutation) ResetEdge(name string) error {
+	switch name {
+	case conversationanalytics.EdgeUser:
+		m.ResetUser()
+		return nil
+	case conversationanalytics.EdgeSession:
+		m.ResetSession()
+		return nil
+	}
+	return fmt.Errorf("unknown ConversationAnalytics edge %s", name)
 }
 
 // MessageMutation represents an operation that mutates the Message nodes in the graph.
@@ -2053,6 +4623,2116 @@ func (m *MessageMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Message edge %s", name)
+}
+
+// ProductInteractionMutation represents an operation that mutates the ProductInteraction nodes in the graph.
+type ProductInteractionMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *uuid.UUID
+	session_id               *string
+	product_id               *string
+	product_name             *string
+	product_price            *float64
+	addproduct_price         *float64
+	product_currency         *string
+	product_category         *string
+	product_brand            *string
+	product_url              *string
+	product_data             *map[string]interface{}
+	interaction_type         *string
+	message_position         *int
+	addmessage_position      *int
+	view_duration_seconds    *int
+	addview_duration_seconds *int
+	click_count              *int
+	addclick_count           *int
+	opened_details           *bool
+	added_to_comparison      *bool
+	feedback                 *string
+	implicit_score           *float64
+	addimplicit_score        *float64
+	search_query             *string
+	search_type              *string
+	position_in_results      *int
+	addposition_in_results   *int
+	interaction_sequence     *int
+	addinteraction_sequence  *int
+	interacted_at            *time.Time
+	created_at               *time.Time
+	updated_at               *time.Time
+	clearedFields            map[string]struct{}
+	user                     *uuid.UUID
+	cleareduser              bool
+	done                     bool
+	oldValue                 func(context.Context) (*ProductInteraction, error)
+	predicates               []predicate.ProductInteraction
+}
+
+var _ ent.Mutation = (*ProductInteractionMutation)(nil)
+
+// productinteractionOption allows management of the mutation configuration using functional options.
+type productinteractionOption func(*ProductInteractionMutation)
+
+// newProductInteractionMutation creates new mutation for the ProductInteraction entity.
+func newProductInteractionMutation(c config, op Op, opts ...productinteractionOption) *ProductInteractionMutation {
+	m := &ProductInteractionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeProductInteraction,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withProductInteractionID sets the ID field of the mutation.
+func withProductInteractionID(id uuid.UUID) productinteractionOption {
+	return func(m *ProductInteractionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ProductInteraction
+		)
+		m.oldValue = func(ctx context.Context) (*ProductInteraction, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ProductInteraction.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withProductInteraction sets the old ProductInteraction of the mutation.
+func withProductInteraction(node *ProductInteraction) productinteractionOption {
+	return func(m *ProductInteractionMutation) {
+		m.oldValue = func(context.Context) (*ProductInteraction, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ProductInteractionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ProductInteractionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of ProductInteraction entities.
+func (m *ProductInteractionMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ProductInteractionMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ProductInteractionMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ProductInteraction.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *ProductInteractionMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *ProductInteractionMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (m *ProductInteractionMutation) ClearUserID() {
+	m.user = nil
+	m.clearedFields[productinteraction.FieldUserID] = struct{}{}
+}
+
+// UserIDCleared returns if the "user_id" field was cleared in this mutation.
+func (m *ProductInteractionMutation) UserIDCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldUserID]
+	return ok
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *ProductInteractionMutation) ResetUserID() {
+	m.user = nil
+	delete(m.clearedFields, productinteraction.FieldUserID)
+}
+
+// SetSessionID sets the "session_id" field.
+func (m *ProductInteractionMutation) SetSessionID(s string) {
+	m.session_id = &s
+}
+
+// SessionID returns the value of the "session_id" field in the mutation.
+func (m *ProductInteractionMutation) SessionID() (r string, exists bool) {
+	v := m.session_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSessionID returns the old "session_id" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldSessionID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSessionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSessionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSessionID: %w", err)
+	}
+	return oldValue.SessionID, nil
+}
+
+// ResetSessionID resets all changes to the "session_id" field.
+func (m *ProductInteractionMutation) ResetSessionID() {
+	m.session_id = nil
+}
+
+// SetProductID sets the "product_id" field.
+func (m *ProductInteractionMutation) SetProductID(s string) {
+	m.product_id = &s
+}
+
+// ProductID returns the value of the "product_id" field in the mutation.
+func (m *ProductInteractionMutation) ProductID() (r string, exists bool) {
+	v := m.product_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductID returns the old "product_id" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldProductID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductID: %w", err)
+	}
+	return oldValue.ProductID, nil
+}
+
+// ResetProductID resets all changes to the "product_id" field.
+func (m *ProductInteractionMutation) ResetProductID() {
+	m.product_id = nil
+}
+
+// SetProductName sets the "product_name" field.
+func (m *ProductInteractionMutation) SetProductName(s string) {
+	m.product_name = &s
+}
+
+// ProductName returns the value of the "product_name" field in the mutation.
+func (m *ProductInteractionMutation) ProductName() (r string, exists bool) {
+	v := m.product_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductName returns the old "product_name" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldProductName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductName: %w", err)
+	}
+	return oldValue.ProductName, nil
+}
+
+// ResetProductName resets all changes to the "product_name" field.
+func (m *ProductInteractionMutation) ResetProductName() {
+	m.product_name = nil
+}
+
+// SetProductPrice sets the "product_price" field.
+func (m *ProductInteractionMutation) SetProductPrice(f float64) {
+	m.product_price = &f
+	m.addproduct_price = nil
+}
+
+// ProductPrice returns the value of the "product_price" field in the mutation.
+func (m *ProductInteractionMutation) ProductPrice() (r float64, exists bool) {
+	v := m.product_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductPrice returns the old "product_price" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldProductPrice(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductPrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductPrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductPrice: %w", err)
+	}
+	return oldValue.ProductPrice, nil
+}
+
+// AddProductPrice adds f to the "product_price" field.
+func (m *ProductInteractionMutation) AddProductPrice(f float64) {
+	if m.addproduct_price != nil {
+		*m.addproduct_price += f
+	} else {
+		m.addproduct_price = &f
+	}
+}
+
+// AddedProductPrice returns the value that was added to the "product_price" field in this mutation.
+func (m *ProductInteractionMutation) AddedProductPrice() (r float64, exists bool) {
+	v := m.addproduct_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearProductPrice clears the value of the "product_price" field.
+func (m *ProductInteractionMutation) ClearProductPrice() {
+	m.product_price = nil
+	m.addproduct_price = nil
+	m.clearedFields[productinteraction.FieldProductPrice] = struct{}{}
+}
+
+// ProductPriceCleared returns if the "product_price" field was cleared in this mutation.
+func (m *ProductInteractionMutation) ProductPriceCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldProductPrice]
+	return ok
+}
+
+// ResetProductPrice resets all changes to the "product_price" field.
+func (m *ProductInteractionMutation) ResetProductPrice() {
+	m.product_price = nil
+	m.addproduct_price = nil
+	delete(m.clearedFields, productinteraction.FieldProductPrice)
+}
+
+// SetProductCurrency sets the "product_currency" field.
+func (m *ProductInteractionMutation) SetProductCurrency(s string) {
+	m.product_currency = &s
+}
+
+// ProductCurrency returns the value of the "product_currency" field in the mutation.
+func (m *ProductInteractionMutation) ProductCurrency() (r string, exists bool) {
+	v := m.product_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductCurrency returns the old "product_currency" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldProductCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductCurrency: %w", err)
+	}
+	return oldValue.ProductCurrency, nil
+}
+
+// ClearProductCurrency clears the value of the "product_currency" field.
+func (m *ProductInteractionMutation) ClearProductCurrency() {
+	m.product_currency = nil
+	m.clearedFields[productinteraction.FieldProductCurrency] = struct{}{}
+}
+
+// ProductCurrencyCleared returns if the "product_currency" field was cleared in this mutation.
+func (m *ProductInteractionMutation) ProductCurrencyCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldProductCurrency]
+	return ok
+}
+
+// ResetProductCurrency resets all changes to the "product_currency" field.
+func (m *ProductInteractionMutation) ResetProductCurrency() {
+	m.product_currency = nil
+	delete(m.clearedFields, productinteraction.FieldProductCurrency)
+}
+
+// SetProductCategory sets the "product_category" field.
+func (m *ProductInteractionMutation) SetProductCategory(s string) {
+	m.product_category = &s
+}
+
+// ProductCategory returns the value of the "product_category" field in the mutation.
+func (m *ProductInteractionMutation) ProductCategory() (r string, exists bool) {
+	v := m.product_category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductCategory returns the old "product_category" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldProductCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductCategory: %w", err)
+	}
+	return oldValue.ProductCategory, nil
+}
+
+// ClearProductCategory clears the value of the "product_category" field.
+func (m *ProductInteractionMutation) ClearProductCategory() {
+	m.product_category = nil
+	m.clearedFields[productinteraction.FieldProductCategory] = struct{}{}
+}
+
+// ProductCategoryCleared returns if the "product_category" field was cleared in this mutation.
+func (m *ProductInteractionMutation) ProductCategoryCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldProductCategory]
+	return ok
+}
+
+// ResetProductCategory resets all changes to the "product_category" field.
+func (m *ProductInteractionMutation) ResetProductCategory() {
+	m.product_category = nil
+	delete(m.clearedFields, productinteraction.FieldProductCategory)
+}
+
+// SetProductBrand sets the "product_brand" field.
+func (m *ProductInteractionMutation) SetProductBrand(s string) {
+	m.product_brand = &s
+}
+
+// ProductBrand returns the value of the "product_brand" field in the mutation.
+func (m *ProductInteractionMutation) ProductBrand() (r string, exists bool) {
+	v := m.product_brand
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductBrand returns the old "product_brand" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldProductBrand(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductBrand is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductBrand requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductBrand: %w", err)
+	}
+	return oldValue.ProductBrand, nil
+}
+
+// ClearProductBrand clears the value of the "product_brand" field.
+func (m *ProductInteractionMutation) ClearProductBrand() {
+	m.product_brand = nil
+	m.clearedFields[productinteraction.FieldProductBrand] = struct{}{}
+}
+
+// ProductBrandCleared returns if the "product_brand" field was cleared in this mutation.
+func (m *ProductInteractionMutation) ProductBrandCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldProductBrand]
+	return ok
+}
+
+// ResetProductBrand resets all changes to the "product_brand" field.
+func (m *ProductInteractionMutation) ResetProductBrand() {
+	m.product_brand = nil
+	delete(m.clearedFields, productinteraction.FieldProductBrand)
+}
+
+// SetProductURL sets the "product_url" field.
+func (m *ProductInteractionMutation) SetProductURL(s string) {
+	m.product_url = &s
+}
+
+// ProductURL returns the value of the "product_url" field in the mutation.
+func (m *ProductInteractionMutation) ProductURL() (r string, exists bool) {
+	v := m.product_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductURL returns the old "product_url" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldProductURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductURL: %w", err)
+	}
+	return oldValue.ProductURL, nil
+}
+
+// ClearProductURL clears the value of the "product_url" field.
+func (m *ProductInteractionMutation) ClearProductURL() {
+	m.product_url = nil
+	m.clearedFields[productinteraction.FieldProductURL] = struct{}{}
+}
+
+// ProductURLCleared returns if the "product_url" field was cleared in this mutation.
+func (m *ProductInteractionMutation) ProductURLCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldProductURL]
+	return ok
+}
+
+// ResetProductURL resets all changes to the "product_url" field.
+func (m *ProductInteractionMutation) ResetProductURL() {
+	m.product_url = nil
+	delete(m.clearedFields, productinteraction.FieldProductURL)
+}
+
+// SetProductData sets the "product_data" field.
+func (m *ProductInteractionMutation) SetProductData(value map[string]interface{}) {
+	m.product_data = &value
+}
+
+// ProductData returns the value of the "product_data" field in the mutation.
+func (m *ProductInteractionMutation) ProductData() (r map[string]interface{}, exists bool) {
+	v := m.product_data
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductData returns the old "product_data" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldProductData(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductData is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductData requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductData: %w", err)
+	}
+	return oldValue.ProductData, nil
+}
+
+// ClearProductData clears the value of the "product_data" field.
+func (m *ProductInteractionMutation) ClearProductData() {
+	m.product_data = nil
+	m.clearedFields[productinteraction.FieldProductData] = struct{}{}
+}
+
+// ProductDataCleared returns if the "product_data" field was cleared in this mutation.
+func (m *ProductInteractionMutation) ProductDataCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldProductData]
+	return ok
+}
+
+// ResetProductData resets all changes to the "product_data" field.
+func (m *ProductInteractionMutation) ResetProductData() {
+	m.product_data = nil
+	delete(m.clearedFields, productinteraction.FieldProductData)
+}
+
+// SetInteractionType sets the "interaction_type" field.
+func (m *ProductInteractionMutation) SetInteractionType(s string) {
+	m.interaction_type = &s
+}
+
+// InteractionType returns the value of the "interaction_type" field in the mutation.
+func (m *ProductInteractionMutation) InteractionType() (r string, exists bool) {
+	v := m.interaction_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInteractionType returns the old "interaction_type" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldInteractionType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInteractionType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInteractionType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInteractionType: %w", err)
+	}
+	return oldValue.InteractionType, nil
+}
+
+// ResetInteractionType resets all changes to the "interaction_type" field.
+func (m *ProductInteractionMutation) ResetInteractionType() {
+	m.interaction_type = nil
+}
+
+// SetMessagePosition sets the "message_position" field.
+func (m *ProductInteractionMutation) SetMessagePosition(i int) {
+	m.message_position = &i
+	m.addmessage_position = nil
+}
+
+// MessagePosition returns the value of the "message_position" field in the mutation.
+func (m *ProductInteractionMutation) MessagePosition() (r int, exists bool) {
+	v := m.message_position
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMessagePosition returns the old "message_position" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldMessagePosition(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMessagePosition is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMessagePosition requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMessagePosition: %w", err)
+	}
+	return oldValue.MessagePosition, nil
+}
+
+// AddMessagePosition adds i to the "message_position" field.
+func (m *ProductInteractionMutation) AddMessagePosition(i int) {
+	if m.addmessage_position != nil {
+		*m.addmessage_position += i
+	} else {
+		m.addmessage_position = &i
+	}
+}
+
+// AddedMessagePosition returns the value that was added to the "message_position" field in this mutation.
+func (m *ProductInteractionMutation) AddedMessagePosition() (r int, exists bool) {
+	v := m.addmessage_position
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMessagePosition resets all changes to the "message_position" field.
+func (m *ProductInteractionMutation) ResetMessagePosition() {
+	m.message_position = nil
+	m.addmessage_position = nil
+}
+
+// SetViewDurationSeconds sets the "view_duration_seconds" field.
+func (m *ProductInteractionMutation) SetViewDurationSeconds(i int) {
+	m.view_duration_seconds = &i
+	m.addview_duration_seconds = nil
+}
+
+// ViewDurationSeconds returns the value of the "view_duration_seconds" field in the mutation.
+func (m *ProductInteractionMutation) ViewDurationSeconds() (r int, exists bool) {
+	v := m.view_duration_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldViewDurationSeconds returns the old "view_duration_seconds" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldViewDurationSeconds(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldViewDurationSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldViewDurationSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldViewDurationSeconds: %w", err)
+	}
+	return oldValue.ViewDurationSeconds, nil
+}
+
+// AddViewDurationSeconds adds i to the "view_duration_seconds" field.
+func (m *ProductInteractionMutation) AddViewDurationSeconds(i int) {
+	if m.addview_duration_seconds != nil {
+		*m.addview_duration_seconds += i
+	} else {
+		m.addview_duration_seconds = &i
+	}
+}
+
+// AddedViewDurationSeconds returns the value that was added to the "view_duration_seconds" field in this mutation.
+func (m *ProductInteractionMutation) AddedViewDurationSeconds() (r int, exists bool) {
+	v := m.addview_duration_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetViewDurationSeconds resets all changes to the "view_duration_seconds" field.
+func (m *ProductInteractionMutation) ResetViewDurationSeconds() {
+	m.view_duration_seconds = nil
+	m.addview_duration_seconds = nil
+}
+
+// SetClickCount sets the "click_count" field.
+func (m *ProductInteractionMutation) SetClickCount(i int) {
+	m.click_count = &i
+	m.addclick_count = nil
+}
+
+// ClickCount returns the value of the "click_count" field in the mutation.
+func (m *ProductInteractionMutation) ClickCount() (r int, exists bool) {
+	v := m.click_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClickCount returns the old "click_count" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldClickCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClickCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClickCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClickCount: %w", err)
+	}
+	return oldValue.ClickCount, nil
+}
+
+// AddClickCount adds i to the "click_count" field.
+func (m *ProductInteractionMutation) AddClickCount(i int) {
+	if m.addclick_count != nil {
+		*m.addclick_count += i
+	} else {
+		m.addclick_count = &i
+	}
+}
+
+// AddedClickCount returns the value that was added to the "click_count" field in this mutation.
+func (m *ProductInteractionMutation) AddedClickCount() (r int, exists bool) {
+	v := m.addclick_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetClickCount resets all changes to the "click_count" field.
+func (m *ProductInteractionMutation) ResetClickCount() {
+	m.click_count = nil
+	m.addclick_count = nil
+}
+
+// SetOpenedDetails sets the "opened_details" field.
+func (m *ProductInteractionMutation) SetOpenedDetails(b bool) {
+	m.opened_details = &b
+}
+
+// OpenedDetails returns the value of the "opened_details" field in the mutation.
+func (m *ProductInteractionMutation) OpenedDetails() (r bool, exists bool) {
+	v := m.opened_details
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOpenedDetails returns the old "opened_details" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldOpenedDetails(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOpenedDetails is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOpenedDetails requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOpenedDetails: %w", err)
+	}
+	return oldValue.OpenedDetails, nil
+}
+
+// ResetOpenedDetails resets all changes to the "opened_details" field.
+func (m *ProductInteractionMutation) ResetOpenedDetails() {
+	m.opened_details = nil
+}
+
+// SetAddedToComparison sets the "added_to_comparison" field.
+func (m *ProductInteractionMutation) SetAddedToComparison(b bool) {
+	m.added_to_comparison = &b
+}
+
+// AddedToComparison returns the value of the "added_to_comparison" field in the mutation.
+func (m *ProductInteractionMutation) AddedToComparison() (r bool, exists bool) {
+	v := m.added_to_comparison
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAddedToComparison returns the old "added_to_comparison" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldAddedToComparison(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAddedToComparison is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAddedToComparison requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAddedToComparison: %w", err)
+	}
+	return oldValue.AddedToComparison, nil
+}
+
+// ResetAddedToComparison resets all changes to the "added_to_comparison" field.
+func (m *ProductInteractionMutation) ResetAddedToComparison() {
+	m.added_to_comparison = nil
+}
+
+// SetFeedback sets the "feedback" field.
+func (m *ProductInteractionMutation) SetFeedback(s string) {
+	m.feedback = &s
+}
+
+// Feedback returns the value of the "feedback" field in the mutation.
+func (m *ProductInteractionMutation) Feedback() (r string, exists bool) {
+	v := m.feedback
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFeedback returns the old "feedback" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldFeedback(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFeedback is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFeedback requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFeedback: %w", err)
+	}
+	return oldValue.Feedback, nil
+}
+
+// ClearFeedback clears the value of the "feedback" field.
+func (m *ProductInteractionMutation) ClearFeedback() {
+	m.feedback = nil
+	m.clearedFields[productinteraction.FieldFeedback] = struct{}{}
+}
+
+// FeedbackCleared returns if the "feedback" field was cleared in this mutation.
+func (m *ProductInteractionMutation) FeedbackCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldFeedback]
+	return ok
+}
+
+// ResetFeedback resets all changes to the "feedback" field.
+func (m *ProductInteractionMutation) ResetFeedback() {
+	m.feedback = nil
+	delete(m.clearedFields, productinteraction.FieldFeedback)
+}
+
+// SetImplicitScore sets the "implicit_score" field.
+func (m *ProductInteractionMutation) SetImplicitScore(f float64) {
+	m.implicit_score = &f
+	m.addimplicit_score = nil
+}
+
+// ImplicitScore returns the value of the "implicit_score" field in the mutation.
+func (m *ProductInteractionMutation) ImplicitScore() (r float64, exists bool) {
+	v := m.implicit_score
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImplicitScore returns the old "implicit_score" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldImplicitScore(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImplicitScore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImplicitScore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImplicitScore: %w", err)
+	}
+	return oldValue.ImplicitScore, nil
+}
+
+// AddImplicitScore adds f to the "implicit_score" field.
+func (m *ProductInteractionMutation) AddImplicitScore(f float64) {
+	if m.addimplicit_score != nil {
+		*m.addimplicit_score += f
+	} else {
+		m.addimplicit_score = &f
+	}
+}
+
+// AddedImplicitScore returns the value that was added to the "implicit_score" field in this mutation.
+func (m *ProductInteractionMutation) AddedImplicitScore() (r float64, exists bool) {
+	v := m.addimplicit_score
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetImplicitScore resets all changes to the "implicit_score" field.
+func (m *ProductInteractionMutation) ResetImplicitScore() {
+	m.implicit_score = nil
+	m.addimplicit_score = nil
+}
+
+// SetSearchQuery sets the "search_query" field.
+func (m *ProductInteractionMutation) SetSearchQuery(s string) {
+	m.search_query = &s
+}
+
+// SearchQuery returns the value of the "search_query" field in the mutation.
+func (m *ProductInteractionMutation) SearchQuery() (r string, exists bool) {
+	v := m.search_query
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSearchQuery returns the old "search_query" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldSearchQuery(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSearchQuery is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSearchQuery requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSearchQuery: %w", err)
+	}
+	return oldValue.SearchQuery, nil
+}
+
+// ClearSearchQuery clears the value of the "search_query" field.
+func (m *ProductInteractionMutation) ClearSearchQuery() {
+	m.search_query = nil
+	m.clearedFields[productinteraction.FieldSearchQuery] = struct{}{}
+}
+
+// SearchQueryCleared returns if the "search_query" field was cleared in this mutation.
+func (m *ProductInteractionMutation) SearchQueryCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldSearchQuery]
+	return ok
+}
+
+// ResetSearchQuery resets all changes to the "search_query" field.
+func (m *ProductInteractionMutation) ResetSearchQuery() {
+	m.search_query = nil
+	delete(m.clearedFields, productinteraction.FieldSearchQuery)
+}
+
+// SetSearchType sets the "search_type" field.
+func (m *ProductInteractionMutation) SetSearchType(s string) {
+	m.search_type = &s
+}
+
+// SearchType returns the value of the "search_type" field in the mutation.
+func (m *ProductInteractionMutation) SearchType() (r string, exists bool) {
+	v := m.search_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSearchType returns the old "search_type" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldSearchType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSearchType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSearchType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSearchType: %w", err)
+	}
+	return oldValue.SearchType, nil
+}
+
+// ClearSearchType clears the value of the "search_type" field.
+func (m *ProductInteractionMutation) ClearSearchType() {
+	m.search_type = nil
+	m.clearedFields[productinteraction.FieldSearchType] = struct{}{}
+}
+
+// SearchTypeCleared returns if the "search_type" field was cleared in this mutation.
+func (m *ProductInteractionMutation) SearchTypeCleared() bool {
+	_, ok := m.clearedFields[productinteraction.FieldSearchType]
+	return ok
+}
+
+// ResetSearchType resets all changes to the "search_type" field.
+func (m *ProductInteractionMutation) ResetSearchType() {
+	m.search_type = nil
+	delete(m.clearedFields, productinteraction.FieldSearchType)
+}
+
+// SetPositionInResults sets the "position_in_results" field.
+func (m *ProductInteractionMutation) SetPositionInResults(i int) {
+	m.position_in_results = &i
+	m.addposition_in_results = nil
+}
+
+// PositionInResults returns the value of the "position_in_results" field in the mutation.
+func (m *ProductInteractionMutation) PositionInResults() (r int, exists bool) {
+	v := m.position_in_results
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPositionInResults returns the old "position_in_results" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldPositionInResults(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPositionInResults is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPositionInResults requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPositionInResults: %w", err)
+	}
+	return oldValue.PositionInResults, nil
+}
+
+// AddPositionInResults adds i to the "position_in_results" field.
+func (m *ProductInteractionMutation) AddPositionInResults(i int) {
+	if m.addposition_in_results != nil {
+		*m.addposition_in_results += i
+	} else {
+		m.addposition_in_results = &i
+	}
+}
+
+// AddedPositionInResults returns the value that was added to the "position_in_results" field in this mutation.
+func (m *ProductInteractionMutation) AddedPositionInResults() (r int, exists bool) {
+	v := m.addposition_in_results
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPositionInResults resets all changes to the "position_in_results" field.
+func (m *ProductInteractionMutation) ResetPositionInResults() {
+	m.position_in_results = nil
+	m.addposition_in_results = nil
+}
+
+// SetInteractionSequence sets the "interaction_sequence" field.
+func (m *ProductInteractionMutation) SetInteractionSequence(i int) {
+	m.interaction_sequence = &i
+	m.addinteraction_sequence = nil
+}
+
+// InteractionSequence returns the value of the "interaction_sequence" field in the mutation.
+func (m *ProductInteractionMutation) InteractionSequence() (r int, exists bool) {
+	v := m.interaction_sequence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInteractionSequence returns the old "interaction_sequence" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldInteractionSequence(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInteractionSequence is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInteractionSequence requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInteractionSequence: %w", err)
+	}
+	return oldValue.InteractionSequence, nil
+}
+
+// AddInteractionSequence adds i to the "interaction_sequence" field.
+func (m *ProductInteractionMutation) AddInteractionSequence(i int) {
+	if m.addinteraction_sequence != nil {
+		*m.addinteraction_sequence += i
+	} else {
+		m.addinteraction_sequence = &i
+	}
+}
+
+// AddedInteractionSequence returns the value that was added to the "interaction_sequence" field in this mutation.
+func (m *ProductInteractionMutation) AddedInteractionSequence() (r int, exists bool) {
+	v := m.addinteraction_sequence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetInteractionSequence resets all changes to the "interaction_sequence" field.
+func (m *ProductInteractionMutation) ResetInteractionSequence() {
+	m.interaction_sequence = nil
+	m.addinteraction_sequence = nil
+}
+
+// SetInteractedAt sets the "interacted_at" field.
+func (m *ProductInteractionMutation) SetInteractedAt(t time.Time) {
+	m.interacted_at = &t
+}
+
+// InteractedAt returns the value of the "interacted_at" field in the mutation.
+func (m *ProductInteractionMutation) InteractedAt() (r time.Time, exists bool) {
+	v := m.interacted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInteractedAt returns the old "interacted_at" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldInteractedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInteractedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInteractedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInteractedAt: %w", err)
+	}
+	return oldValue.InteractedAt, nil
+}
+
+// ResetInteractedAt resets all changes to the "interacted_at" field.
+func (m *ProductInteractionMutation) ResetInteractedAt() {
+	m.interacted_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ProductInteractionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ProductInteractionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ProductInteractionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ProductInteractionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ProductInteractionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ProductInteraction entity.
+// If the ProductInteraction object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProductInteractionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ProductInteractionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *ProductInteractionMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[productinteraction.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *ProductInteractionMutation) UserCleared() bool {
+	return m.UserIDCleared() || m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *ProductInteractionMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *ProductInteractionMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the ProductInteractionMutation builder.
+func (m *ProductInteractionMutation) Where(ps ...predicate.ProductInteraction) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ProductInteractionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ProductInteractionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ProductInteraction, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ProductInteractionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ProductInteractionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ProductInteraction).
+func (m *ProductInteractionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ProductInteractionMutation) Fields() []string {
+	fields := make([]string, 0, 25)
+	if m.user != nil {
+		fields = append(fields, productinteraction.FieldUserID)
+	}
+	if m.session_id != nil {
+		fields = append(fields, productinteraction.FieldSessionID)
+	}
+	if m.product_id != nil {
+		fields = append(fields, productinteraction.FieldProductID)
+	}
+	if m.product_name != nil {
+		fields = append(fields, productinteraction.FieldProductName)
+	}
+	if m.product_price != nil {
+		fields = append(fields, productinteraction.FieldProductPrice)
+	}
+	if m.product_currency != nil {
+		fields = append(fields, productinteraction.FieldProductCurrency)
+	}
+	if m.product_category != nil {
+		fields = append(fields, productinteraction.FieldProductCategory)
+	}
+	if m.product_brand != nil {
+		fields = append(fields, productinteraction.FieldProductBrand)
+	}
+	if m.product_url != nil {
+		fields = append(fields, productinteraction.FieldProductURL)
+	}
+	if m.product_data != nil {
+		fields = append(fields, productinteraction.FieldProductData)
+	}
+	if m.interaction_type != nil {
+		fields = append(fields, productinteraction.FieldInteractionType)
+	}
+	if m.message_position != nil {
+		fields = append(fields, productinteraction.FieldMessagePosition)
+	}
+	if m.view_duration_seconds != nil {
+		fields = append(fields, productinteraction.FieldViewDurationSeconds)
+	}
+	if m.click_count != nil {
+		fields = append(fields, productinteraction.FieldClickCount)
+	}
+	if m.opened_details != nil {
+		fields = append(fields, productinteraction.FieldOpenedDetails)
+	}
+	if m.added_to_comparison != nil {
+		fields = append(fields, productinteraction.FieldAddedToComparison)
+	}
+	if m.feedback != nil {
+		fields = append(fields, productinteraction.FieldFeedback)
+	}
+	if m.implicit_score != nil {
+		fields = append(fields, productinteraction.FieldImplicitScore)
+	}
+	if m.search_query != nil {
+		fields = append(fields, productinteraction.FieldSearchQuery)
+	}
+	if m.search_type != nil {
+		fields = append(fields, productinteraction.FieldSearchType)
+	}
+	if m.position_in_results != nil {
+		fields = append(fields, productinteraction.FieldPositionInResults)
+	}
+	if m.interaction_sequence != nil {
+		fields = append(fields, productinteraction.FieldInteractionSequence)
+	}
+	if m.interacted_at != nil {
+		fields = append(fields, productinteraction.FieldInteractedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, productinteraction.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, productinteraction.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ProductInteractionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case productinteraction.FieldUserID:
+		return m.UserID()
+	case productinteraction.FieldSessionID:
+		return m.SessionID()
+	case productinteraction.FieldProductID:
+		return m.ProductID()
+	case productinteraction.FieldProductName:
+		return m.ProductName()
+	case productinteraction.FieldProductPrice:
+		return m.ProductPrice()
+	case productinteraction.FieldProductCurrency:
+		return m.ProductCurrency()
+	case productinteraction.FieldProductCategory:
+		return m.ProductCategory()
+	case productinteraction.FieldProductBrand:
+		return m.ProductBrand()
+	case productinteraction.FieldProductURL:
+		return m.ProductURL()
+	case productinteraction.FieldProductData:
+		return m.ProductData()
+	case productinteraction.FieldInteractionType:
+		return m.InteractionType()
+	case productinteraction.FieldMessagePosition:
+		return m.MessagePosition()
+	case productinteraction.FieldViewDurationSeconds:
+		return m.ViewDurationSeconds()
+	case productinteraction.FieldClickCount:
+		return m.ClickCount()
+	case productinteraction.FieldOpenedDetails:
+		return m.OpenedDetails()
+	case productinteraction.FieldAddedToComparison:
+		return m.AddedToComparison()
+	case productinteraction.FieldFeedback:
+		return m.Feedback()
+	case productinteraction.FieldImplicitScore:
+		return m.ImplicitScore()
+	case productinteraction.FieldSearchQuery:
+		return m.SearchQuery()
+	case productinteraction.FieldSearchType:
+		return m.SearchType()
+	case productinteraction.FieldPositionInResults:
+		return m.PositionInResults()
+	case productinteraction.FieldInteractionSequence:
+		return m.InteractionSequence()
+	case productinteraction.FieldInteractedAt:
+		return m.InteractedAt()
+	case productinteraction.FieldCreatedAt:
+		return m.CreatedAt()
+	case productinteraction.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ProductInteractionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case productinteraction.FieldUserID:
+		return m.OldUserID(ctx)
+	case productinteraction.FieldSessionID:
+		return m.OldSessionID(ctx)
+	case productinteraction.FieldProductID:
+		return m.OldProductID(ctx)
+	case productinteraction.FieldProductName:
+		return m.OldProductName(ctx)
+	case productinteraction.FieldProductPrice:
+		return m.OldProductPrice(ctx)
+	case productinteraction.FieldProductCurrency:
+		return m.OldProductCurrency(ctx)
+	case productinteraction.FieldProductCategory:
+		return m.OldProductCategory(ctx)
+	case productinteraction.FieldProductBrand:
+		return m.OldProductBrand(ctx)
+	case productinteraction.FieldProductURL:
+		return m.OldProductURL(ctx)
+	case productinteraction.FieldProductData:
+		return m.OldProductData(ctx)
+	case productinteraction.FieldInteractionType:
+		return m.OldInteractionType(ctx)
+	case productinteraction.FieldMessagePosition:
+		return m.OldMessagePosition(ctx)
+	case productinteraction.FieldViewDurationSeconds:
+		return m.OldViewDurationSeconds(ctx)
+	case productinteraction.FieldClickCount:
+		return m.OldClickCount(ctx)
+	case productinteraction.FieldOpenedDetails:
+		return m.OldOpenedDetails(ctx)
+	case productinteraction.FieldAddedToComparison:
+		return m.OldAddedToComparison(ctx)
+	case productinteraction.FieldFeedback:
+		return m.OldFeedback(ctx)
+	case productinteraction.FieldImplicitScore:
+		return m.OldImplicitScore(ctx)
+	case productinteraction.FieldSearchQuery:
+		return m.OldSearchQuery(ctx)
+	case productinteraction.FieldSearchType:
+		return m.OldSearchType(ctx)
+	case productinteraction.FieldPositionInResults:
+		return m.OldPositionInResults(ctx)
+	case productinteraction.FieldInteractionSequence:
+		return m.OldInteractionSequence(ctx)
+	case productinteraction.FieldInteractedAt:
+		return m.OldInteractedAt(ctx)
+	case productinteraction.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case productinteraction.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ProductInteraction field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProductInteractionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case productinteraction.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case productinteraction.FieldSessionID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSessionID(v)
+		return nil
+	case productinteraction.FieldProductID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductID(v)
+		return nil
+	case productinteraction.FieldProductName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductName(v)
+		return nil
+	case productinteraction.FieldProductPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductPrice(v)
+		return nil
+	case productinteraction.FieldProductCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductCurrency(v)
+		return nil
+	case productinteraction.FieldProductCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductCategory(v)
+		return nil
+	case productinteraction.FieldProductBrand:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductBrand(v)
+		return nil
+	case productinteraction.FieldProductURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductURL(v)
+		return nil
+	case productinteraction.FieldProductData:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductData(v)
+		return nil
+	case productinteraction.FieldInteractionType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInteractionType(v)
+		return nil
+	case productinteraction.FieldMessagePosition:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMessagePosition(v)
+		return nil
+	case productinteraction.FieldViewDurationSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetViewDurationSeconds(v)
+		return nil
+	case productinteraction.FieldClickCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClickCount(v)
+		return nil
+	case productinteraction.FieldOpenedDetails:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOpenedDetails(v)
+		return nil
+	case productinteraction.FieldAddedToComparison:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAddedToComparison(v)
+		return nil
+	case productinteraction.FieldFeedback:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFeedback(v)
+		return nil
+	case productinteraction.FieldImplicitScore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImplicitScore(v)
+		return nil
+	case productinteraction.FieldSearchQuery:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSearchQuery(v)
+		return nil
+	case productinteraction.FieldSearchType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSearchType(v)
+		return nil
+	case productinteraction.FieldPositionInResults:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPositionInResults(v)
+		return nil
+	case productinteraction.FieldInteractionSequence:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInteractionSequence(v)
+		return nil
+	case productinteraction.FieldInteractedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInteractedAt(v)
+		return nil
+	case productinteraction.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case productinteraction.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProductInteraction field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ProductInteractionMutation) AddedFields() []string {
+	var fields []string
+	if m.addproduct_price != nil {
+		fields = append(fields, productinteraction.FieldProductPrice)
+	}
+	if m.addmessage_position != nil {
+		fields = append(fields, productinteraction.FieldMessagePosition)
+	}
+	if m.addview_duration_seconds != nil {
+		fields = append(fields, productinteraction.FieldViewDurationSeconds)
+	}
+	if m.addclick_count != nil {
+		fields = append(fields, productinteraction.FieldClickCount)
+	}
+	if m.addimplicit_score != nil {
+		fields = append(fields, productinteraction.FieldImplicitScore)
+	}
+	if m.addposition_in_results != nil {
+		fields = append(fields, productinteraction.FieldPositionInResults)
+	}
+	if m.addinteraction_sequence != nil {
+		fields = append(fields, productinteraction.FieldInteractionSequence)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ProductInteractionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case productinteraction.FieldProductPrice:
+		return m.AddedProductPrice()
+	case productinteraction.FieldMessagePosition:
+		return m.AddedMessagePosition()
+	case productinteraction.FieldViewDurationSeconds:
+		return m.AddedViewDurationSeconds()
+	case productinteraction.FieldClickCount:
+		return m.AddedClickCount()
+	case productinteraction.FieldImplicitScore:
+		return m.AddedImplicitScore()
+	case productinteraction.FieldPositionInResults:
+		return m.AddedPositionInResults()
+	case productinteraction.FieldInteractionSequence:
+		return m.AddedInteractionSequence()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProductInteractionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case productinteraction.FieldProductPrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProductPrice(v)
+		return nil
+	case productinteraction.FieldMessagePosition:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMessagePosition(v)
+		return nil
+	case productinteraction.FieldViewDurationSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddViewDurationSeconds(v)
+		return nil
+	case productinteraction.FieldClickCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddClickCount(v)
+		return nil
+	case productinteraction.FieldImplicitScore:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddImplicitScore(v)
+		return nil
+	case productinteraction.FieldPositionInResults:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPositionInResults(v)
+		return nil
+	case productinteraction.FieldInteractionSequence:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInteractionSequence(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProductInteraction numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ProductInteractionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(productinteraction.FieldUserID) {
+		fields = append(fields, productinteraction.FieldUserID)
+	}
+	if m.FieldCleared(productinteraction.FieldProductPrice) {
+		fields = append(fields, productinteraction.FieldProductPrice)
+	}
+	if m.FieldCleared(productinteraction.FieldProductCurrency) {
+		fields = append(fields, productinteraction.FieldProductCurrency)
+	}
+	if m.FieldCleared(productinteraction.FieldProductCategory) {
+		fields = append(fields, productinteraction.FieldProductCategory)
+	}
+	if m.FieldCleared(productinteraction.FieldProductBrand) {
+		fields = append(fields, productinteraction.FieldProductBrand)
+	}
+	if m.FieldCleared(productinteraction.FieldProductURL) {
+		fields = append(fields, productinteraction.FieldProductURL)
+	}
+	if m.FieldCleared(productinteraction.FieldProductData) {
+		fields = append(fields, productinteraction.FieldProductData)
+	}
+	if m.FieldCleared(productinteraction.FieldFeedback) {
+		fields = append(fields, productinteraction.FieldFeedback)
+	}
+	if m.FieldCleared(productinteraction.FieldSearchQuery) {
+		fields = append(fields, productinteraction.FieldSearchQuery)
+	}
+	if m.FieldCleared(productinteraction.FieldSearchType) {
+		fields = append(fields, productinteraction.FieldSearchType)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ProductInteractionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ProductInteractionMutation) ClearField(name string) error {
+	switch name {
+	case productinteraction.FieldUserID:
+		m.ClearUserID()
+		return nil
+	case productinteraction.FieldProductPrice:
+		m.ClearProductPrice()
+		return nil
+	case productinteraction.FieldProductCurrency:
+		m.ClearProductCurrency()
+		return nil
+	case productinteraction.FieldProductCategory:
+		m.ClearProductCategory()
+		return nil
+	case productinteraction.FieldProductBrand:
+		m.ClearProductBrand()
+		return nil
+	case productinteraction.FieldProductURL:
+		m.ClearProductURL()
+		return nil
+	case productinteraction.FieldProductData:
+		m.ClearProductData()
+		return nil
+	case productinteraction.FieldFeedback:
+		m.ClearFeedback()
+		return nil
+	case productinteraction.FieldSearchQuery:
+		m.ClearSearchQuery()
+		return nil
+	case productinteraction.FieldSearchType:
+		m.ClearSearchType()
+		return nil
+	}
+	return fmt.Errorf("unknown ProductInteraction nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ProductInteractionMutation) ResetField(name string) error {
+	switch name {
+	case productinteraction.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case productinteraction.FieldSessionID:
+		m.ResetSessionID()
+		return nil
+	case productinteraction.FieldProductID:
+		m.ResetProductID()
+		return nil
+	case productinteraction.FieldProductName:
+		m.ResetProductName()
+		return nil
+	case productinteraction.FieldProductPrice:
+		m.ResetProductPrice()
+		return nil
+	case productinteraction.FieldProductCurrency:
+		m.ResetProductCurrency()
+		return nil
+	case productinteraction.FieldProductCategory:
+		m.ResetProductCategory()
+		return nil
+	case productinteraction.FieldProductBrand:
+		m.ResetProductBrand()
+		return nil
+	case productinteraction.FieldProductURL:
+		m.ResetProductURL()
+		return nil
+	case productinteraction.FieldProductData:
+		m.ResetProductData()
+		return nil
+	case productinteraction.FieldInteractionType:
+		m.ResetInteractionType()
+		return nil
+	case productinteraction.FieldMessagePosition:
+		m.ResetMessagePosition()
+		return nil
+	case productinteraction.FieldViewDurationSeconds:
+		m.ResetViewDurationSeconds()
+		return nil
+	case productinteraction.FieldClickCount:
+		m.ResetClickCount()
+		return nil
+	case productinteraction.FieldOpenedDetails:
+		m.ResetOpenedDetails()
+		return nil
+	case productinteraction.FieldAddedToComparison:
+		m.ResetAddedToComparison()
+		return nil
+	case productinteraction.FieldFeedback:
+		m.ResetFeedback()
+		return nil
+	case productinteraction.FieldImplicitScore:
+		m.ResetImplicitScore()
+		return nil
+	case productinteraction.FieldSearchQuery:
+		m.ResetSearchQuery()
+		return nil
+	case productinteraction.FieldSearchType:
+		m.ResetSearchType()
+		return nil
+	case productinteraction.FieldPositionInResults:
+		m.ResetPositionInResults()
+		return nil
+	case productinteraction.FieldInteractionSequence:
+		m.ResetInteractionSequence()
+		return nil
+	case productinteraction.FieldInteractedAt:
+		m.ResetInteractedAt()
+		return nil
+	case productinteraction.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case productinteraction.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ProductInteraction field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ProductInteractionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, productinteraction.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ProductInteractionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case productinteraction.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ProductInteractionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ProductInteractionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ProductInteractionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, productinteraction.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ProductInteractionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case productinteraction.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ProductInteractionMutation) ClearEdge(name string) error {
+	switch name {
+	case productinteraction.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown ProductInteraction unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ProductInteractionMutation) ResetEdge(name string) error {
+	switch name {
+	case productinteraction.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown ProductInteraction edge %s", name)
 }
 
 // SearchHistoryMutation represents an operation that mutates the SearchHistory nodes in the graph.
@@ -3335,30 +8015,38 @@ func (m *SearchHistoryMutation) ResetEdge(name string) error {
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op                    Op
-	typ                   string
-	id                    *uuid.UUID
-	email                 *string
-	password_hash         *string
-	google_id             *string
-	name                  *string
-	avatar_url            *string
-	provider              *string
-	created_at            *time.Time
-	updated_at            *time.Time
-	last_login            *time.Time
-	clearedFields         map[string]struct{}
-	sessions              map[uuid.UUID]struct{}
-	removedsessions       map[uuid.UUID]struct{}
-	clearedsessions       bool
-	search_history        map[uuid.UUID]struct{}
-	removedsearch_history map[uuid.UUID]struct{}
-	clearedsearch_history bool
-	preferences           *uuid.UUID
-	clearedpreferences    bool
-	done                  bool
-	oldValue              func(context.Context) (*User, error)
-	predicates            []predicate.User
+	op                            Op
+	typ                           string
+	id                            *uuid.UUID
+	email                         *string
+	password_hash                 *string
+	google_id                     *string
+	name                          *string
+	avatar_url                    *string
+	provider                      *string
+	created_at                    *time.Time
+	updated_at                    *time.Time
+	last_login                    *time.Time
+	clearedFields                 map[string]struct{}
+	sessions                      map[uuid.UUID]struct{}
+	removedsessions               map[uuid.UUID]struct{}
+	clearedsessions               bool
+	search_history                map[uuid.UUID]struct{}
+	removedsearch_history         map[uuid.UUID]struct{}
+	clearedsearch_history         bool
+	preferences                   *uuid.UUID
+	clearedpreferences            bool
+	behavior_profile              *uuid.UUID
+	clearedbehavior_profile       bool
+	conversation_analytics        map[uuid.UUID]struct{}
+	removedconversation_analytics map[uuid.UUID]struct{}
+	clearedconversation_analytics bool
+	product_interactions          map[uuid.UUID]struct{}
+	removedproduct_interactions   map[uuid.UUID]struct{}
+	clearedproduct_interactions   bool
+	done                          bool
+	oldValue                      func(context.Context) (*User, error)
+	predicates                    []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -4001,6 +8689,153 @@ func (m *UserMutation) ResetPreferences() {
 	m.clearedpreferences = false
 }
 
+// SetBehaviorProfileID sets the "behavior_profile" edge to the UserBehaviorProfile entity by id.
+func (m *UserMutation) SetBehaviorProfileID(id uuid.UUID) {
+	m.behavior_profile = &id
+}
+
+// ClearBehaviorProfile clears the "behavior_profile" edge to the UserBehaviorProfile entity.
+func (m *UserMutation) ClearBehaviorProfile() {
+	m.clearedbehavior_profile = true
+}
+
+// BehaviorProfileCleared reports if the "behavior_profile" edge to the UserBehaviorProfile entity was cleared.
+func (m *UserMutation) BehaviorProfileCleared() bool {
+	return m.clearedbehavior_profile
+}
+
+// BehaviorProfileID returns the "behavior_profile" edge ID in the mutation.
+func (m *UserMutation) BehaviorProfileID() (id uuid.UUID, exists bool) {
+	if m.behavior_profile != nil {
+		return *m.behavior_profile, true
+	}
+	return
+}
+
+// BehaviorProfileIDs returns the "behavior_profile" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// BehaviorProfileID instead. It exists only for internal usage by the builders.
+func (m *UserMutation) BehaviorProfileIDs() (ids []uuid.UUID) {
+	if id := m.behavior_profile; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetBehaviorProfile resets all changes to the "behavior_profile" edge.
+func (m *UserMutation) ResetBehaviorProfile() {
+	m.behavior_profile = nil
+	m.clearedbehavior_profile = false
+}
+
+// AddConversationAnalyticIDs adds the "conversation_analytics" edge to the ConversationAnalytics entity by ids.
+func (m *UserMutation) AddConversationAnalyticIDs(ids ...uuid.UUID) {
+	if m.conversation_analytics == nil {
+		m.conversation_analytics = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.conversation_analytics[ids[i]] = struct{}{}
+	}
+}
+
+// ClearConversationAnalytics clears the "conversation_analytics" edge to the ConversationAnalytics entity.
+func (m *UserMutation) ClearConversationAnalytics() {
+	m.clearedconversation_analytics = true
+}
+
+// ConversationAnalyticsCleared reports if the "conversation_analytics" edge to the ConversationAnalytics entity was cleared.
+func (m *UserMutation) ConversationAnalyticsCleared() bool {
+	return m.clearedconversation_analytics
+}
+
+// RemoveConversationAnalyticIDs removes the "conversation_analytics" edge to the ConversationAnalytics entity by IDs.
+func (m *UserMutation) RemoveConversationAnalyticIDs(ids ...uuid.UUID) {
+	if m.removedconversation_analytics == nil {
+		m.removedconversation_analytics = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.conversation_analytics, ids[i])
+		m.removedconversation_analytics[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedConversationAnalytics returns the removed IDs of the "conversation_analytics" edge to the ConversationAnalytics entity.
+func (m *UserMutation) RemovedConversationAnalyticsIDs() (ids []uuid.UUID) {
+	for id := range m.removedconversation_analytics {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ConversationAnalyticsIDs returns the "conversation_analytics" edge IDs in the mutation.
+func (m *UserMutation) ConversationAnalyticsIDs() (ids []uuid.UUID) {
+	for id := range m.conversation_analytics {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetConversationAnalytics resets all changes to the "conversation_analytics" edge.
+func (m *UserMutation) ResetConversationAnalytics() {
+	m.conversation_analytics = nil
+	m.clearedconversation_analytics = false
+	m.removedconversation_analytics = nil
+}
+
+// AddProductInteractionIDs adds the "product_interactions" edge to the ProductInteraction entity by ids.
+func (m *UserMutation) AddProductInteractionIDs(ids ...uuid.UUID) {
+	if m.product_interactions == nil {
+		m.product_interactions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.product_interactions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearProductInteractions clears the "product_interactions" edge to the ProductInteraction entity.
+func (m *UserMutation) ClearProductInteractions() {
+	m.clearedproduct_interactions = true
+}
+
+// ProductInteractionsCleared reports if the "product_interactions" edge to the ProductInteraction entity was cleared.
+func (m *UserMutation) ProductInteractionsCleared() bool {
+	return m.clearedproduct_interactions
+}
+
+// RemoveProductInteractionIDs removes the "product_interactions" edge to the ProductInteraction entity by IDs.
+func (m *UserMutation) RemoveProductInteractionIDs(ids ...uuid.UUID) {
+	if m.removedproduct_interactions == nil {
+		m.removedproduct_interactions = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.product_interactions, ids[i])
+		m.removedproduct_interactions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedProductInteractions returns the removed IDs of the "product_interactions" edge to the ProductInteraction entity.
+func (m *UserMutation) RemovedProductInteractionsIDs() (ids []uuid.UUID) {
+	for id := range m.removedproduct_interactions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ProductInteractionsIDs returns the "product_interactions" edge IDs in the mutation.
+func (m *UserMutation) ProductInteractionsIDs() (ids []uuid.UUID) {
+	for id := range m.product_interactions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetProductInteractions resets all changes to the "product_interactions" edge.
+func (m *UserMutation) ResetProductInteractions() {
+	m.product_interactions = nil
+	m.clearedproduct_interactions = false
+	m.removedproduct_interactions = nil
+}
+
 // Where appends a list predicates to the UserMutation builder.
 func (m *UserMutation) Where(ps ...predicate.User) {
 	m.predicates = append(m.predicates, ps...)
@@ -4303,7 +9138,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 6)
 	if m.sessions != nil {
 		edges = append(edges, user.EdgeSessions)
 	}
@@ -4312,6 +9147,15 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.preferences != nil {
 		edges = append(edges, user.EdgePreferences)
+	}
+	if m.behavior_profile != nil {
+		edges = append(edges, user.EdgeBehaviorProfile)
+	}
+	if m.conversation_analytics != nil {
+		edges = append(edges, user.EdgeConversationAnalytics)
+	}
+	if m.product_interactions != nil {
+		edges = append(edges, user.EdgeProductInteractions)
 	}
 	return edges
 }
@@ -4336,18 +9180,40 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 		if id := m.preferences; id != nil {
 			return []ent.Value{*id}
 		}
+	case user.EdgeBehaviorProfile:
+		if id := m.behavior_profile; id != nil {
+			return []ent.Value{*id}
+		}
+	case user.EdgeConversationAnalytics:
+		ids := make([]ent.Value, 0, len(m.conversation_analytics))
+		for id := range m.conversation_analytics {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeProductInteractions:
+		ids := make([]ent.Value, 0, len(m.product_interactions))
+		for id := range m.product_interactions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 6)
 	if m.removedsessions != nil {
 		edges = append(edges, user.EdgeSessions)
 	}
 	if m.removedsearch_history != nil {
 		edges = append(edges, user.EdgeSearchHistory)
+	}
+	if m.removedconversation_analytics != nil {
+		edges = append(edges, user.EdgeConversationAnalytics)
+	}
+	if m.removedproduct_interactions != nil {
+		edges = append(edges, user.EdgeProductInteractions)
 	}
 	return edges
 }
@@ -4368,13 +9234,25 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeConversationAnalytics:
+		ids := make([]ent.Value, 0, len(m.removedconversation_analytics))
+		for id := range m.removedconversation_analytics {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeProductInteractions:
+		ids := make([]ent.Value, 0, len(m.removedproduct_interactions))
+		for id := range m.removedproduct_interactions {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 6)
 	if m.clearedsessions {
 		edges = append(edges, user.EdgeSessions)
 	}
@@ -4383,6 +9261,15 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedpreferences {
 		edges = append(edges, user.EdgePreferences)
+	}
+	if m.clearedbehavior_profile {
+		edges = append(edges, user.EdgeBehaviorProfile)
+	}
+	if m.clearedconversation_analytics {
+		edges = append(edges, user.EdgeConversationAnalytics)
+	}
+	if m.clearedproduct_interactions {
+		edges = append(edges, user.EdgeProductInteractions)
 	}
 	return edges
 }
@@ -4397,6 +9284,12 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedsearch_history
 	case user.EdgePreferences:
 		return m.clearedpreferences
+	case user.EdgeBehaviorProfile:
+		return m.clearedbehavior_profile
+	case user.EdgeConversationAnalytics:
+		return m.clearedconversation_analytics
+	case user.EdgeProductInteractions:
+		return m.clearedproduct_interactions
 	}
 	return false
 }
@@ -4407,6 +9300,9 @@ func (m *UserMutation) ClearEdge(name string) error {
 	switch name {
 	case user.EdgePreferences:
 		m.ClearPreferences()
+		return nil
+	case user.EdgeBehaviorProfile:
+		m.ClearBehaviorProfile()
 		return nil
 	}
 	return fmt.Errorf("unknown User unique edge %s", name)
@@ -4425,8 +9321,1506 @@ func (m *UserMutation) ResetEdge(name string) error {
 	case user.EdgePreferences:
 		m.ResetPreferences()
 		return nil
+	case user.EdgeBehaviorProfile:
+		m.ResetBehaviorProfile()
+		return nil
+	case user.EdgeConversationAnalytics:
+		m.ResetConversationAnalytics()
+		return nil
+	case user.EdgeProductInteractions:
+		m.ResetProductInteractions()
+		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)
+}
+
+// UserBehaviorProfileMutation represents an operation that mutates the UserBehaviorProfile nodes in the graph.
+type UserBehaviorProfileMutation struct {
+	config
+	op                          Op
+	typ                         string
+	id                          *uuid.UUID
+	category_preferences        *map[string]float64
+	price_ranges                *map[string]interface{}
+	brand_preferences           *map[string]int
+	communication_style         *string
+	preferred_search_type       *string
+	avg_session_duration        *float64
+	addavg_session_duration     *float64
+	avg_messages_per_session    *float64
+	addavg_messages_per_session *float64
+	success_rate                *float64
+	addsuccess_rate             *float64
+	common_keywords             *[]string
+	appendcommon_keywords       []string
+	time_patterns               *map[string]interface{}
+	total_sessions              *int
+	addtotal_sessions           *int
+	total_products_viewed       *int
+	addtotal_products_viewed    *int
+	total_products_clicked      *int
+	addtotal_products_clicked   *int
+	last_learning_update        *time.Time
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	clearedFields               map[string]struct{}
+	user                        *uuid.UUID
+	cleareduser                 bool
+	done                        bool
+	oldValue                    func(context.Context) (*UserBehaviorProfile, error)
+	predicates                  []predicate.UserBehaviorProfile
+}
+
+var _ ent.Mutation = (*UserBehaviorProfileMutation)(nil)
+
+// userbehaviorprofileOption allows management of the mutation configuration using functional options.
+type userbehaviorprofileOption func(*UserBehaviorProfileMutation)
+
+// newUserBehaviorProfileMutation creates new mutation for the UserBehaviorProfile entity.
+func newUserBehaviorProfileMutation(c config, op Op, opts ...userbehaviorprofileOption) *UserBehaviorProfileMutation {
+	m := &UserBehaviorProfileMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserBehaviorProfile,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserBehaviorProfileID sets the ID field of the mutation.
+func withUserBehaviorProfileID(id uuid.UUID) userbehaviorprofileOption {
+	return func(m *UserBehaviorProfileMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserBehaviorProfile
+		)
+		m.oldValue = func(ctx context.Context) (*UserBehaviorProfile, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserBehaviorProfile.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserBehaviorProfile sets the old UserBehaviorProfile of the mutation.
+func withUserBehaviorProfile(node *UserBehaviorProfile) userbehaviorprofileOption {
+	return func(m *UserBehaviorProfileMutation) {
+		m.oldValue = func(context.Context) (*UserBehaviorProfile, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserBehaviorProfileMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserBehaviorProfileMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of UserBehaviorProfile entities.
+func (m *UserBehaviorProfileMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserBehaviorProfileMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserBehaviorProfileMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserBehaviorProfile.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UserBehaviorProfileMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UserBehaviorProfileMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UserBehaviorProfileMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetCategoryPreferences sets the "category_preferences" field.
+func (m *UserBehaviorProfileMutation) SetCategoryPreferences(value map[string]float64) {
+	m.category_preferences = &value
+}
+
+// CategoryPreferences returns the value of the "category_preferences" field in the mutation.
+func (m *UserBehaviorProfileMutation) CategoryPreferences() (r map[string]float64, exists bool) {
+	v := m.category_preferences
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategoryPreferences returns the old "category_preferences" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldCategoryPreferences(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategoryPreferences is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategoryPreferences requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategoryPreferences: %w", err)
+	}
+	return oldValue.CategoryPreferences, nil
+}
+
+// ResetCategoryPreferences resets all changes to the "category_preferences" field.
+func (m *UserBehaviorProfileMutation) ResetCategoryPreferences() {
+	m.category_preferences = nil
+}
+
+// SetPriceRanges sets the "price_ranges" field.
+func (m *UserBehaviorProfileMutation) SetPriceRanges(value map[string]interface{}) {
+	m.price_ranges = &value
+}
+
+// PriceRanges returns the value of the "price_ranges" field in the mutation.
+func (m *UserBehaviorProfileMutation) PriceRanges() (r map[string]interface{}, exists bool) {
+	v := m.price_ranges
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceRanges returns the old "price_ranges" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldPriceRanges(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceRanges is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceRanges requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceRanges: %w", err)
+	}
+	return oldValue.PriceRanges, nil
+}
+
+// ResetPriceRanges resets all changes to the "price_ranges" field.
+func (m *UserBehaviorProfileMutation) ResetPriceRanges() {
+	m.price_ranges = nil
+}
+
+// SetBrandPreferences sets the "brand_preferences" field.
+func (m *UserBehaviorProfileMutation) SetBrandPreferences(value map[string]int) {
+	m.brand_preferences = &value
+}
+
+// BrandPreferences returns the value of the "brand_preferences" field in the mutation.
+func (m *UserBehaviorProfileMutation) BrandPreferences() (r map[string]int, exists bool) {
+	v := m.brand_preferences
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBrandPreferences returns the old "brand_preferences" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldBrandPreferences(ctx context.Context) (v map[string]int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBrandPreferences is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBrandPreferences requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBrandPreferences: %w", err)
+	}
+	return oldValue.BrandPreferences, nil
+}
+
+// ResetBrandPreferences resets all changes to the "brand_preferences" field.
+func (m *UserBehaviorProfileMutation) ResetBrandPreferences() {
+	m.brand_preferences = nil
+}
+
+// SetCommunicationStyle sets the "communication_style" field.
+func (m *UserBehaviorProfileMutation) SetCommunicationStyle(s string) {
+	m.communication_style = &s
+}
+
+// CommunicationStyle returns the value of the "communication_style" field in the mutation.
+func (m *UserBehaviorProfileMutation) CommunicationStyle() (r string, exists bool) {
+	v := m.communication_style
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCommunicationStyle returns the old "communication_style" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldCommunicationStyle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCommunicationStyle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCommunicationStyle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCommunicationStyle: %w", err)
+	}
+	return oldValue.CommunicationStyle, nil
+}
+
+// ResetCommunicationStyle resets all changes to the "communication_style" field.
+func (m *UserBehaviorProfileMutation) ResetCommunicationStyle() {
+	m.communication_style = nil
+}
+
+// SetPreferredSearchType sets the "preferred_search_type" field.
+func (m *UserBehaviorProfileMutation) SetPreferredSearchType(s string) {
+	m.preferred_search_type = &s
+}
+
+// PreferredSearchType returns the value of the "preferred_search_type" field in the mutation.
+func (m *UserBehaviorProfileMutation) PreferredSearchType() (r string, exists bool) {
+	v := m.preferred_search_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPreferredSearchType returns the old "preferred_search_type" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldPreferredSearchType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPreferredSearchType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPreferredSearchType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPreferredSearchType: %w", err)
+	}
+	return oldValue.PreferredSearchType, nil
+}
+
+// ClearPreferredSearchType clears the value of the "preferred_search_type" field.
+func (m *UserBehaviorProfileMutation) ClearPreferredSearchType() {
+	m.preferred_search_type = nil
+	m.clearedFields[userbehaviorprofile.FieldPreferredSearchType] = struct{}{}
+}
+
+// PreferredSearchTypeCleared returns if the "preferred_search_type" field was cleared in this mutation.
+func (m *UserBehaviorProfileMutation) PreferredSearchTypeCleared() bool {
+	_, ok := m.clearedFields[userbehaviorprofile.FieldPreferredSearchType]
+	return ok
+}
+
+// ResetPreferredSearchType resets all changes to the "preferred_search_type" field.
+func (m *UserBehaviorProfileMutation) ResetPreferredSearchType() {
+	m.preferred_search_type = nil
+	delete(m.clearedFields, userbehaviorprofile.FieldPreferredSearchType)
+}
+
+// SetAvgSessionDuration sets the "avg_session_duration" field.
+func (m *UserBehaviorProfileMutation) SetAvgSessionDuration(f float64) {
+	m.avg_session_duration = &f
+	m.addavg_session_duration = nil
+}
+
+// AvgSessionDuration returns the value of the "avg_session_duration" field in the mutation.
+func (m *UserBehaviorProfileMutation) AvgSessionDuration() (r float64, exists bool) {
+	v := m.avg_session_duration
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvgSessionDuration returns the old "avg_session_duration" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldAvgSessionDuration(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvgSessionDuration is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvgSessionDuration requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvgSessionDuration: %w", err)
+	}
+	return oldValue.AvgSessionDuration, nil
+}
+
+// AddAvgSessionDuration adds f to the "avg_session_duration" field.
+func (m *UserBehaviorProfileMutation) AddAvgSessionDuration(f float64) {
+	if m.addavg_session_duration != nil {
+		*m.addavg_session_duration += f
+	} else {
+		m.addavg_session_duration = &f
+	}
+}
+
+// AddedAvgSessionDuration returns the value that was added to the "avg_session_duration" field in this mutation.
+func (m *UserBehaviorProfileMutation) AddedAvgSessionDuration() (r float64, exists bool) {
+	v := m.addavg_session_duration
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAvgSessionDuration resets all changes to the "avg_session_duration" field.
+func (m *UserBehaviorProfileMutation) ResetAvgSessionDuration() {
+	m.avg_session_duration = nil
+	m.addavg_session_duration = nil
+}
+
+// SetAvgMessagesPerSession sets the "avg_messages_per_session" field.
+func (m *UserBehaviorProfileMutation) SetAvgMessagesPerSession(f float64) {
+	m.avg_messages_per_session = &f
+	m.addavg_messages_per_session = nil
+}
+
+// AvgMessagesPerSession returns the value of the "avg_messages_per_session" field in the mutation.
+func (m *UserBehaviorProfileMutation) AvgMessagesPerSession() (r float64, exists bool) {
+	v := m.avg_messages_per_session
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvgMessagesPerSession returns the old "avg_messages_per_session" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldAvgMessagesPerSession(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvgMessagesPerSession is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvgMessagesPerSession requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvgMessagesPerSession: %w", err)
+	}
+	return oldValue.AvgMessagesPerSession, nil
+}
+
+// AddAvgMessagesPerSession adds f to the "avg_messages_per_session" field.
+func (m *UserBehaviorProfileMutation) AddAvgMessagesPerSession(f float64) {
+	if m.addavg_messages_per_session != nil {
+		*m.addavg_messages_per_session += f
+	} else {
+		m.addavg_messages_per_session = &f
+	}
+}
+
+// AddedAvgMessagesPerSession returns the value that was added to the "avg_messages_per_session" field in this mutation.
+func (m *UserBehaviorProfileMutation) AddedAvgMessagesPerSession() (r float64, exists bool) {
+	v := m.addavg_messages_per_session
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAvgMessagesPerSession resets all changes to the "avg_messages_per_session" field.
+func (m *UserBehaviorProfileMutation) ResetAvgMessagesPerSession() {
+	m.avg_messages_per_session = nil
+	m.addavg_messages_per_session = nil
+}
+
+// SetSuccessRate sets the "success_rate" field.
+func (m *UserBehaviorProfileMutation) SetSuccessRate(f float64) {
+	m.success_rate = &f
+	m.addsuccess_rate = nil
+}
+
+// SuccessRate returns the value of the "success_rate" field in the mutation.
+func (m *UserBehaviorProfileMutation) SuccessRate() (r float64, exists bool) {
+	v := m.success_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSuccessRate returns the old "success_rate" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldSuccessRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSuccessRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSuccessRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSuccessRate: %w", err)
+	}
+	return oldValue.SuccessRate, nil
+}
+
+// AddSuccessRate adds f to the "success_rate" field.
+func (m *UserBehaviorProfileMutation) AddSuccessRate(f float64) {
+	if m.addsuccess_rate != nil {
+		*m.addsuccess_rate += f
+	} else {
+		m.addsuccess_rate = &f
+	}
+}
+
+// AddedSuccessRate returns the value that was added to the "success_rate" field in this mutation.
+func (m *UserBehaviorProfileMutation) AddedSuccessRate() (r float64, exists bool) {
+	v := m.addsuccess_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSuccessRate resets all changes to the "success_rate" field.
+func (m *UserBehaviorProfileMutation) ResetSuccessRate() {
+	m.success_rate = nil
+	m.addsuccess_rate = nil
+}
+
+// SetCommonKeywords sets the "common_keywords" field.
+func (m *UserBehaviorProfileMutation) SetCommonKeywords(s []string) {
+	m.common_keywords = &s
+	m.appendcommon_keywords = nil
+}
+
+// CommonKeywords returns the value of the "common_keywords" field in the mutation.
+func (m *UserBehaviorProfileMutation) CommonKeywords() (r []string, exists bool) {
+	v := m.common_keywords
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCommonKeywords returns the old "common_keywords" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldCommonKeywords(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCommonKeywords is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCommonKeywords requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCommonKeywords: %w", err)
+	}
+	return oldValue.CommonKeywords, nil
+}
+
+// AppendCommonKeywords adds s to the "common_keywords" field.
+func (m *UserBehaviorProfileMutation) AppendCommonKeywords(s []string) {
+	m.appendcommon_keywords = append(m.appendcommon_keywords, s...)
+}
+
+// AppendedCommonKeywords returns the list of values that were appended to the "common_keywords" field in this mutation.
+func (m *UserBehaviorProfileMutation) AppendedCommonKeywords() ([]string, bool) {
+	if len(m.appendcommon_keywords) == 0 {
+		return nil, false
+	}
+	return m.appendcommon_keywords, true
+}
+
+// ResetCommonKeywords resets all changes to the "common_keywords" field.
+func (m *UserBehaviorProfileMutation) ResetCommonKeywords() {
+	m.common_keywords = nil
+	m.appendcommon_keywords = nil
+}
+
+// SetTimePatterns sets the "time_patterns" field.
+func (m *UserBehaviorProfileMutation) SetTimePatterns(value map[string]interface{}) {
+	m.time_patterns = &value
+}
+
+// TimePatterns returns the value of the "time_patterns" field in the mutation.
+func (m *UserBehaviorProfileMutation) TimePatterns() (r map[string]interface{}, exists bool) {
+	v := m.time_patterns
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTimePatterns returns the old "time_patterns" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldTimePatterns(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTimePatterns is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTimePatterns requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTimePatterns: %w", err)
+	}
+	return oldValue.TimePatterns, nil
+}
+
+// ResetTimePatterns resets all changes to the "time_patterns" field.
+func (m *UserBehaviorProfileMutation) ResetTimePatterns() {
+	m.time_patterns = nil
+}
+
+// SetTotalSessions sets the "total_sessions" field.
+func (m *UserBehaviorProfileMutation) SetTotalSessions(i int) {
+	m.total_sessions = &i
+	m.addtotal_sessions = nil
+}
+
+// TotalSessions returns the value of the "total_sessions" field in the mutation.
+func (m *UserBehaviorProfileMutation) TotalSessions() (r int, exists bool) {
+	v := m.total_sessions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalSessions returns the old "total_sessions" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldTotalSessions(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalSessions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalSessions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalSessions: %w", err)
+	}
+	return oldValue.TotalSessions, nil
+}
+
+// AddTotalSessions adds i to the "total_sessions" field.
+func (m *UserBehaviorProfileMutation) AddTotalSessions(i int) {
+	if m.addtotal_sessions != nil {
+		*m.addtotal_sessions += i
+	} else {
+		m.addtotal_sessions = &i
+	}
+}
+
+// AddedTotalSessions returns the value that was added to the "total_sessions" field in this mutation.
+func (m *UserBehaviorProfileMutation) AddedTotalSessions() (r int, exists bool) {
+	v := m.addtotal_sessions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalSessions resets all changes to the "total_sessions" field.
+func (m *UserBehaviorProfileMutation) ResetTotalSessions() {
+	m.total_sessions = nil
+	m.addtotal_sessions = nil
+}
+
+// SetTotalProductsViewed sets the "total_products_viewed" field.
+func (m *UserBehaviorProfileMutation) SetTotalProductsViewed(i int) {
+	m.total_products_viewed = &i
+	m.addtotal_products_viewed = nil
+}
+
+// TotalProductsViewed returns the value of the "total_products_viewed" field in the mutation.
+func (m *UserBehaviorProfileMutation) TotalProductsViewed() (r int, exists bool) {
+	v := m.total_products_viewed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalProductsViewed returns the old "total_products_viewed" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldTotalProductsViewed(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalProductsViewed is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalProductsViewed requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalProductsViewed: %w", err)
+	}
+	return oldValue.TotalProductsViewed, nil
+}
+
+// AddTotalProductsViewed adds i to the "total_products_viewed" field.
+func (m *UserBehaviorProfileMutation) AddTotalProductsViewed(i int) {
+	if m.addtotal_products_viewed != nil {
+		*m.addtotal_products_viewed += i
+	} else {
+		m.addtotal_products_viewed = &i
+	}
+}
+
+// AddedTotalProductsViewed returns the value that was added to the "total_products_viewed" field in this mutation.
+func (m *UserBehaviorProfileMutation) AddedTotalProductsViewed() (r int, exists bool) {
+	v := m.addtotal_products_viewed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalProductsViewed resets all changes to the "total_products_viewed" field.
+func (m *UserBehaviorProfileMutation) ResetTotalProductsViewed() {
+	m.total_products_viewed = nil
+	m.addtotal_products_viewed = nil
+}
+
+// SetTotalProductsClicked sets the "total_products_clicked" field.
+func (m *UserBehaviorProfileMutation) SetTotalProductsClicked(i int) {
+	m.total_products_clicked = &i
+	m.addtotal_products_clicked = nil
+}
+
+// TotalProductsClicked returns the value of the "total_products_clicked" field in the mutation.
+func (m *UserBehaviorProfileMutation) TotalProductsClicked() (r int, exists bool) {
+	v := m.total_products_clicked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalProductsClicked returns the old "total_products_clicked" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldTotalProductsClicked(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalProductsClicked is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalProductsClicked requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalProductsClicked: %w", err)
+	}
+	return oldValue.TotalProductsClicked, nil
+}
+
+// AddTotalProductsClicked adds i to the "total_products_clicked" field.
+func (m *UserBehaviorProfileMutation) AddTotalProductsClicked(i int) {
+	if m.addtotal_products_clicked != nil {
+		*m.addtotal_products_clicked += i
+	} else {
+		m.addtotal_products_clicked = &i
+	}
+}
+
+// AddedTotalProductsClicked returns the value that was added to the "total_products_clicked" field in this mutation.
+func (m *UserBehaviorProfileMutation) AddedTotalProductsClicked() (r int, exists bool) {
+	v := m.addtotal_products_clicked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalProductsClicked resets all changes to the "total_products_clicked" field.
+func (m *UserBehaviorProfileMutation) ResetTotalProductsClicked() {
+	m.total_products_clicked = nil
+	m.addtotal_products_clicked = nil
+}
+
+// SetLastLearningUpdate sets the "last_learning_update" field.
+func (m *UserBehaviorProfileMutation) SetLastLearningUpdate(t time.Time) {
+	m.last_learning_update = &t
+}
+
+// LastLearningUpdate returns the value of the "last_learning_update" field in the mutation.
+func (m *UserBehaviorProfileMutation) LastLearningUpdate() (r time.Time, exists bool) {
+	v := m.last_learning_update
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastLearningUpdate returns the old "last_learning_update" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldLastLearningUpdate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastLearningUpdate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastLearningUpdate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastLearningUpdate: %w", err)
+	}
+	return oldValue.LastLearningUpdate, nil
+}
+
+// ResetLastLearningUpdate resets all changes to the "last_learning_update" field.
+func (m *UserBehaviorProfileMutation) ResetLastLearningUpdate() {
+	m.last_learning_update = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserBehaviorProfileMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserBehaviorProfileMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserBehaviorProfileMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserBehaviorProfileMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserBehaviorProfileMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserBehaviorProfile entity.
+// If the UserBehaviorProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBehaviorProfileMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserBehaviorProfileMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *UserBehaviorProfileMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[userbehaviorprofile.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *UserBehaviorProfileMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *UserBehaviorProfileMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *UserBehaviorProfileMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the UserBehaviorProfileMutation builder.
+func (m *UserBehaviorProfileMutation) Where(ps ...predicate.UserBehaviorProfile) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserBehaviorProfileMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserBehaviorProfileMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserBehaviorProfile, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserBehaviorProfileMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserBehaviorProfileMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserBehaviorProfile).
+func (m *UserBehaviorProfileMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserBehaviorProfileMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.user != nil {
+		fields = append(fields, userbehaviorprofile.FieldUserID)
+	}
+	if m.category_preferences != nil {
+		fields = append(fields, userbehaviorprofile.FieldCategoryPreferences)
+	}
+	if m.price_ranges != nil {
+		fields = append(fields, userbehaviorprofile.FieldPriceRanges)
+	}
+	if m.brand_preferences != nil {
+		fields = append(fields, userbehaviorprofile.FieldBrandPreferences)
+	}
+	if m.communication_style != nil {
+		fields = append(fields, userbehaviorprofile.FieldCommunicationStyle)
+	}
+	if m.preferred_search_type != nil {
+		fields = append(fields, userbehaviorprofile.FieldPreferredSearchType)
+	}
+	if m.avg_session_duration != nil {
+		fields = append(fields, userbehaviorprofile.FieldAvgSessionDuration)
+	}
+	if m.avg_messages_per_session != nil {
+		fields = append(fields, userbehaviorprofile.FieldAvgMessagesPerSession)
+	}
+	if m.success_rate != nil {
+		fields = append(fields, userbehaviorprofile.FieldSuccessRate)
+	}
+	if m.common_keywords != nil {
+		fields = append(fields, userbehaviorprofile.FieldCommonKeywords)
+	}
+	if m.time_patterns != nil {
+		fields = append(fields, userbehaviorprofile.FieldTimePatterns)
+	}
+	if m.total_sessions != nil {
+		fields = append(fields, userbehaviorprofile.FieldTotalSessions)
+	}
+	if m.total_products_viewed != nil {
+		fields = append(fields, userbehaviorprofile.FieldTotalProductsViewed)
+	}
+	if m.total_products_clicked != nil {
+		fields = append(fields, userbehaviorprofile.FieldTotalProductsClicked)
+	}
+	if m.last_learning_update != nil {
+		fields = append(fields, userbehaviorprofile.FieldLastLearningUpdate)
+	}
+	if m.created_at != nil {
+		fields = append(fields, userbehaviorprofile.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, userbehaviorprofile.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserBehaviorProfileMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case userbehaviorprofile.FieldUserID:
+		return m.UserID()
+	case userbehaviorprofile.FieldCategoryPreferences:
+		return m.CategoryPreferences()
+	case userbehaviorprofile.FieldPriceRanges:
+		return m.PriceRanges()
+	case userbehaviorprofile.FieldBrandPreferences:
+		return m.BrandPreferences()
+	case userbehaviorprofile.FieldCommunicationStyle:
+		return m.CommunicationStyle()
+	case userbehaviorprofile.FieldPreferredSearchType:
+		return m.PreferredSearchType()
+	case userbehaviorprofile.FieldAvgSessionDuration:
+		return m.AvgSessionDuration()
+	case userbehaviorprofile.FieldAvgMessagesPerSession:
+		return m.AvgMessagesPerSession()
+	case userbehaviorprofile.FieldSuccessRate:
+		return m.SuccessRate()
+	case userbehaviorprofile.FieldCommonKeywords:
+		return m.CommonKeywords()
+	case userbehaviorprofile.FieldTimePatterns:
+		return m.TimePatterns()
+	case userbehaviorprofile.FieldTotalSessions:
+		return m.TotalSessions()
+	case userbehaviorprofile.FieldTotalProductsViewed:
+		return m.TotalProductsViewed()
+	case userbehaviorprofile.FieldTotalProductsClicked:
+		return m.TotalProductsClicked()
+	case userbehaviorprofile.FieldLastLearningUpdate:
+		return m.LastLearningUpdate()
+	case userbehaviorprofile.FieldCreatedAt:
+		return m.CreatedAt()
+	case userbehaviorprofile.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserBehaviorProfileMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case userbehaviorprofile.FieldUserID:
+		return m.OldUserID(ctx)
+	case userbehaviorprofile.FieldCategoryPreferences:
+		return m.OldCategoryPreferences(ctx)
+	case userbehaviorprofile.FieldPriceRanges:
+		return m.OldPriceRanges(ctx)
+	case userbehaviorprofile.FieldBrandPreferences:
+		return m.OldBrandPreferences(ctx)
+	case userbehaviorprofile.FieldCommunicationStyle:
+		return m.OldCommunicationStyle(ctx)
+	case userbehaviorprofile.FieldPreferredSearchType:
+		return m.OldPreferredSearchType(ctx)
+	case userbehaviorprofile.FieldAvgSessionDuration:
+		return m.OldAvgSessionDuration(ctx)
+	case userbehaviorprofile.FieldAvgMessagesPerSession:
+		return m.OldAvgMessagesPerSession(ctx)
+	case userbehaviorprofile.FieldSuccessRate:
+		return m.OldSuccessRate(ctx)
+	case userbehaviorprofile.FieldCommonKeywords:
+		return m.OldCommonKeywords(ctx)
+	case userbehaviorprofile.FieldTimePatterns:
+		return m.OldTimePatterns(ctx)
+	case userbehaviorprofile.FieldTotalSessions:
+		return m.OldTotalSessions(ctx)
+	case userbehaviorprofile.FieldTotalProductsViewed:
+		return m.OldTotalProductsViewed(ctx)
+	case userbehaviorprofile.FieldTotalProductsClicked:
+		return m.OldTotalProductsClicked(ctx)
+	case userbehaviorprofile.FieldLastLearningUpdate:
+		return m.OldLastLearningUpdate(ctx)
+	case userbehaviorprofile.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case userbehaviorprofile.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserBehaviorProfile field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserBehaviorProfileMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case userbehaviorprofile.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case userbehaviorprofile.FieldCategoryPreferences:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategoryPreferences(v)
+		return nil
+	case userbehaviorprofile.FieldPriceRanges:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceRanges(v)
+		return nil
+	case userbehaviorprofile.FieldBrandPreferences:
+		v, ok := value.(map[string]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBrandPreferences(v)
+		return nil
+	case userbehaviorprofile.FieldCommunicationStyle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCommunicationStyle(v)
+		return nil
+	case userbehaviorprofile.FieldPreferredSearchType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPreferredSearchType(v)
+		return nil
+	case userbehaviorprofile.FieldAvgSessionDuration:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvgSessionDuration(v)
+		return nil
+	case userbehaviorprofile.FieldAvgMessagesPerSession:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvgMessagesPerSession(v)
+		return nil
+	case userbehaviorprofile.FieldSuccessRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSuccessRate(v)
+		return nil
+	case userbehaviorprofile.FieldCommonKeywords:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCommonKeywords(v)
+		return nil
+	case userbehaviorprofile.FieldTimePatterns:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTimePatterns(v)
+		return nil
+	case userbehaviorprofile.FieldTotalSessions:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalSessions(v)
+		return nil
+	case userbehaviorprofile.FieldTotalProductsViewed:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalProductsViewed(v)
+		return nil
+	case userbehaviorprofile.FieldTotalProductsClicked:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalProductsClicked(v)
+		return nil
+	case userbehaviorprofile.FieldLastLearningUpdate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastLearningUpdate(v)
+		return nil
+	case userbehaviorprofile.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case userbehaviorprofile.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserBehaviorProfile field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserBehaviorProfileMutation) AddedFields() []string {
+	var fields []string
+	if m.addavg_session_duration != nil {
+		fields = append(fields, userbehaviorprofile.FieldAvgSessionDuration)
+	}
+	if m.addavg_messages_per_session != nil {
+		fields = append(fields, userbehaviorprofile.FieldAvgMessagesPerSession)
+	}
+	if m.addsuccess_rate != nil {
+		fields = append(fields, userbehaviorprofile.FieldSuccessRate)
+	}
+	if m.addtotal_sessions != nil {
+		fields = append(fields, userbehaviorprofile.FieldTotalSessions)
+	}
+	if m.addtotal_products_viewed != nil {
+		fields = append(fields, userbehaviorprofile.FieldTotalProductsViewed)
+	}
+	if m.addtotal_products_clicked != nil {
+		fields = append(fields, userbehaviorprofile.FieldTotalProductsClicked)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserBehaviorProfileMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case userbehaviorprofile.FieldAvgSessionDuration:
+		return m.AddedAvgSessionDuration()
+	case userbehaviorprofile.FieldAvgMessagesPerSession:
+		return m.AddedAvgMessagesPerSession()
+	case userbehaviorprofile.FieldSuccessRate:
+		return m.AddedSuccessRate()
+	case userbehaviorprofile.FieldTotalSessions:
+		return m.AddedTotalSessions()
+	case userbehaviorprofile.FieldTotalProductsViewed:
+		return m.AddedTotalProductsViewed()
+	case userbehaviorprofile.FieldTotalProductsClicked:
+		return m.AddedTotalProductsClicked()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserBehaviorProfileMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case userbehaviorprofile.FieldAvgSessionDuration:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAvgSessionDuration(v)
+		return nil
+	case userbehaviorprofile.FieldAvgMessagesPerSession:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAvgMessagesPerSession(v)
+		return nil
+	case userbehaviorprofile.FieldSuccessRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSuccessRate(v)
+		return nil
+	case userbehaviorprofile.FieldTotalSessions:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalSessions(v)
+		return nil
+	case userbehaviorprofile.FieldTotalProductsViewed:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalProductsViewed(v)
+		return nil
+	case userbehaviorprofile.FieldTotalProductsClicked:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalProductsClicked(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserBehaviorProfile numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserBehaviorProfileMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(userbehaviorprofile.FieldPreferredSearchType) {
+		fields = append(fields, userbehaviorprofile.FieldPreferredSearchType)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserBehaviorProfileMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserBehaviorProfileMutation) ClearField(name string) error {
+	switch name {
+	case userbehaviorprofile.FieldPreferredSearchType:
+		m.ClearPreferredSearchType()
+		return nil
+	}
+	return fmt.Errorf("unknown UserBehaviorProfile nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserBehaviorProfileMutation) ResetField(name string) error {
+	switch name {
+	case userbehaviorprofile.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case userbehaviorprofile.FieldCategoryPreferences:
+		m.ResetCategoryPreferences()
+		return nil
+	case userbehaviorprofile.FieldPriceRanges:
+		m.ResetPriceRanges()
+		return nil
+	case userbehaviorprofile.FieldBrandPreferences:
+		m.ResetBrandPreferences()
+		return nil
+	case userbehaviorprofile.FieldCommunicationStyle:
+		m.ResetCommunicationStyle()
+		return nil
+	case userbehaviorprofile.FieldPreferredSearchType:
+		m.ResetPreferredSearchType()
+		return nil
+	case userbehaviorprofile.FieldAvgSessionDuration:
+		m.ResetAvgSessionDuration()
+		return nil
+	case userbehaviorprofile.FieldAvgMessagesPerSession:
+		m.ResetAvgMessagesPerSession()
+		return nil
+	case userbehaviorprofile.FieldSuccessRate:
+		m.ResetSuccessRate()
+		return nil
+	case userbehaviorprofile.FieldCommonKeywords:
+		m.ResetCommonKeywords()
+		return nil
+	case userbehaviorprofile.FieldTimePatterns:
+		m.ResetTimePatterns()
+		return nil
+	case userbehaviorprofile.FieldTotalSessions:
+		m.ResetTotalSessions()
+		return nil
+	case userbehaviorprofile.FieldTotalProductsViewed:
+		m.ResetTotalProductsViewed()
+		return nil
+	case userbehaviorprofile.FieldTotalProductsClicked:
+		m.ResetTotalProductsClicked()
+		return nil
+	case userbehaviorprofile.FieldLastLearningUpdate:
+		m.ResetLastLearningUpdate()
+		return nil
+	case userbehaviorprofile.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case userbehaviorprofile.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserBehaviorProfile field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserBehaviorProfileMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, userbehaviorprofile.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserBehaviorProfileMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case userbehaviorprofile.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserBehaviorProfileMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserBehaviorProfileMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserBehaviorProfileMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, userbehaviorprofile.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserBehaviorProfileMutation) EdgeCleared(name string) bool {
+	switch name {
+	case userbehaviorprofile.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserBehaviorProfileMutation) ClearEdge(name string) error {
+	switch name {
+	case userbehaviorprofile.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown UserBehaviorProfile unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserBehaviorProfileMutation) ResetEdge(name string) error {
+	switch name {
+	case userbehaviorprofile.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown UserBehaviorProfile edge %s", name)
 }
 
 // UserPreferenceMutation represents an operation that mutates the UserPreference nodes in the graph.

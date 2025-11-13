@@ -607,6 +607,29 @@ func HasMessagesWith(preds ...predicate.Message) predicate.ChatSession {
 	})
 }
 
+// HasAnalytics applies the HasEdge predicate on the "analytics" edge.
+func HasAnalytics() predicate.ChatSession {
+	return predicate.ChatSession(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, AnalyticsTable, AnalyticsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAnalyticsWith applies the HasEdge predicate on the "analytics" edge with a given conditions (other predicates).
+func HasAnalyticsWith(preds ...predicate.ConversationAnalytics) predicate.ChatSession {
+	return predicate.ChatSession(func(s *sql.Selector) {
+		step := newAnalyticsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.ChatSession) predicate.ChatSession {
 	return predicate.ChatSession(sql.AndPredicates(predicates...))

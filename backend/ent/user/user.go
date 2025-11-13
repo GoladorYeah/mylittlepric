@@ -39,6 +39,12 @@ const (
 	EdgeSearchHistory = "search_history"
 	// EdgePreferences holds the string denoting the preferences edge name in mutations.
 	EdgePreferences = "preferences"
+	// EdgeBehaviorProfile holds the string denoting the behavior_profile edge name in mutations.
+	EdgeBehaviorProfile = "behavior_profile"
+	// EdgeConversationAnalytics holds the string denoting the conversation_analytics edge name in mutations.
+	EdgeConversationAnalytics = "conversation_analytics"
+	// EdgeProductInteractions holds the string denoting the product_interactions edge name in mutations.
+	EdgeProductInteractions = "product_interactions"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// SessionsTable is the table that holds the sessions relation/edge.
@@ -62,6 +68,27 @@ const (
 	PreferencesInverseTable = "user_preferences"
 	// PreferencesColumn is the table column denoting the preferences relation/edge.
 	PreferencesColumn = "user_id"
+	// BehaviorProfileTable is the table that holds the behavior_profile relation/edge.
+	BehaviorProfileTable = "user_behavior_profiles"
+	// BehaviorProfileInverseTable is the table name for the UserBehaviorProfile entity.
+	// It exists in this package in order to avoid circular dependency with the "userbehaviorprofile" package.
+	BehaviorProfileInverseTable = "user_behavior_profiles"
+	// BehaviorProfileColumn is the table column denoting the behavior_profile relation/edge.
+	BehaviorProfileColumn = "user_id"
+	// ConversationAnalyticsTable is the table that holds the conversation_analytics relation/edge.
+	ConversationAnalyticsTable = "conversation_analytics"
+	// ConversationAnalyticsInverseTable is the table name for the ConversationAnalytics entity.
+	// It exists in this package in order to avoid circular dependency with the "conversationanalytics" package.
+	ConversationAnalyticsInverseTable = "conversation_analytics"
+	// ConversationAnalyticsColumn is the table column denoting the conversation_analytics relation/edge.
+	ConversationAnalyticsColumn = "user_id"
+	// ProductInteractionsTable is the table that holds the product_interactions relation/edge.
+	ProductInteractionsTable = "product_interactions"
+	// ProductInteractionsInverseTable is the table name for the ProductInteraction entity.
+	// It exists in this package in order to avoid circular dependency with the "productinteraction" package.
+	ProductInteractionsInverseTable = "product_interactions"
+	// ProductInteractionsColumn is the table column denoting the product_interactions relation/edge.
+	ProductInteractionsColumn = "user_id"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -190,6 +217,41 @@ func ByPreferencesField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newPreferencesStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByBehaviorProfileField orders the results by behavior_profile field.
+func ByBehaviorProfileField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBehaviorProfileStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByConversationAnalyticsCount orders the results by conversation_analytics count.
+func ByConversationAnalyticsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newConversationAnalyticsStep(), opts...)
+	}
+}
+
+// ByConversationAnalytics orders the results by conversation_analytics terms.
+func ByConversationAnalytics(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newConversationAnalyticsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByProductInteractionsCount orders the results by product_interactions count.
+func ByProductInteractionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProductInteractionsStep(), opts...)
+	}
+}
+
+// ByProductInteractions orders the results by product_interactions terms.
+func ByProductInteractions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProductInteractionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newSessionsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -209,5 +271,26 @@ func newPreferencesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PreferencesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2O, false, PreferencesTable, PreferencesColumn),
+	)
+}
+func newBehaviorProfileStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BehaviorProfileInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, BehaviorProfileTable, BehaviorProfileColumn),
+	)
+}
+func newConversationAnalyticsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ConversationAnalyticsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ConversationAnalyticsTable, ConversationAnalyticsColumn),
+	)
+}
+func newProductInteractionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProductInteractionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProductInteractionsTable, ProductInteractionsColumn),
 	)
 }
