@@ -54,24 +54,25 @@ export function ChatHeader({
     <header className="bg-background sticky top-0 z-30">
       <div className="from-background via-background via-65% to-background-100/0 pointer-events-none absolute inset-0 -bottom-5 -z-1 bg-linear-to-b blur-sm"></div>
       <div className="container mx-auto px-4 py-2 flex items-center justify-between gap-3">
-        {/* Mobile Sidebar Toggle Button */}
-        <button
-          onClick={toggleSidebar}
-          className={`p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity lg:hidden shrink-0 ${
-            isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
-          }`}
-          aria-label="Open sidebar"
-        >
-          <PanelLeft className="w-5 h-5" />
-        </button>
+        {/* Left section: Mobile toggle + Last Search Saved */}
+        <div className="flex items-center gap-3">
+          {/* Mobile Sidebar Toggle Button */}
+          <button
+            onClick={toggleSidebar}
+            className={`p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity lg:hidden shrink-0 ${
+              isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
+            aria-label="Open sidebar"
+          >
+            <PanelLeft className="w-5 h-5" />
+          </button>
 
-        {/* Last Search Saved - Desktop and Mobile */}
-        <div className="flex-1 flex justify-center">
+          {/* Last Search Saved - Desktop and Mobile */}
           <LastSearchSaved />
         </div>
 
         {/* Connection Status and Rate Limit Indicator */}
-        <div className="flex items-center gap-3 ml-auto shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {/* Rate Limit Indicator */}
           <RateLimitIndicator />
 

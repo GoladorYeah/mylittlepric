@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useChatStore } from "@/shared/lib";
 import { RotateCcw, X, ChevronDown } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
@@ -15,6 +15,7 @@ const localeMap: Record<string, any> = {
 
 export function LastSearchSaved() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const {
     savedSearch,
@@ -27,8 +28,26 @@ export function LastSearchSaved() {
   const pathname = usePathname();
   const locale = localeMap[language] || enUS;
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsExpanded(false);
+      }
+    };
+
+    if (isExpanded) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isExpanded]);
+
   const handleRestoreSearch = () => {
     restoreSavedSearch();
+    setIsExpanded(false);
     // Navigate to chat if we're not already there
     if (pathname !== '/chat') {
       router.push('/chat');
@@ -51,11 +70,11 @@ export function LastSearchSaved() {
   }
 
   return (
-    <div className="w-full max-w-md rounded-lg bg-amber-500/10 border border-amber-500/30">
+    <div ref={dropdownRef} className="relative">
       {/* Header - Always visible */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-3 py-2 flex items-center justify-between gap-2 hover:bg-amber-500/20 rounded-lg transition-colors"
+        className="px-3 py-2 flex items-center gap-2 hover:bg-amber-500/10 rounded-lg transition-colors"
       >
         <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
           Last search saved
@@ -67,9 +86,9 @@ export function LastSearchSaved() {
         />
       </button>
 
-      {/* Expanded Content */}
+      {/* Expanded Content - Absolute positioned */}
       {isExpanded && (
-        <div className="px-3 pb-2.5 space-y-2">
+        <div className="absolute top-full left-0 mt-1 w-80 max-w-[calc(100vw-2rem)] p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 shadow-lg z-50 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground truncate">
@@ -83,6 +102,7 @@ export function LastSearchSaved() {
               onClick={(e) => {
                 e.stopPropagation();
                 clearSavedSearch();
+                setIsExpanded(false);
               }}
               className="p-1 hover:bg-amber-500/20 rounded transition-colors shrink-0"
               title="Dismiss"
