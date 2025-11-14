@@ -1,16 +1,8 @@
 "use client";
 
 import { useChatStore } from "@/shared/lib";
-import { Clock, Plus, PanelLeft, PanelLeftClose, RotateCcw, X } from "lucide-react";
+import { Clock, Plus, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { formatDistanceToNow } from "date-fns";
-import { ru, uk, enUS } from "date-fns/locale";
-
-const localeMap: Record<string, any> = {
-  ru,
-  uk,
-  en: enUS,
-};
 
 import { Logo } from "@/shared/components/ui";
 import { UserMenu } from "@/features/auth";
@@ -25,15 +17,10 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
   const {
     isSidebarOpen,
     toggleSidebar,
-    savedSearch,
-    restoreSavedSearch,
-    clearSavedSearch,
-    language,
   } = useChatStore();
 
   const router = useRouter();
   const pathname = usePathname();
-  const locale = localeMap[language] || enUS;
 
   const handleHistoryClick = () => {
     router.push('/history');
@@ -50,29 +37,6 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
     if (window.innerWidth < 1024) {
       toggleSidebar();
     }
-  };
-
-  const handleRestoreSearch = () => {
-    restoreSavedSearch();
-    // Navigate to chat if we're not already there
-    if (pathname !== '/chat') {
-      router.push('/chat');
-    }
-    // Close sidebar on mobile
-    if (window.innerWidth < 1024) {
-      toggleSidebar();
-    }
-  };
-
-  const getSearchPreview = () => {
-    if (!savedSearch || savedSearch.messages.length === 0) return "";
-    // Get the last user message as preview
-    const userMessages = savedSearch.messages.filter(m => m.role === "user");
-    if (userMessages.length === 0) return "";
-    const lastUserMsg = userMessages[userMessages.length - 1];
-    return lastUserMsg.content.length > 50
-      ? lastUserMsg.content.substring(0, 50) + "..."
-      : lastUserMsg.content;
   };
 
   return (
@@ -134,42 +98,6 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                     <Plus className="w-5 h-5" />
                     <span className="text-sm font-semibold">New Search</span>
                   </button>
-                )}
-
-                {/* Saved Search Banner */}
-                {savedSearch && (
-                  <div className="w-full p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">
-                          Last search saved
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {getSearchPreview()}
-                        </p>
-                        <p className="text-xs text-muted-foreground/70 mt-1">
-                          {formatDistanceToNow(new Date(savedSearch.timestamp), { addSuffix: true, locale })}
-                        </p>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          clearSavedSearch();
-                        }}
-                        className="p-1 hover:bg-amber-500/20 rounded transition-colors shrink-0"
-                        title="Dismiss"
-                      >
-                        <X className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
-                      </button>
-                    </div>
-                    <button
-                      onClick={handleRestoreSearch}
-                      className="w-full px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded text-xs font-medium transition-colors flex items-center justify-center gap-2"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      Restore Search
-                    </button>
-                  </div>
                 )}
 
                 {/* Search History Button */}
