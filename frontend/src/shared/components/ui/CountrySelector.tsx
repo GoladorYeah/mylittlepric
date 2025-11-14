@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Globe, Check, Settings } from "lucide-react";
 import { useChatStore } from "@/shared/lib";
 import { useClickOutside } from "@/shared/hooks";
-import SettingsDialog from "./SettingsDialog";
+import { useRouter } from "next/navigation";
 
 interface Country {
   code: string;
@@ -81,9 +81,9 @@ export function CountrySelector() {
   const { country, setCountry } = useChatStore();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const selectedCountry = COUNTRIES.find((c) => c.code === country.toLowerCase()) || COUNTRIES[0];
 
@@ -176,16 +176,13 @@ export function CountrySelector() {
         {/* Settings Icon Button */}
         <button
           type="button"
-          onClick={() => setIsSettingsOpen(true)}
+          onClick={() => router.push('/settings')}
           className="flex items-center justify-center p-2 rounded-lg hover:bg-background/50 transition-colors shrink-0 cursor-pointer"
           title="Open settings"
         >
           <Settings className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
-
-      {/* Settings Dialog */}
-      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>
   );
 }
