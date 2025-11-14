@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Globe, Check } from "lucide-react";
+import { Globe, Check, Settings } from "lucide-react";
 import { useChatStore } from "@/shared/lib";
 import { useClickOutside } from "@/shared/hooks";
+import SettingsDialog from "./SettingsDialog";
 
 interface Country {
   code: string;
@@ -80,6 +81,7 @@ export function CountrySelector() {
   const { country, setCountry } = useChatStore();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -114,16 +116,18 @@ export function CountrySelector() {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-background/50 transition-colors shrink-0 cursor-pointer"
-        title="Select country"
-      >
-        <Globe className="w-4 h-4 text-muted-foreground" />
-        <CountryFlag country={selectedCountry} size="base" />
-      </button>
+    <>
+      <div className="flex items-center gap-1">
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-background/50 transition-colors shrink-0 cursor-pointer"
+            title="Select country"
+          >
+            <Globe className="w-4 h-4 text-muted-foreground" />
+            <CountryFlag country={selectedCountry} size="base" />
+          </button>
 
       {isOpen && (
         <div className="absolute left-0 bottom-full mb-2 w-72 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50">
@@ -167,6 +171,21 @@ export function CountrySelector() {
           </div>
         </div>
       )}
-    </div>
+        </div>
+
+        {/* Settings Icon Button */}
+        <button
+          type="button"
+          onClick={() => setIsSettingsOpen(true)}
+          className="flex items-center justify-center p-2 rounded-lg hover:bg-background/50 transition-colors shrink-0 cursor-pointer"
+          title="Open settings"
+        >
+          <Settings className="w-4 h-4 text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Settings Dialog */}
+      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+    </>
   );
 }
