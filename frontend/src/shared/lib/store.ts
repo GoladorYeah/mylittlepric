@@ -143,7 +143,10 @@ export const useChatStore = create<ChatStore>()(
 
       setLoading: (loading) => set({ isLoading: loading }),
 
-      setCountry: (country) => set({ country }),
+      setCountry: (country) => {
+        const currency = getCurrencyForCountry(country);
+        set({ country, currency });
+      },
 
       setLanguage: (language) => set({ language }),
 
