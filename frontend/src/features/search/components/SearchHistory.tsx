@@ -43,10 +43,10 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
     <>
       {/* Sidebar Panel */}
       <div
-        className={`fixed left-0 top-0 bottom-0 border-r border-border transform transition-[width,transform,background-color] duration-300 ease-in-out z-60 will-change-[width,transform] ${
+        className={`fixed left-0 top-0 bottom-0 border-r border-border transform transition-all duration-300 ease-in-out z-60 will-change-transform ${
           isSidebarOpen
-            ? "w-80 translate-x-0 bg-card/95 bg-old-card/95"
-            : "w-16 -translate-x-full lg:translate-x-0 lg:bg-background"
+            ? "w-80 translate-x-0 bg-card"
+            : "w-80 -translate-x-full bg-card lg:w-16 lg:translate-x-0 lg:bg-background"
         }`}
       >
         {/* Main scrollable content area */}
@@ -67,20 +67,20 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
             </button>
             {/* Logo - fades in/out */}
             <div className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-              <Logo className="h-8" width={105.3} height={40} />
+              <Logo className="h-8 w-auto" />
             </div>
           </div>
 
           {/* Mobile Header - Logo and close button */}
-          <div className="p-4 flex items-center justify-between lg:hidden">
+          <div className="px-4 py-2 flex items-center justify-between lg:hidden">
             <button
               onClick={toggleSidebar}
-              className="p-2 hover:bg-secondary rounded-lg transition-colors cursor-pointer"
+              className="p-2 rounded-lg bg-primary/10 cursor-pointer shrink-0"
               aria-label="Close sidebar"
             >
-              <PanelLeftClose className="w-5 h-5 text-muted-foreground" />
+              <PanelLeftClose className="w-5 h-5" />
             </button>
-            <Logo className="h-8" width={105.3} height={40} />
+            <Logo className="h-8 w-auto" />
           </div>
 
           {/* Main Content Area */}
@@ -155,11 +155,11 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
         {/* Bottom Controls - outside overflow context */}
         <div className="absolute bottom-0 left-0 right-0">
           {/* Expanded - User Menu with name */}
-          <div className={`p-4 flex items-start justify-start transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+          <div className={`p-2 flex items-start justify-start transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
             <UserMenu showName={true} />
           </div>
           {/* Collapsed - Icons only (desktop only) */}
-          <div className={`hidden lg:flex flex-col items-start pl-3 py-4 transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+          <div className={`hidden lg:flex flex-col items-start pl-4 py-4 transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
             <UserMenu showName={false} />
           </div>
         </div>

@@ -25,6 +25,8 @@
     "@types/node": "^20.19.23",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
+    "autoprefixer": "^10.4.22",
+    "postcss-preset-env": "^10.4.0",
     "tailwindcss": "^4.1.16",
     "typescript": "^5.9.3"
   },

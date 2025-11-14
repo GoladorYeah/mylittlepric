@@ -10,7 +10,7 @@ interface LogoProps {
   height?: number;
 }
 
-export function Logo({ className = "", width = 84.24, height = 32 }: LogoProps) {
+export function Logo({ className = "", width = 85, height = 33 }: LogoProps) {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -23,8 +23,8 @@ export function Logo({ className = "", width = 84.24, height = 32 }: LogoProps) 
     // Return a placeholder during SSR to avoid hydration mismatch
     return (
       <div
-        className={className}
-        style={{ width: `${width}px`, height: `${height}px` }}
+        className={className || "h-8 w-auto"}
+        style={!className ? { width: `${width}px`, height: `${height}px` } : undefined}
       />
     );
   }

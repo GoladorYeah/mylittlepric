@@ -82,14 +82,14 @@ export default function UserMenu({ showName = false }: UserMenuProps) {
       <div className="relative w-full" ref={menuRef}>
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className={`flex items-center gap-3 hover:opacity-90 transition-all cursor-pointer ${
+          className={`flex items-center gap-3 p-2 hover:opacity-90 transition-all cursor-pointer ${
             showName
-              ? 'w-full p-2 rounded-lg hover:bg-secondary/50'
-              : 'h-10 w-10 justify-center rounded-full bg-primary text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'
+              ? 'w-full rounded-lg hover:bg-secondary/50'
+              : 'h-9 w-9 justify-center rounded-full bg-primary text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'
           }`}
         >
           <div className={`flex items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0 ${
-            showName ? 'h-9 w-9' : 'h-10 w-10'
+            showName ? 'h-9 w-9' : 'h-9 w-9'
           }`}>
             <span className="text-sm font-semibold">{getUserInitials()}</span>
           </div>
@@ -108,12 +108,12 @@ export default function UserMenu({ showName = false }: UserMenuProps) {
         {isMenuOpen && (
           <div className={`fixed w-64 rounded-lg bg-background border border-border shadow-xl z-60 ${
             isSidebarOpen
-              ? 'bottom-20 right-4 md:right-4 md:bottom-full md:mb-2'
-              : 'bottom-20 md:bottom-4 left-4 md:left-4'
+              ? 'bottom-20 md:bottom-16 right-4 md:right-4'
+              : 'bottom-20 md:bottom-16 left-4 md:left-4'
           }`}>
             <div className="p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
                   <span className="text-sm font-semibold">{getUserInitials()}</span>
                 </div>
                 <div className="flex-1 min-w-0">

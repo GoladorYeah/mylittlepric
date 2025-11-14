@@ -74,7 +74,7 @@ export function LastSearchSaved() {
       {/* Header - Always visible */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="px-3 py-2 flex items-center gap-2 hover:bg-amber-500/10 rounded-lg transition-colors"
+        className="px-3 py-2 flex items-center gap-2 hover:bg-amber-500/10 rounded-lg transition-colors cursor-pointer"
       >
         <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
           Last search saved
@@ -88,7 +88,7 @@ export function LastSearchSaved() {
 
       {/* Expanded Content - Absolute positioned */}
       {isExpanded && (
-        <div className="absolute top-full left-0 mt-1 w-80 max-w-[calc(100vw-2rem)] p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 shadow-lg z-50 space-y-2">
+        <div className="absolute top-full left-0 mt-1 w-80 max-w-[calc(100vw-2rem)] p-3 rounded-lg bg-card border border-amber-500/30 shadow-lg z-50 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground truncate">
@@ -104,7 +104,7 @@ export function LastSearchSaved() {
                 clearSavedSearch();
                 setIsExpanded(false);
               }}
-              className="p-1 hover:bg-amber-500/20 rounded transition-colors shrink-0"
+              className="p-1 hover:bg-amber-500/20 rounded transition-colors shrink-0 cursor-pointer"
               title="Dismiss"
             >
               <X className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
@@ -112,7 +112,7 @@ export function LastSearchSaved() {
           </div>
           <button
             onClick={handleRestoreSearch}
-            className="w-full px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded text-xs font-medium transition-colors flex items-center justify-center gap-2"
+            className="w-full px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded text-xs font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Restore Search

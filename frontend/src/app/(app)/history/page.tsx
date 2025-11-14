@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ru, uk, enUS } from "date-fns/locale";
 import { SearchHistory as Sidebar } from "@/features/search";
 import { ProductCard } from "@/features/products";
+import { ChatHeader } from "@/features/chat/components/chat-header";
 
 const localeMap: Record<string, any> = {
   ru,
@@ -155,13 +156,20 @@ export default function HistoryPage() {
           isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'
         }`}
       >
+        {/* Mobile Header */}
+        <ChatHeader
+          isConnected={true}
+          connectionStatus="Connected"
+          onNewSearch={() => router.push('/chat')}
+        />
+
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6 md:mb-8">
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-3">
-                <Clock className="w-8 h-8 text-primary" />
-                <h1 className="text-3xl font-bold">Search History</h1>
+              <div className="flex items-center gap-2 md:gap-3">
+                <Clock className="hidden sm:block w-6 h-6 md:w-8 md:h-8 text-primary" />
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Search History</h1>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -169,7 +177,7 @@ export default function HistoryPage() {
                     e.preventDefault();
                     loadHistory(true);
                   }}
-                  className="p-2 hover:bg-secondary rounded-lg transition-colors"
+                  className="p-2 hover:bg-secondary rounded-lg transition-colors cursor-pointer"
                   title="Refresh"
                   disabled={loading}
                 >
@@ -178,7 +186,7 @@ export default function HistoryPage() {
                 {history.length > 0 && (
                   <button
                     onClick={handleClearAll}
-                    className="px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
                     title="Clear all"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -214,7 +222,7 @@ export default function HistoryPage() {
               </p>
               <button
                 onClick={() => router.push('/chat')}
-                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-all"
+                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-all cursor-pointer"
               >
                 Start Searching
               </button>
@@ -272,7 +280,7 @@ export default function HistoryPage() {
                                     e.stopPropagation();
                                     toggleExpanded(item.id);
                                   }}
-                                  className="p-2 hover:bg-secondary/50 rounded-lg transition-all"
+                                  className="p-2 hover:bg-secondary/50 rounded-lg transition-all cursor-pointer"
                                   title={isExpanded ? "Hide products" : "Show products"}
                                 >
                                   {isExpanded ? (
@@ -290,7 +298,7 @@ export default function HistoryPage() {
                                     e.stopPropagation();
                                     setOpenMenuId(openMenuId === item.id ? null : item.id);
                                   }}
-                                  className="opacity-0 group-hover:opacity-100 p-2 hover:bg-secondary/50 rounded-lg transition-all"
+                                  className="p-2 hover:bg-secondary/50 rounded-lg transition-all cursor-pointer"
                                   title="Options"
                                 >
                                   <MoreVertical className="w-4 h-4 text-muted-foreground" />
@@ -316,7 +324,7 @@ export default function HistoryPage() {
                                             handleViewChat(item.session_id!);
                                             setOpenMenuId(null);
                                           }}
-                                          className="w-full px-4 py-2.5 text-left hover:bg-secondary transition-colors flex items-center gap-3 text-sm"
+                                          className="w-full px-4 py-2.5 text-left hover:bg-secondary transition-colors flex items-center gap-3 text-sm cursor-pointer"
                                         >
                                           <MessageCircle className="w-4 h-4 text-primary" />
                                           <span>View Chat History</span>
@@ -328,7 +336,7 @@ export default function HistoryPage() {
                                           handleDelete(item.id, e);
                                           setOpenMenuId(null);
                                         }}
-                                        className="w-full px-4 py-2.5 text-left hover:bg-destructive/10 transition-colors flex items-center gap-3 text-sm text-destructive"
+                                        className="w-full px-4 py-2.5 text-left hover:bg-destructive/10 transition-colors flex items-center gap-3 text-sm text-destructive cursor-pointer"
                                       >
                                         <Trash2 className="w-4 h-4" />
                                         <span>Delete</span>
@@ -370,7 +378,7 @@ export default function HistoryPage() {
                   <button
                     onClick={() => loadHistory(false)}
                     disabled={loading}
-                    className="px-6 py-3 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg transition-colors disabled:opacity-50"
+                    className="px-6 py-3 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     {loading ? 'Loading...' : 'Load More'}
                   </button>

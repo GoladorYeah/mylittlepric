@@ -34,7 +34,7 @@ export function PolicyLayout({ title, lastUpdated, children }: PolicyLayoutProps
               </Link>
             </div>
             <div className="h-6 w-px bg-border hidden sm:block" />
-            <Logo width={84.24} height={32} />
+            <Logo className="h-8 w-auto" />
           </div>
         </div>
       </header>

@@ -46,14 +46,14 @@ export function SavedSearchPrompt({ onContinue, onNewSearch }: SavedSearchPrompt
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={onContinue}
-            className="flex-1 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+            className="flex-1 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <RotateCcw className="w-5 h-5" />
             Продолжить поиск
           </button>
           <button
             onClick={onNewSearch}
-            className="flex-1 px-6 py-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+            className="flex-1 px-6 py-3 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <Plus className="w-5 h-5" />
             Начать новый

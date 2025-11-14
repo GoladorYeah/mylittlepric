@@ -114,7 +114,7 @@ export function ChatMessage({ message, onQuickReply, onRetry }: ChatMessageProps
                       {onRetry && (
                         <button
                           onClick={() => onRetry(message.id)}
-                          className="underline hover:no-underline ml-1 font-medium"
+                          className="underline hover:no-underline ml-1 font-medium cursor-pointer"
                         >
                           Retry
                         </button>

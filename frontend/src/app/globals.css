@@ -113,23 +113,182 @@
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.7);
 }
 
-/* Fallback for browsers without custom properties support */
-@supports not (color: var(--color-background)) {
+/* Fallback for browsers without oklch/color-mix support */
+@supports not (background-color: oklch(0% 0 0)) {
+  /* Light theme fallbacks */
   :root {
-    color: #262626;
-    background: #fafafa;
+    --color-background: #fafafa;
+    --color-foreground: #262626;
+    --color-card: #ffffff;
+    --color-border: #e5e5e5;
+    --color-input: #f5f5f5;
+    --color-primary: #3b82f6;
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #f5f5f5;
+    --color-secondary-foreground: #404040;
+    --color-muted: #f3f3f3;
+    --color-muted-foreground: #737373;
+    --color-accent: #f3f4f6;
+    --color-accent-foreground: #404040;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-destructive: #ef4444;
   }
-  .bg-card\/95 {
-    background-color:#13151c; 
-    background-color: color-mix(in oklab, var(--color-card) /* oklch(100% 0 0) */ 95%, transparent);
+
+  /* Dark theme fallbacks */
+  :root.dark {
+    --color-background: #1a1d26;
+    --color-foreground: #fafafa;
+    --color-card: #13151c;
+    --color-border: #2d3142;
+    --color-input: #181a21;
+    --color-primary: #3b9fd9;
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #1c1f28;
+    --color-secondary-foreground: #f5f5f5;
+    --color-muted: #22242d;
+    --color-muted-foreground: #a8aab3;
+    --color-accent: #293344;
+    --color-accent-foreground: #fafafa;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-destructive: #f87171;
+  }
 }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      color: #fafafa;
-      background: #1a1d26;
-    }
+/* Manual fallbacks for transparent backgrounds (for very old browsers) */
+@supports not (background-color: color-mix(in srgb, white 50%, transparent)) {
+  /* Light theme transparency fallbacks */
+  :root {
+    /* Primary with opacity */
+    --bg-primary-5: rgba(59, 130, 246, 0.05);
+    --bg-primary-10: rgba(59, 130, 246, 0.1);
+    --bg-primary-15: rgba(59, 130, 246, 0.15);
+    --bg-primary-20: rgba(59, 130, 246, 0.2);
+    --bg-primary-40: rgba(59, 130, 246, 0.4);
+    --bg-primary-60: rgba(59, 130, 246, 0.6);
+    --bg-primary-90: rgba(59, 130, 246, 0.9);
+
+    /* Secondary with opacity */
+    --bg-secondary-50: rgba(245, 245, 245, 0.5);
+    --bg-secondary-80: rgba(245, 245, 245, 0.8);
+
+    /* Card with opacity */
+    --bg-card-50: rgba(255, 255, 255, 0.5);
+    --bg-card-95: rgba(255, 255, 255, 0.95);
+
+    /* Background with opacity */
+    --bg-background-50: rgba(250, 250, 250, 0.5);
+    --bg-background-80: rgba(250, 250, 250, 0.8);
+    --bg-background-95: rgba(250, 250, 250, 0.95);
+
+    /* Muted with opacity */
+    --bg-muted-20: rgba(243, 243, 243, 0.2);
+    --bg-muted-50: rgba(243, 243, 243, 0.5);
+
+    /* Destructive with opacity */
+    --bg-destructive-10: rgba(239, 68, 68, 0.1);
+    --bg-destructive-20: rgba(239, 68, 68, 0.2);
+
+    /* Amber/warning with opacity (for LastSearchSaved) */
+    --bg-amber-500-10: rgba(245, 158, 11, 0.1);
+    --bg-amber-500-20: rgba(245, 158, 11, 0.2);
+    --bg-amber-500-30: rgba(245, 158, 11, 0.3);
+
+    /* Red with opacity (for error messages) */
+    --bg-red-500-10: rgba(239, 68, 68, 0.1);
+    --bg-red-900-10: rgba(127, 29, 29, 0.1);
+
+    /* Yellow with opacity (for rate limit notifications) */
+    --bg-yellow-900-20: rgba(113, 63, 18, 0.2);
+
+    /* Black overlay */
+    --bg-black-50: rgba(0, 0, 0, 0.5);
   }
+
+  /* Dark theme transparency fallbacks */
+  :root.dark {
+    /* Primary with opacity */
+    --bg-primary-5: rgba(59, 159, 217, 0.05);
+    --bg-primary-10: rgba(59, 159, 217, 0.1);
+    --bg-primary-15: rgba(59, 159, 217, 0.15);
+    --bg-primary-20: rgba(59, 159, 217, 0.2);
+    --bg-primary-40: rgba(59, 159, 217, 0.4);
+    --bg-primary-60: rgba(59, 159, 217, 0.6);
+    --bg-primary-90: rgba(59, 159, 217, 0.9);
+
+    /* Secondary with opacity */
+    --bg-secondary-50: rgba(28, 31, 40, 0.5);
+    --bg-secondary-80: rgba(28, 31, 40, 0.8);
+
+    /* Card with opacity */
+    --bg-card-50: rgba(19, 21, 28, 0.5);
+    --bg-card-95: rgba(19, 21, 28, 0.95);
+
+    /* Background with opacity */
+    --bg-background-50: rgba(26, 29, 38, 0.5);
+    --bg-background-80: rgba(26, 29, 38, 0.8);
+    --bg-background-95: rgba(26, 29, 38, 0.95);
+
+    /* Muted with opacity */
+    --bg-muted-20: rgba(34, 36, 45, 0.2);
+    --bg-muted-50: rgba(34, 36, 45, 0.5);
+
+    /* Destructive with opacity */
+    --bg-destructive-10: rgba(248, 113, 113, 0.1);
+    --bg-destructive-20: rgba(248, 113, 113, 0.2);
+
+    /* Amber/warning with opacity (for LastSearchSaved) - slightly lighter in dark mode */
+    --bg-amber-500-10: rgba(251, 191, 36, 0.1);
+    --bg-amber-500-20: rgba(251, 191, 36, 0.2);
+    --bg-amber-500-30: rgba(251, 191, 36, 0.3);
+
+    /* Red with opacity (for error messages) - lighter in dark mode */
+    --bg-red-500-10: rgba(248, 113, 113, 0.1);
+    --bg-red-900-10: rgba(185, 28, 28, 0.1);
+
+    /* Yellow with opacity (for rate limit notifications) - lighter in dark mode */
+    --bg-yellow-900-20: rgba(202, 138, 4, 0.2);
+
+    /* Black overlay */
+    --bg-black-50: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Apply fallback classes */
+  .bg-primary\/5 { background-color: var(--bg-primary-5) !important; }
+  .bg-primary\/10 { background-color: var(--bg-primary-10) !important; }
+  .bg-primary\/15 { background-color: var(--bg-primary-15) !important; }
+  .bg-primary\/20 { background-color: var(--bg-primary-20) !important; }
+  .bg-primary\/40 { background-color: var(--bg-primary-40) !important; }
+  .bg-primary\/60 { background-color: var(--bg-primary-60) !important; }
+  .bg-primary\/90 { background-color: var(--bg-primary-90) !important; }
+
+  .bg-secondary\/50 { background-color: var(--bg-secondary-50) !important; }
+  .bg-secondary\/80 { background-color: var(--bg-secondary-80) !important; }
+
+  .bg-card\/50 { background-color: var(--bg-card-50) !important; }
+  .bg-card\/95 { background-color: var(--bg-card-95) !important; }
+
+  .bg-background\/50 { background-color: var(--bg-background-50) !important; }
+  .bg-background\/80 { background-color: var(--bg-background-80) !important; }
+  .bg-background\/95 { background-color: var(--bg-background-95) !important; }
+
+  .bg-muted\/20 { background-color: var(--bg-muted-20) !important; }
+  .bg-muted\/50 { background-color: var(--bg-muted-50) !important; }
+
+  .bg-destructive\/10 { background-color: var(--bg-destructive-10) !important; }
+  .bg-destructive\/20 { background-color: var(--bg-destructive-20) !important; }
+
+  .bg-amber-500\/10 { background-color: var(--bg-amber-500-10) !important; }
+  .bg-amber-500\/20 { background-color: var(--bg-amber-500-20) !important; }
+  .bg-amber-500\/30 { background-color: var(--bg-amber-500-30) !important; }
+
+  .bg-red-500\/10 { background-color: var(--bg-red-500-10) !important; }
+  .bg-red-900\/10 { background-color: var(--bg-red-900-10) !important; }
+
+  .bg-yellow-900\/20 { background-color: var(--bg-yellow-900-20) !important; }
+
+  .bg-black\/50 { background-color: var(--bg-black-50) !important; }
 }
 
 /* Automatic dark mode for browsers that support prefers-color-scheme but not next-themes */
@@ -157,12 +316,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-@utility bg-old-card/95 {
-  background: var(--color-card);
-}
+/* Removed bg-old-card/95 and bg-old-background utilities - using standard Tailwind classes with fallbacks */
 
-@utility bg-old-background {
-  background: #f8f8f8;
+/* Mobile-specific overrides to prevent transparent backgrounds showing content behind overlays */
+@media (max-width: 1023px) {
+  /* Remove transparency from card backgrounds on mobile */
+  .mobile-opaque-card {
+    background-color: var(--color-card) !important;
+  }
+
+  /* Ensure overlays are fully opaque on mobile */
+  .mobile-opaque-overlay {
+    background-color: rgba(0, 0, 0, 0.75) !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Ensure drawer/dialog backgrounds are fully opaque */
+  .mobile-opaque-bg {
+    background-color: var(--color-background) !important;
+  }
+
+  /* Ensure dropdown/popover backgrounds are fully opaque */
+  .mobile-opaque-dropdown {
+    background-color: var(--color-card) !important;
+    backdrop-filter: none !important;
+  }
 }
 
 /* Better emoji rendering for country flags */
@@ -170,6 +348,17 @@ body {
   * {
     font-family: var(--font-geist-sans), "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif;
   }
+}
+
+/* Drawer open state - prevent layout shift when scrollbar disappears */
+body.drawer-open {
+  overflow: hidden;
+  padding-right: var(--scrollbar-width, 0px);
+}
+
+/* Compensate fixed input container when drawer is open */
+body.drawer-open .z-30.fixed {
+  right: var(--scrollbar-width, 0px);
 }
 
 /* Quick Reply Animations */

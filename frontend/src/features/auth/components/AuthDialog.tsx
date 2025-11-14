@@ -66,7 +66,7 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto py-4 px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm mobile-opaque-overlay overflow-y-auto py-4 px-4"
       onClick={onClose}
     >
       <div
@@ -79,7 +79,7 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
           </h2>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer"
             aria-label="Close dialog"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,7 +146,7 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-full bg-primary px-4 py-3 font-medium text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-full rounded-full bg-primary px-4 py-3 font-medium text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
               {isLoading ? "Loading..." : mode === "login" ? "Sign in" : "Create account"}
             </button>
@@ -157,7 +157,7 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
               {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
               <button
                 onClick={toggleMode}
-                className="font-medium text-foreground hover:text-primary transition-colors"
+                className="font-medium text-foreground hover:text-primary transition-colors cursor-pointer"
               >
                 {mode === "login" ? "Sign up" : "Sign in"}
               </button>

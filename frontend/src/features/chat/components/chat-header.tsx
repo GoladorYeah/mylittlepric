@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft, Bug } from "lucide-react";
 import { useChatStore } from "@/shared/lib";
 import { RateLimitIndicator } from "./RateLimitIndicator";
 import { LastSearchSaved } from "./LastSearchSaved";
@@ -53,13 +53,13 @@ export function ChatHeader({
   return (
     <header className="bg-background sticky top-0 z-30">
       <div className="from-background via-background via-65% to-background-100/0 pointer-events-none absolute inset-0 -bottom-5 -z-1 bg-linear-to-b blur-sm"></div>
-      <div className="container mx-auto px-4 py-2 flex items-center justify-between gap-3">
+      <div className="mx-auto px-4 py-2 flex items-center justify-between gap-3">
         {/* Left section: Mobile toggle + Last Search Saved */}
         <div className="flex items-center gap-3">
           {/* Mobile Sidebar Toggle Button */}
           <button
             onClick={toggleSidebar}
-            className={`p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity lg:hidden shrink-0 ${
+            className={`p-2 rounded-lg bg-primary/10 transition-opacity lg:hidden shrink-0 ${
               isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}
             aria-label="Open sidebar"
@@ -83,6 +83,18 @@ export function ChatHeader({
               {getStatusText()}
             </span>
           </div>
+
+          {/* Bug Report Button */}
+          <a
+            href="https://github.com/GoladorYeah/mylittleprice/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors text-sm text-foreground"
+            title="Report a bug"
+          >
+            <Bug className="w-5 h-5 md:w-4 md:h-4" />
+            <span className="hidden sm:inline">Report Bug</span>
+          </a>
         </div>
       </div>
     </header>

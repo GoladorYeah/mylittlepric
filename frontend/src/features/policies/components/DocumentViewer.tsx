@@ -26,7 +26,7 @@ export function DocumentViewer({ title, pdfPath, lastUpdated }: DocumentViewerPr
               <span className="hidden sm:inline">Back</span>
             </button>
             <div className="h-6 w-px bg-border hidden sm:block" />
-            <Logo width={84.24} height={32} />
+            <Logo className="h-8 w-auto" />
           </div>
 
           <a
