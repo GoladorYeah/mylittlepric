@@ -62,7 +62,7 @@ const COUNTRIES: Country[] = [
   { code: "vn", name: "Vietnam", flag: "🇻🇳" },
 ];
 
-// Flag component with emoji fallback to circle with country code
+// Flag component with emoji rendered using web fonts for cross-platform support
 function CountryFlag({ country, size = "base" }: { country: Country; size?: "sm" | "base" | "lg" }) {
   const sizeClasses = {
     sm: "text-base w-5 h-5",
@@ -71,7 +71,7 @@ function CountryFlag({ country, size = "base" }: { country: Country; size?: "sm"
   };
 
   return (
-    <span className={`inline-flex items-center justify-center ${sizeClasses[size]}`}>
+    <span className={`inline-flex items-center justify-center emoji-flag ${sizeClasses[size]}`}>
       {country.flag}
     </span>
   );

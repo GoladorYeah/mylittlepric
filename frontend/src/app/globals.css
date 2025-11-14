@@ -350,6 +350,18 @@ body {
   }
 }
 
+/* Force emoji font rendering for flag emojis (cross-platform support, especially Windows) */
+.emoji-flag {
+  font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Twemoji Mozilla", sans-serif !important;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  /* Optimize rendering */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Drawer open state - prevent layout shift when scrollbar disappears */
 body.drawer-open {
   overflow: hidden;
