@@ -65,7 +65,7 @@ const COUNTRIES: Country[] = [
 // Flag component with emoji fallback to circle with country code
 function CountryFlag({ country, size = "base" }: { country: Country; size?: "sm" | "base" | "lg" }) {
   const sizeClasses = {
-    sm: "text-base w-5 h-5",
+    sm: "text-base w-4 h-4",
     base: "text-lg w-6 h-6",
     lg: "text-xl w-7 h-7",
   };
@@ -118,15 +118,28 @@ export function CountrySelector() {
   return (
     <>
       <div className="flex items-center gap-1">
-        <div className="relative" ref={dropdownRef}>
+
+
+        {/* Settings Icon Button */}
+        <button
+          type="button"
+          onClick={() => router.push('/settings')}
+          className="flex items-center justify-center p-2 rounded-lg border border-border hover:bg-background/95 transition-colors shrink-0 cursor-pointer"
+          title="Open settings"
+        >
+          <Settings className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground" />
+        </button>
+
+
+                <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-background/50 transition-colors shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 p-2 rounded-lg border border-border hover:bg-background/95 transition-colors shrink-0 cursor-pointer"
             title="Select country"
           >
-            <Globe className="w-4 h-4 text-muted-foreground" />
-            <CountryFlag country={selectedCountry} size="base" />
+            <Globe className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground" />
+            <CountryFlag country={selectedCountry} size="sm" />
           </button>
 
       {isOpen && (
@@ -172,16 +185,6 @@ export function CountrySelector() {
         </div>
       )}
         </div>
-
-        {/* Settings Icon Button */}
-        <button
-          type="button"
-          onClick={() => router.push('/settings')}
-          className="flex items-center justify-center p-2 rounded-lg hover:bg-background/50 transition-colors shrink-0 cursor-pointer"
-          title="Open settings"
-        >
-          <Settings className="w-4 h-4 text-muted-foreground" />
-        </button>
       </div>
     </>
   );
