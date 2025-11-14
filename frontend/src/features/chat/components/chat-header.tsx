@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PanelLeft } from "lucide-react";
 import { useChatStore } from "@/shared/lib";
 import { RateLimitIndicator } from "./RateLimitIndicator";
+import { LastSearchSaved } from "./LastSearchSaved";
 
 interface ChatHeaderProps {
   isConnected: boolean;
@@ -52,11 +53,11 @@ export function ChatHeader({
   return (
     <header className="bg-background sticky top-0 z-30">
       <div className="from-background via-background via-65% to-background-100/0 pointer-events-none absolute inset-0 -bottom-5 -z-1 bg-linear-to-b blur-sm"></div>
-      <div className="container mx-auto px-4 h-12 flex items-center justify-between">
+      <div className="container mx-auto px-4 py-2 flex items-center justify-between gap-3">
         {/* Mobile Sidebar Toggle Button */}
         <button
           onClick={toggleSidebar}
-          className={`p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity lg:hidden ${
+          className={`p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity lg:hidden shrink-0 ${
             isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}
           aria-label="Open sidebar"
@@ -64,13 +65,18 @@ export function ChatHeader({
           <PanelLeft className="w-5 h-5" />
         </button>
 
+        {/* Last Search Saved - Desktop and Mobile */}
+        <div className="flex-1 flex justify-center">
+          <LastSearchSaved />
+        </div>
+
         {/* Connection Status and Rate Limit Indicator */}
-        <div className="flex items-center gap-3 ml-auto">
+        <div className="flex items-center gap-3 ml-auto shrink-0">
           {/* Rate Limit Indicator */}
           <RateLimitIndicator />
 
           {/* Connection Status */}
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${getStatusColor()} ${isConnected ? 'animate-pulse' : ''}`} />
             <span className="text-sm text-gray-600 dark:text-gray-400">
               {getStatusText()}

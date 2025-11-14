@@ -6,3 +6,4 @@ export { ChatMessages } from "./chat-messages";
 export { ChatInput } from "./chat-input";
 export { ChatEmptyState } from "./chat-empty-state";
 export { SavedSearchPrompt } from "./SavedSearchPrompt";
+export { LastSearchSaved } from "./LastSearchSaved";
