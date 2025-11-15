@@ -6,12 +6,14 @@ export * from "./session-api";
 
 // Stores
 export * from "./store";
+export * from "./store-selectors";
 export * from "./auth-store";
 
 // Utils
 export * from "./utils";
 export * from "./locale";
 export * from "./providers";
+export * from "./logger";
 
 // Types (selective exports to avoid conflicts with store types)
 export type {

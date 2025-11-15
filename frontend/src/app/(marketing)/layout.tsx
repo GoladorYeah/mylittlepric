@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Header } from "@/shared/components/layout";
+import { Footer } from "./_components/footer";
 
 export const metadata: Metadata = {
   title: "MyLittlePrice - Smart Shopping Assistant",
@@ -22,5 +24,11 @@ export default function MarketingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <Header />
+      {children}
+      <Footer />
+    </>
+  );
 }

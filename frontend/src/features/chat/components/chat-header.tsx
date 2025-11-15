@@ -89,7 +89,7 @@ export function ChatHeader({
             href="https://github.com/GoladorYeah/mylittleprice/issues/new"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 p-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors text-sm text-foreground"
+            className="flex items-center gap-3 p-2 md:py-1.5 rounded-lg bg-muted hover:bg-muted/80 transition-colors text-sm text-foreground"
             title="Report a bug"
           >
             <Bug className="w-5 h-5 md:w-4 md:h-4" />

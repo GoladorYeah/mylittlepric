@@ -343,23 +343,12 @@ body {
   }
 }
 
-/* Better emoji rendering for country flags */
-@supports (font-variation-settings: normal) {
-  * {
-    font-family: var(--font-geist-sans), "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif;
-  }
-}
-
-/* Force emoji font rendering for flag emojis (cross-platform support, especially Windows) */
+/* Emoji rendering for country flags - optimized for Windows and cross-platform */
 .emoji-flag {
-  font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Twemoji Mozilla", sans-serif !important;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
   font-style: normal;
   font-weight: normal;
   line-height: 1;
-  /* Optimize rendering */
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Drawer open state - prevent layout shift when scrollbar disappears */
@@ -661,4 +650,57 @@ body.drawer-open .z-30.fixed {
   padding: 1rem;
   margin-top: 1em;
   margin-bottom: 1em;
+}
+
+/* Landing page animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Logo styling */
+.logo-text {
+  font-family: var(--font-space-grotesk), system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.05em;
 }

@@ -1,108 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Globe, Languages, Check, ChevronDown, Moon, Sun, Monitor } from "lucide-react";
-import { useChatStore, getCurrencyForCountry, useAuthStore } from "@/shared/lib";
+import { usePreferences, usePreferenceActions, getCurrencyForCountry, useAuthStore } from "@/shared/lib";
 import { useTheme } from "next-themes";
-
-interface Country {
-  code: string;
-  name: string;
-  flag: string;
-}
-
-interface Language {
-  code: string;
-  name: string;
-  nativeName: string;
-}
-
-const COUNTRIES: Country[] = [
-  { code: "us", name: "United States", flag: "🇺🇸" },
-  { code: "gb", name: "United Kingdom", flag: "🇬🇧" },
-  { code: "ca", name: "Canada", flag: "🇨🇦" },
-  { code: "au", name: "Australia", flag: "🇦🇺" },
-  { code: "de", name: "Germany", flag: "🇩🇪" },
-  { code: "fr", name: "France", flag: "🇫🇷" },
-  { code: "es", name: "Spain", flag: "🇪🇸" },
-  { code: "it", name: "Italy", flag: "🇮🇹" },
-  { code: "nl", name: "Netherlands", flag: "🇳🇱" },
-  { code: "be", name: "Belgium", flag: "🇧🇪" },
-  { code: "ch", name: "Switzerland", flag: "🇨🇭" },
-  { code: "at", name: "Austria", flag: "🇦🇹" },
-  { code: "se", name: "Sweden", flag: "🇸🇪" },
-  { code: "no", name: "Norway", flag: "🇳🇴" },
-  { code: "dk", name: "Denmark", flag: "🇩🇰" },
-  { code: "fi", name: "Finland", flag: "🇫🇮" },
-  { code: "pl", name: "Poland", flag: "🇵🇱" },
-  { code: "cz", name: "Czech Republic", flag: "🇨🇿" },
-  { code: "pt", name: "Portugal", flag: "🇵🇹" },
-  { code: "gr", name: "Greece", flag: "🇬🇷" },
-  { code: "ie", name: "Ireland", flag: "🇮🇪" },
-  { code: "jp", name: "Japan", flag: "🇯🇵" },
-  { code: "kr", name: "South Korea", flag: "🇰🇷" },
-  { code: "cn", name: "China", flag: "🇨🇳" },
-  { code: "in", name: "India", flag: "🇮🇳" },
-  { code: "sg", name: "Singapore", flag: "🇸🇬" },
-  { code: "hk", name: "Hong Kong", flag: "🇭🇰" },
-  { code: "tw", name: "Taiwan", flag: "🇹🇼" },
-  { code: "nz", name: "New Zealand", flag: "🇳🇿" },
-  { code: "mx", name: "Mexico", flag: "🇲🇽" },
-  { code: "br", name: "Brazil", flag: "🇧🇷" },
-  { code: "ar", name: "Argentina", flag: "🇦🇷" },
-  { code: "cl", name: "Chile", flag: "🇨🇱" },
-  { code: "za", name: "South Africa", flag: "🇿🇦" },
-  { code: "ae", name: "UAE", flag: "🇦🇪" },
-  { code: "sa", name: "Saudi Arabia", flag: "🇸🇦" },
-  { code: "tr", name: "Turkey", flag: "🇹🇷" },
-  { code: "ru", name: "Russia", flag: "🇷🇺" },
-  { code: "ua", name: "Ukraine", flag: "🇺🇦" },
-  { code: "il", name: "Israel", flag: "🇮🇱" },
-  { code: "eg", name: "Egypt", flag: "🇪🇬" },
-  { code: "th", name: "Thailand", flag: "🇹🇭" },
-  { code: "my", name: "Malaysia", flag: "🇲🇾" },
-  { code: "id", name: "Indonesia", flag: "🇮🇩" },
-  { code: "ph", name: "Philippines", flag: "🇵🇭" },
-  { code: "vn", name: "Vietnam", flag: "🇻🇳" },
-];
-
-const LANGUAGES: Language[] = [
-  { code: "en", name: "English", nativeName: "English" },
-  { code: "es", name: "Spanish", nativeName: "Español" },
-  { code: "fr", name: "French", nativeName: "Français" },
-  { code: "de", name: "German", nativeName: "Deutsch" },
-  { code: "it", name: "Italian", nativeName: "Italiano" },
-  { code: "pt", name: "Portuguese", nativeName: "Português" },
-  { code: "ru", name: "Russian", nativeName: "Русский" },
-  { code: "zh", name: "Chinese", nativeName: "中文" },
-  { code: "ja", name: "Japanese", nativeName: "日本語" },
-  { code: "ko", name: "Korean", nativeName: "한국어" },
-  { code: "ar", name: "Arabic", nativeName: "العربية" },
-  { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
-  { code: "nl", name: "Dutch", nativeName: "Nederlands" },
-  { code: "pl", name: "Polish", nativeName: "Polski" },
-  { code: "tr", name: "Turkish", nativeName: "Türkçe" },
-  { code: "sv", name: "Swedish", nativeName: "Svenska" },
-  { code: "no", name: "Norwegian", nativeName: "Norsk" },
-  { code: "da", name: "Danish", nativeName: "Dansk" },
-  { code: "fi", name: "Finnish", nativeName: "Suomi" },
-  { code: "cs", name: "Czech", nativeName: "Čeština" },
-  { code: "el", name: "Greek", nativeName: "Ελληνικά" },
-  { code: "he", name: "Hebrew", nativeName: "עברית" },
-  { code: "th", name: "Thai", nativeName: "ไทย" },
-  { code: "vi", name: "Vietnamese", nativeName: "Tiếng Việt" },
-  { code: "id", name: "Indonesian", nativeName: "Bahasa Indonesia" },
-  { code: "ms", name: "Malay", nativeName: "Bahasa Melayu" },
-  { code: "uk", name: "Ukrainian", nativeName: "Українська" },
-  { code: "ro", name: "Romanian", nativeName: "Română" },
-  { code: "hu", name: "Hungarian", nativeName: "Magyar" },
-  { code: "hr", name: "Croatian", nativeName: "Hrvatski" },
-];
+import { COUNTRIES, LANGUAGES } from "@/shared/constants";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { country, language, currency, setCountry, setLanguage, setCurrency, syncPreferencesToServer } = useChatStore();
+  const { country, language, currency } = usePreferences();
+  const { setCountry, setLanguage, setCurrency, syncPreferencesToServer } = usePreferenceActions();
   const { accessToken } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -114,20 +22,33 @@ export default function SettingsPage() {
   const countrySearchRef = useRef<HTMLInputElement>(null);
   const languageSearchRef = useRef<HTMLInputElement>(null);
 
-  const selectedCountry = COUNTRIES.find((c) => c.code === country.toLowerCase()) || COUNTRIES[0];
-  const selectedLanguage = LANGUAGES.find((l) => l.code === language.toLowerCase()) || LANGUAGES[0];
-
-  const filteredCountries = COUNTRIES.filter(
-    (c) =>
-      c.name.toLowerCase().includes(countrySearchQuery.toLowerCase()) ||
-      c.code.toLowerCase().includes(countrySearchQuery.toLowerCase())
+  const selectedCountry = useMemo(
+    () => COUNTRIES.find((c) => c.code === country.toLowerCase()) || COUNTRIES[0],
+    [country]
   );
 
-  const filteredLanguages = LANGUAGES.filter(
-    (l) =>
-      l.name.toLowerCase().includes(languageSearchQuery.toLowerCase()) ||
-      l.nativeName.toLowerCase().includes(languageSearchQuery.toLowerCase()) ||
-      l.code.toLowerCase().includes(languageSearchQuery.toLowerCase())
+  const selectedLanguage = useMemo(
+    () => LANGUAGES.find((l) => l.code === language.toLowerCase()) || LANGUAGES[0],
+    [language]
+  );
+
+  const filteredCountries = useMemo(
+    () => COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(countrySearchQuery.toLowerCase()) ||
+        c.code.toLowerCase().includes(countrySearchQuery.toLowerCase())
+    ),
+    [countrySearchQuery]
+  );
+
+  const filteredLanguages = useMemo(
+    () => LANGUAGES.filter(
+      (l) =>
+        l.name.toLowerCase().includes(languageSearchQuery.toLowerCase()) ||
+        l.nativeName.toLowerCase().includes(languageSearchQuery.toLowerCase()) ||
+        l.code.toLowerCase().includes(languageSearchQuery.toLowerCase())
+    ),
+    [languageSearchQuery]
   );
 
   // Set mounted state for theme
@@ -149,49 +70,50 @@ export default function SettingsPage() {
   }, [isLanguageDropdownOpen]);
 
   const handleCountrySelect = async (countryCode: string) => {
+    // Optimistic UI update - update immediately without waiting for server
     setCountry(countryCode);
     const newCurrency = getCurrencyForCountry(countryCode.toUpperCase());
     setCurrency(newCurrency);
     setIsCountryDropdownOpen(false);
     setCountrySearchQuery("");
 
-    // Sync to server if user is authenticated
+    // Sync to server in background (non-blocking)
     if (accessToken) {
-      try {
-        await syncPreferencesToServer();
-      } catch (error) {
+      syncPreferencesToServer().catch((error) => {
         console.error("Failed to sync country preference:", error);
-      }
+        // Could show a toast notification here if needed
+      });
     }
   };
 
   const handleLanguageSelect = async (languageCode: string) => {
+    // Optimistic UI update - update immediately without waiting for server
     setLanguage(languageCode);
     setIsLanguageDropdownOpen(false);
     setLanguageSearchQuery("");
 
-    // Sync to server if user is authenticated
+    // Sync to server in background (non-blocking)
     if (accessToken) {
-      try {
-        await syncPreferencesToServer();
-      } catch (error) {
+      syncPreferencesToServer().catch((error) => {
         console.error("Failed to sync language preference:", error);
-      }
+        // Could show a toast notification here if needed
+      });
     }
   };
 
   const handleThemeChange = async (newTheme: string) => {
+    // Optimistic UI update - apply theme immediately
     setTheme(newTheme);
 
-    // Sync theme to server if user is authenticated
+    // Sync theme to server in background (non-blocking)
     if (accessToken) {
-      try {
-        const { PreferencesAPI } = await import("@/shared/lib/preferences-api");
-        await PreferencesAPI.updateUserPreferences({ theme: newTheme });
-        console.log("✅ Synced theme to server:", newTheme);
-      } catch (error) {
-        console.error("Failed to sync theme preference:", error);
-      }
+      import("@/shared/lib/preferences-api")
+        .then(({ PreferencesAPI }) => PreferencesAPI.updateUserPreferences({ theme: newTheme }))
+        .then(() => console.log("✅ Synced theme to server:", newTheme))
+        .catch((error) => {
+          console.error("Failed to sync theme preference:", error);
+          // Could show a toast notification here if needed
+        });
     }
   };
 

@@ -1,8 +1,16 @@
 "use client";
 
+import { useCallback } from "react";
 import { useChat } from "@/shared/hooks";
-import { useChatStore } from "@/shared/lib";
-import { generateId } from "@/shared/lib";
+import {
+  useMessages,
+  useLoadingState,
+  useSidebarState,
+  useSavedSearchPrompt,
+  useSessionActions,
+  useMessageActions,
+  generateId
+} from "@/shared/lib";
 
 import { SearchHistory } from "@/features/search";
 import { ChatMessages } from "./chat-messages";
@@ -18,50 +26,45 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
-  const {
-    messages,
-    isLoading,
-    isSidebarOpen,
-    showSavedSearchPrompt,
-    setShowSavedSearchPrompt,
-    restoreSavedSearch,
-    clearSavedSearch,
-    setSessionId,
-    newSearch,
-  } = useChatStore();
+  // Use optimized selectors
+  const messages = useMessages();
+  const isLoading = useLoadingState();
+  const { isSidebarOpen } = useSidebarState();
+  const { showSavedSearchPrompt, setShowSavedSearchPrompt } = useSavedSearchPrompt();
+  const { setSessionId, newSearch, restoreSavedSearch, clearSavedSearch } = useSessionActions();
+  const { removeMessage } = useMessageActions();
 
   const { sendMessage, handleNewSearch, connectionStatus, isConnected } =
     useChat({ initialQuery, sessionId });
 
-  const handleQuickReply = (reply: string) => {
+  const handleQuickReply = useCallback((reply: string) => {
     sendMessage(reply);
-  };
+  }, [sendMessage]);
 
-  const handleRetry = (messageId: string) => {
+  const handleRetry = useCallback((messageId: string) => {
     // Find the failed message
     const message = messages.find((m) => m.id === messageId);
     if (message && message.content) {
       // Remove the failed message from store
-      const store = useChatStore.getState();
-      store.removeMessage(messageId);
+      removeMessage(messageId);
       // Resend the message
       sendMessage(message.content);
     }
-  };
+  }, [messages, removeMessage, sendMessage]);
 
-  const handleContinueSearch = () => {
+  const handleContinueSearch = useCallback(() => {
     restoreSavedSearch();
     setShowSavedSearchPrompt(false);
-  };
+  }, [restoreSavedSearch, setShowSavedSearchPrompt]);
 
-  const handleStartNewSearch = () => {
+  const handleStartNewSearch = useCallback(() => {
     clearSavedSearch();
     newSearch();
     const newSessionId = generateId();
     setSessionId(newSessionId);
     localStorage.setItem("chat_session_id", newSessionId);
     setShowSavedSearchPrompt(false);
-  };
+  }, [clearSavedSearch, newSearch, setSessionId, setShowSavedSearchPrompt]);
 
   return (
     <>

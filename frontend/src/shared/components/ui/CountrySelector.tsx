@@ -1,66 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Globe, Check, Settings } from "lucide-react";
-import { useChatStore } from "@/shared/lib";
+import { usePreferences, usePreferenceActions } from "@/shared/lib";
 import { useClickOutside } from "@/shared/hooks";
 import { useRouter } from "next/navigation";
-
-interface Country {
-  code: string;
-  name: string;
-  flag: string;
-  flagSvg?: string; // SVG icon as fallback for systems without emoji support
-}
-
-const COUNTRIES: Country[] = [
-  { code: "us", name: "United States", flag: "🇺🇸" },
-  { code: "gb", name: "United Kingdom", flag: "🇬🇧" },
-  { code: "ca", name: "Canada", flag: "🇨🇦" },
-  { code: "au", name: "Australia", flag: "🇦🇺" },
-  { code: "de", name: "Germany", flag: "🇩🇪" },
-  { code: "fr", name: "France", flag: "🇫🇷" },
-  { code: "es", name: "Spain", flag: "🇪🇸" },
-  { code: "it", name: "Italy", flag: "🇮🇹" },
-  { code: "nl", name: "Netherlands", flag: "🇳🇱" },
-  { code: "be", name: "Belgium", flag: "🇧🇪" },
-  { code: "ch", name: "Switzerland", flag: "🇨🇭" },
-  { code: "at", name: "Austria", flag: "🇦🇹" },
-  { code: "se", name: "Sweden", flag: "🇸🇪" },
-  { code: "no", name: "Norway", flag: "🇳🇴" },
-  { code: "dk", name: "Denmark", flag: "🇩🇰" },
-  { code: "fi", name: "Finland", flag: "🇫🇮" },
-  { code: "pl", name: "Poland", flag: "🇵🇱" },
-  { code: "cz", name: "Czech Republic", flag: "🇨🇿" },
-  { code: "pt", name: "Portugal", flag: "🇵🇹" },
-  { code: "gr", name: "Greece", flag: "🇬🇷" },
-  { code: "ie", name: "Ireland", flag: "🇮🇪" },
-  { code: "jp", name: "Japan", flag: "🇯🇵" },
-  { code: "kr", name: "South Korea", flag: "🇰🇷" },
-  { code: "cn", name: "China", flag: "🇨🇳" },
-  { code: "in", name: "India", flag: "🇮🇳" },
-  { code: "sg", name: "Singapore", flag: "🇸🇬" },
-  { code: "hk", name: "Hong Kong", flag: "🇭🇰" },
-  { code: "tw", name: "Taiwan", flag: "🇹🇼" },
-  { code: "nz", name: "New Zealand", flag: "🇳🇿" },
-  { code: "mx", name: "Mexico", flag: "🇲🇽" },
-  { code: "br", name: "Brazil", flag: "🇧🇷" },
-  { code: "ar", name: "Argentina", flag: "🇦🇷" },
-  { code: "cl", name: "Chile", flag: "🇨🇱" },
-  { code: "za", name: "South Africa", flag: "🇿🇦" },
-  { code: "ae", name: "UAE", flag: "🇦🇪" },
-  { code: "sa", name: "Saudi Arabia", flag: "🇸🇦" },
-  { code: "tr", name: "Turkey", flag: "🇹🇷" },
-  { code: "ru", name: "Russia", flag: "🇷🇺" },
-  { code: "ua", name: "Ukraine", flag: "🇺🇦" },
-  { code: "il", name: "Israel", flag: "🇮🇱" },
-  { code: "eg", name: "Egypt", flag: "🇪🇬" },
-  { code: "th", name: "Thailand", flag: "🇹🇭" },
-  { code: "my", name: "Malaysia", flag: "🇲🇾" },
-  { code: "id", name: "Indonesia", flag: "🇮🇩" },
-  { code: "ph", name: "Philippines", flag: "🇵🇭" },
-  { code: "vn", name: "Vietnam", flag: "🇻🇳" },
-];
+import { COUNTRIES, type Country } from "@/shared/constants";
 
 // Flag component with emoji rendered using web fonts for cross-platform support
 function CountryFlag({ country, size = "base" }: { country: Country; size?: "sm" | "base" | "lg" }) {
@@ -78,19 +23,26 @@ function CountryFlag({ country, size = "base" }: { country: Country; size?: "sm"
 }
 
 export function CountrySelector() {
-  const { country, setCountry } = useChatStore();
+  const { country } = usePreferences();
+  const { setCountry } = usePreferenceActions();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const selectedCountry = COUNTRIES.find((c) => c.code === country.toLowerCase()) || COUNTRIES[0];
+  const selectedCountry = useMemo(
+    () => COUNTRIES.find((c) => c.code === country.toLowerCase()) || COUNTRIES[0],
+    [country]
+  );
 
-  const filteredCountries = COUNTRIES.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.code.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCountries = useMemo(
+    () => COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.code.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [searchQuery]
   );
 
   useClickOutside(
@@ -109,11 +61,12 @@ export function CountrySelector() {
     }
   }, [isOpen]);
 
-  const handleCountrySelect = (countryCode: string) => {
+  const handleCountrySelect = useCallback((countryCode: string) => {
+    // Optimistic UI update - update immediately without waiting
     setCountry(countryCode);
     setIsOpen(false);
     setSearchQuery("");
-  };
+  }, [setCountry]);
 
   return (
     <>
@@ -124,7 +77,7 @@ export function CountrySelector() {
         <button
           type="button"
           onClick={() => router.push('/settings')}
-          className="flex items-center justify-center p-2 rounded-lg border border-border hover:bg-background/95 transition-colors shrink-0 cursor-pointer"
+          className="flex items-center justify-center p-2 md:p-1.5 rounded-md border border-border hover:bg-background/95 transition-colors shrink-0 cursor-pointer"
           title="Open settings"
         >
           <Settings className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground" />
@@ -135,7 +88,7 @@ export function CountrySelector() {
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-1.5 p-2 rounded-lg border border-border hover:bg-background/95 transition-colors shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 p-2 md:p-1.5 rounded-md border border-border hover:bg-background/95 transition-colors shrink-0 cursor-pointer"
             title="Select country"
           >
             <Globe className="w-5 h-5 md:w-4 md:h-4 text-muted-foreground" />
