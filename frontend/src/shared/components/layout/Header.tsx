@@ -24,7 +24,12 @@ export function Header() {
         {/* Logo with Background Beta Badge */}
         <Link href="/" className="flex items-center group">
           <div className="relative inline-flex items-center">
-            <span className="logo-text text-2xl bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent relative z-10">
+            <span className="logo-text text-2xl bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text relative z-10"
+                  style={{
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}>
               MLP
             </span>
           </div>
