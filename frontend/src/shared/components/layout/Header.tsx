@@ -24,7 +24,7 @@ export function Header() {
         {/* Logo with Background Beta Badge */}
         <Link href="/" className="flex items-center group">
           <div className="relative inline-flex items-center">
-            <span className="logo-text text-2xl bg-linear-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity relative z-10">
+            <span className="logo-text text-2xl bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent relative z-10">
               MLP
             </span>
           </div>
