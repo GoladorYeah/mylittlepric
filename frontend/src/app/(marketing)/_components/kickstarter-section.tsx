@@ -1,8 +1,17 @@
 "use client";
 
-import { ExternalLink, Users, Trophy, Target, Clock } from "lucide-react";
+import { ExternalLink, Users, Trophy, Target, Clock, TrendingUp, Heart, Rocket } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export function KickstarterSection() {
+  const [animationPhase, setAnimationPhase] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAnimationPhase((prev) => (prev + 1) % 3);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
   const rewards = [
     {
       tier: "$10",
@@ -108,37 +117,155 @@ export function KickstarterSection() {
           })}
         </div>
 
-        {/* Kickstarter Banner Placeholder */}
+        {/* Kickstarter Campaign Animation Banner */}
         <div className="relative mb-16">
-          <div className="aspect-[21/9] rounded-3xl bg-linear-to-br from-primary/20 to-secondary/20 border-2 border-primary/30 overflow-hidden relative">
-            {/*
-              KICKSTARTER BANNER PLACEHOLDER:
-              Replace this with your actual Kickstarter campaign banner/video
-              - Option 1: Campaign video embed from Kickstarter
-              - Option 2: High-quality campaign banner image
-              - Option 3: Animated graphics showing campaign highlights
-
-              Recommended size: 2100x900px (21:9 aspect ratio)
-              Format: MP4 for video, WebP/PNG for images
-            */}
-            <div className="absolute inset-0 flex items-center justify-center p-8">
-              <div className="text-center space-y-4">
-                <div className="text-6xl mb-4">🎬</div>
-                <div className="space-y-2">
-                  <p className="text-lg font-bold">Kickstarter Campaign Banner</p>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    [Replace with campaign video or banner image]
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Suggested: Embed Kickstarter video or upload campaign visual
+          <div className="aspect-video md:aspect-[21/9] rounded-2xl md:rounded-3xl bg-linear-to-br from-primary/10 via-background to-secondary/10 border-2 border-primary/30 overflow-hidden relative shadow-2xl">
+            {/* Animation Phase 0: Community Growth */}
+            {animationPhase === 0 && (
+              <div className="absolute inset-0 p-6 md:p-12 flex flex-col md:flex-row items-center justify-center md:justify-between animate-fade-in-up">
+                <div className="flex-1 space-y-3 md:space-y-4 text-center md:text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-primary/20 border border-primary/30">
+                    <Users className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                    <span className="text-xs md:text-sm font-bold text-primary">Join Our Community</span>
+                  </div>
+                  <h3 className="text-2xl md:text-3xl lg:text-5xl font-bold">
+                    <span className="bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                      1,000+ Backers
+                    </span>
+                  </h3>
+                  <p className="text-sm md:text-lg text-muted-foreground max-w-md mx-auto md:mx-0">
+                    Be part of the founding members shaping the future of AI-powered shopping
                   </p>
                 </div>
+                <div className="hidden md:flex flex-1 items-center justify-center relative">
+                  <div className="relative">
+                    <Users className="w-24 h-24 lg:w-32 lg:h-32 text-primary/30 animate-pulse-scale" />
+                    {/* Animated user circles */}
+                    {[...Array(8)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="absolute top-1/2 left-1/2 w-6 h-6 lg:w-8 lg:h-8 -ml-3 lg:-ml-4 -mt-3 lg:-mt-4 rounded-full bg-primary/40 border-2 border-background animate-float-particle"
+                        style={{
+                          animationDelay: `${i * 0.3}s`,
+                          transform: `rotate(${i * 45}deg) translateY(-50px) translateY(-10px)`
+                        }}
+                      >
+                        <div className="w-full h-full rounded-full bg-primary/60 flex items-center justify-center text-xs">
+                          👤
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Decorative corner elements */}
-            <div className="absolute top-0 left-0 w-32 h-32 bg-primary/20 rounded-br-full" />
-            <div className="absolute bottom-0 right-0 w-32 h-32 bg-secondary/20 rounded-tl-full" />
+            {/* Animation Phase 1: Campaign Progress */}
+            {animationPhase === 1 && (
+              <div className="absolute inset-0 p-6 md:p-8 lg:p-12 flex flex-col justify-center animate-fade-in-up">
+                <div className="space-y-4 md:space-y-6 max-w-3xl mx-auto w-full">
+                  <div className="text-center space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-green-500/20 border border-green-500/30 mb-2 md:mb-4">
+                      <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
+                      <span className="text-xs md:text-sm font-bold text-green-500">Campaign Progress</span>
+                    </div>
+                    <h3 className="text-2xl md:text-3xl lg:text-5xl font-bold">
+                      <span className="bg-linear-to-r from-green-500 to-primary bg-clip-text text-transparent">
+                        $50,000
+                      </span>
+                      <span className="text-lg md:text-2xl text-muted-foreground ml-1 md:ml-2">/ $100,000</span>
+                    </h3>
+                    <p className="text-sm md:text-lg text-muted-foreground">
+                      50% funded in just 2 weeks!
+                    </p>
+                  </div>
+
+                  <div className="relative h-4 md:h-6 bg-background/50 rounded-full overflow-hidden border border-border">
+                    <div className="absolute inset-0 bg-linear-to-r from-primary/20 to-green-500/20" />
+                    <div className="h-full bg-linear-to-r from-primary to-green-500 rounded-full animate-progress" style={{ width: '50%' }}>
+                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 md:gap-4 mt-4 md:mt-8">
+                    <div className="text-center p-2 md:p-4 rounded-lg md:rounded-xl bg-background/50 backdrop-blur-sm border border-border">
+                      <div className="text-lg md:text-2xl font-bold text-primary mb-0.5 md:mb-1">850+</div>
+                      <div className="text-[10px] md:text-xs text-muted-foreground">Backers</div>
+                    </div>
+                    <div className="text-center p-2 md:p-4 rounded-lg md:rounded-xl bg-background/50 backdrop-blur-sm border border-border">
+                      <div className="text-lg md:text-2xl font-bold text-primary mb-0.5 md:mb-1">21</div>
+                      <div className="text-[10px] md:text-xs text-muted-foreground">Days Left</div>
+                    </div>
+                    <div className="text-center p-2 md:p-4 rounded-lg md:rounded-xl bg-background/50 backdrop-blur-sm border border-border">
+                      <div className="text-lg md:text-2xl font-bold text-green-500 mb-0.5 md:mb-1">$59</div>
+                      <div className="text-[10px] md:text-xs text-muted-foreground">Avg Pledge</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Animation Phase 2: Rewards & Benefits */}
+            {animationPhase === 2 && (
+              <div className="absolute inset-0 p-6 md:p-8 lg:p-12 flex flex-col md:flex-row items-center justify-center md:justify-between animate-fade-in-up">
+                <div className="flex-1 space-y-4 md:space-y-6 text-center md:text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-yellow-500/20 border border-yellow-500/30">
+                    <Trophy className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" />
+                    <span className="text-xs md:text-sm font-bold text-yellow-500">Exclusive Rewards</span>
+                  </div>
+                  <h3 className="text-2xl md:text-3xl lg:text-5xl font-bold">
+                    <span className="bg-linear-to-r from-yellow-500 to-primary bg-clip-text text-transparent">
+                      Early Access
+                    </span>
+                  </h3>
+                  <div className="space-y-2 md:space-y-3 max-w-md mx-auto md:mx-0">
+                    <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg md:rounded-xl bg-background/50 backdrop-blur-sm border border-border animate-bounce-in">
+                      <div className="text-xl md:text-2xl">🏅</div>
+                      <div className="text-left">
+                        <div className="font-semibold text-xs md:text-sm">Founding Member Badge</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Lifetime recognition</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg md:rounded-xl bg-background/50 backdrop-blur-sm border border-border animate-bounce-in" style={{ animationDelay: '0.1s' }}>
+                      <div className="text-xl md:text-2xl">⭐</div>
+                      <div className="text-left">
+                        <div className="font-semibold text-xs md:text-sm">12-Month Pro Access</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">$120 value</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg md:rounded-xl bg-background/50 backdrop-blur-sm border border-border animate-bounce-in" style={{ animationDelay: '0.2s' }}>
+                      <div className="text-xl md:text-2xl">💬</div>
+                      <div className="text-left">
+                        <div className="font-semibold text-xs md:text-sm">Private Discord Community</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Direct dev access</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden md:flex flex-1 items-center justify-center">
+                  <div className="relative">
+                    <Rocket className="w-32 h-32 lg:w-40 lg:h-40 text-primary/30 animate-float" />
+                    <div className="absolute inset-0 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Decorative elements */}
+            <div className="absolute top-0 left-0 w-16 h-16 md:w-32 md:h-32 bg-primary/10 rounded-br-full opacity-50" />
+            <div className="absolute bottom-0 right-0 w-16 h-16 md:w-32 md:h-32 bg-secondary/10 rounded-tl-full opacity-50" />
+
+            {/* Phase indicators */}
+            <div className="absolute bottom-2 md:bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 md:gap-2 z-10">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className={`h-1 md:h-1.5 rounded-full transition-all ${
+                    animationPhase === i ? 'bg-primary w-6 md:w-8' : 'bg-primary/30 w-1 md:w-1.5'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
 

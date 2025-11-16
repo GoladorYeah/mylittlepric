@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "@/shared/components/ui";
 import { BetaBadge } from "@/shared/components/ui/BetaBadge";
@@ -24,14 +25,14 @@ export function Header() {
         {/* Logo with Background Beta Badge */}
         <Link href="/" className="flex items-center group">
           <div className="relative inline-flex items-center">
-            <span className="logo-text text-2xl bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text relative z-10"
-                  style={{
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}>
-              MLP
-            </span>
+            <Image
+              src="/logo.svg"
+              alt="MyLittlePrice Logo"
+              width={120}
+              height={40}
+              className="h-10 w-auto relative z-10 group-hover:opacity-80 transition-opacity"
+              priority
+            />
           </div>
           <div className="relative z-0 opacity-50 group-hover:opacity-70 transition-opacity -ml-3">
             <BetaBadge />

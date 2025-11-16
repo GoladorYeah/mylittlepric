@@ -13,9 +13,9 @@
   --color-input: #f5f5f5;
   --color-input: oklch(92% 0 0);
 
-  /* Primary - Modern blue accent with fallback */
-  --color-primary: #3b82f6;
-  --color-primary: oklch(55% 0.18 255);
+  /* Primary - Cyan/Blue mix (same as dark mode) with fallback */
+  --color-primary: #3b9fd9;
+  --color-primary: oklch(65% 0.14 215);
   --color-primary-foreground: #ffffff;
   --color-primary-foreground: oklch(100% 0 0);
 
@@ -122,7 +122,7 @@
     --color-card: #ffffff;
     --color-border: #e5e5e5;
     --color-input: #f5f5f5;
-    --color-primary: #3b82f6;
+    --color-primary: #3b9fd9;
     --color-primary-foreground: #ffffff;
     --color-secondary: #f5f5f5;
     --color-secondary-foreground: #404040;
@@ -161,13 +161,13 @@
   /* Light theme transparency fallbacks */
   :root {
     /* Primary with opacity */
-    --bg-primary-5: rgba(59, 130, 246, 0.05);
-    --bg-primary-10: rgba(59, 130, 246, 0.1);
-    --bg-primary-15: rgba(59, 130, 246, 0.15);
-    --bg-primary-20: rgba(59, 130, 246, 0.2);
-    --bg-primary-40: rgba(59, 130, 246, 0.4);
-    --bg-primary-60: rgba(59, 130, 246, 0.6);
-    --bg-primary-90: rgba(59, 130, 246, 0.9);
+    --bg-primary-5: rgba(59, 159, 217, 0.05);
+    --bg-primary-10: rgba(59, 159, 217, 0.1);
+    --bg-primary-15: rgba(59, 159, 217, 0.15);
+    --bg-primary-20: rgba(59, 159, 217, 0.2);
+    --bg-primary-40: rgba(59, 159, 217, 0.4);
+    --bg-primary-60: rgba(59, 159, 217, 0.6);
+    --bg-primary-90: rgba(59, 159, 217, 0.9);
 
     /* Secondary with opacity */
     --bg-secondary-50: rgba(245, 245, 245, 0.5);
@@ -201,54 +201,6 @@
 
     /* Yellow with opacity (for rate limit notifications) */
     --bg-yellow-900-20: rgba(113, 63, 18, 0.2);
-
-    /* Black overlay */
-    --bg-black-50: rgba(0, 0, 0, 0.5);
-  }
-
-  /* Dark theme transparency fallbacks */
-  :root.dark {
-    /* Primary with opacity */
-    --bg-primary-5: rgba(59, 159, 217, 0.05);
-    --bg-primary-10: rgba(59, 159, 217, 0.1);
-    --bg-primary-15: rgba(59, 159, 217, 0.15);
-    --bg-primary-20: rgba(59, 159, 217, 0.2);
-    --bg-primary-40: rgba(59, 159, 217, 0.4);
-    --bg-primary-60: rgba(59, 159, 217, 0.6);
-    --bg-primary-90: rgba(59, 159, 217, 0.9);
-
-    /* Secondary with opacity */
-    --bg-secondary-50: rgba(28, 31, 40, 0.5);
-    --bg-secondary-80: rgba(28, 31, 40, 0.8);
-
-    /* Card with opacity */
-    --bg-card-50: rgba(19, 21, 28, 0.5);
-    --bg-card-95: rgba(19, 21, 28, 0.95);
-
-    /* Background with opacity */
-    --bg-background-50: rgba(26, 29, 38, 0.5);
-    --bg-background-80: rgba(26, 29, 38, 0.8);
-    --bg-background-95: rgba(26, 29, 38, 0.95);
-
-    /* Muted with opacity */
-    --bg-muted-20: rgba(34, 36, 45, 0.2);
-    --bg-muted-50: rgba(34, 36, 45, 0.5);
-
-    /* Destructive with opacity */
-    --bg-destructive-10: rgba(248, 113, 113, 0.1);
-    --bg-destructive-20: rgba(248, 113, 113, 0.2);
-
-    /* Amber/warning with opacity (for LastSearchSaved) - slightly lighter in dark mode */
-    --bg-amber-500-10: rgba(251, 191, 36, 0.1);
-    --bg-amber-500-20: rgba(251, 191, 36, 0.2);
-    --bg-amber-500-30: rgba(251, 191, 36, 0.3);
-
-    /* Red with opacity (for error messages) - lighter in dark mode */
-    --bg-red-500-10: rgba(248, 113, 113, 0.1);
-    --bg-red-900-10: rgba(185, 28, 28, 0.1);
-
-    /* Yellow with opacity (for rate limit notifications) - lighter in dark mode */
-    --bg-yellow-900-20: rgba(202, 138, 4, 0.2);
 
     /* Black overlay */
     --bg-black-50: rgba(0, 0, 0, 0.5);
@@ -341,14 +293,6 @@ body {
     background-color: var(--color-card) !important;
     backdrop-filter: none !important;
   }
-}
-
-/* Emoji rendering for country flags - optimized for Windows and cross-platform */
-.emoji-flag {
-  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
-  font-style: normal;
-  font-weight: normal;
-  line-height: 1;
 }
 
 /* Drawer open state - prevent layout shift when scrollbar disappears */
@@ -703,7 +647,7 @@ body.drawer-open .z-30.fixed {
   font-family: var(--font-montserrat), var(--font-space-grotesk), system-ui, -apple-system, sans-serif;
   font-weight: 900;
   letter-spacing: -0.02em;
-  -webkit-text-stroke-width: 1.5px;
+  -webkit-text-stroke-width: 0.5px;
   -webkit-text-stroke-color: hsl(var(--primary) / 0.4);
   paint-order: stroke fill;
   filter: drop-shadow(0 2px 6px hsl(var(--primary) / 0.3))
@@ -712,9 +656,147 @@ body.drawer-open .z-30.fixed {
 }
 
 .logo-text:hover {
-  -webkit-text-stroke-width: 2px;
+  -webkit-text-stroke-width: 0.5px;
   -webkit-text-stroke-color: hsl(var(--primary) / 0.6);
   filter: drop-shadow(0 3px 10px hsl(var(--primary) / 0.5))
           drop-shadow(0 0 20px hsl(var(--primary) / 0.3));
   transform: translateY(-1px) scale(1.02);
+}
+
+/* AI Analysis Animation - How It Works Section */
+@keyframes scan {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0%;
+  }
+}
+
+@keyframes scan-delayed {
+  0% {
+    top: 50%;
+  }
+  50% {
+    top: 0%;
+  }
+  100% {
+    top: 50%;
+  }
+}
+
+@keyframes scan-vertical {
+  0% {
+    transform: translateY(-100%);
+  }
+  50% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes progress {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float-particle {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(10px, -20px) scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+.animate-scan {
+  animation: scan 3s ease-in-out infinite;
+}
+
+.animate-scan-delayed {
+  animation: scan-delayed 3s ease-in-out infinite;
+}
+
+.animate-scan-vertical {
+  animation: scan-vertical 2s ease-in-out infinite;
+}
+
+.animate-progress {
+  animation: progress 2s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.2s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+  opacity: 0;
+}
+
+.animate-float-particle {
+  animation: float-particle 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes typing {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-typing {
+  animation: typing 1.5s ease-in-out infinite;
 }

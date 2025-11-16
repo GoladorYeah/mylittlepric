@@ -37,57 +37,67 @@ export function DemoSection() {
           <div className="relative aspect-video rounded-3xl bg-linear-to-br from-primary/10 via-background to-secondary/10 border-2 border-border overflow-hidden shadow-2xl">
             {!isPlaying ? (
               <>
-                {/* Thumbnail/Placeholder */}
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
-                  <div className="text-center space-y-6">
-                    <div className="w-24 h-24 mx-auto rounded-full bg-primary/20 backdrop-blur-sm border border-primary/30 flex items-center justify-center">
-                      <MessageSquare className="w-12 h-12 text-primary" />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-medium">Interactive Demo Video</p>
-                      <p className="text-sm text-muted-foreground">
-                        [VIDEO: Full shopping experience walkthrough]
-                      </p>
-                    </div>
-                  </div>
+                {/* Video thumbnail preview - first frame */}
+                <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-background to-secondary/10">
+                  <video
+                    className="w-full h-full object-cover"
+                    muted
+                    playsInline
+                    preload="metadata"
+                  >
+                    <source src="/presentation.mp4#t=0.1" type="video/mp4" />
+                  </video>
                 </div>
+
+                {/* Overlay gradient */}
+                <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-black/40" />
 
                 {/* Play button overlay */}
                 <button
                   onClick={() => setIsPlaying(true)}
                   className="absolute inset-0 w-full h-full group"
                 >
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center group-hover:scale-110 transition-transform shadow-xl">
-                    <Play className="w-8 h-8 ml-1" fill="currentColor" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-primary text-primary-foreground flex items-center justify-center group-hover:scale-110 transition-all shadow-2xl group-hover:shadow-primary/50">
+                    <Play className="w-10 h-10 ml-1" fill="currentColor" />
                   </div>
+                  {/* Pulse ring animation */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-primary/30 animate-pulse-scale" />
                 </button>
 
-                {/* Demo chat messages preview */}
-                <div className="absolute bottom-8 left-8 right-8 space-y-3">
-                  <div className="flex justify-start">
-                    <div className="max-w-xs p-3 rounded-2xl rounded-bl-sm bg-background/90 backdrop-blur-sm border border-border shadow-lg">
-                      <p className="text-sm">I need a laptop for video editing under $1500</p>
+                {/* Video info overlay */}
+                <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 right-4 md:right-8 space-y-2 md:space-y-3 pointer-events-none">
+                  <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-4 flex-wrap">
+                    <div className="px-2 md:px-3 py-1 rounded-full bg-primary/90 text-primary-foreground text-[10px] md:text-xs font-bold backdrop-blur-sm">
+                      DEMO VIDEO
+                    </div>
+                    <div className="px-2 md:px-3 py-1 rounded-full bg-background/80 backdrop-blur-sm text-[10px] md:text-xs font-medium">
+                      See MyLittlePrice in Action
                     </div>
                   </div>
-                  <div className="flex justify-end">
-                    <div className="max-w-sm p-3 rounded-2xl rounded-br-sm bg-primary/90 text-primary-foreground backdrop-blur-sm shadow-lg">
-                      <p className="text-sm">I found 12 great options! Here are the top 3...</p>
+
+                  <div className="flex justify-start animate-fade-in-up">
+                    <div className="max-w-[200px] md:max-w-xs p-2 md:p-3 rounded-xl md:rounded-2xl rounded-bl-sm bg-background/95 backdrop-blur-sm border border-border shadow-lg">
+                      <p className="text-xs md:text-sm">I need a laptop for video editing under $1500</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                    <div className="max-w-[220px] md:max-w-sm p-2 md:p-3 rounded-xl md:rounded-2xl rounded-br-sm bg-primary/95 text-primary-foreground backdrop-blur-sm shadow-lg">
+                      <p className="text-xs md:text-sm">I found 12 great options! Here are the top 3...</p>
                     </div>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-background">
-                <p className="text-muted-foreground">
-                  [Embed your demo video here using video tag or iframe]
-                </p>
-                {/*
-                  Example:
-                  <video controls autoPlay className="w-full h-full">
-                    <source src="/videos/demo.mp4" type="video/mp4" />
-                  </video>
-                */}
+              <div className="absolute inset-0 bg-background">
+                <video
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                  onEnded={() => setIsPlaying(false)}
+                >
+                  <source src="/presentation.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
               </div>
             )}
           </div>

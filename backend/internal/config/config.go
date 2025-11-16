@@ -138,6 +138,9 @@ type Config struct {
 	// CORS
 	CORSOrigins []string
 
+	// Notifications
+	DiscordWebhookURL string
+
 	// Logging
 	LogLevel  string
 	LogFormat string // "json" or "text"
@@ -253,6 +256,9 @@ func Load() (*Config, error) {
 		RateLimitRequests: getEnvAsInt("RATE_LIMIT_REQUESTS", 100),
 		RateLimitWindow:   getEnvAsInt("RATE_LIMIT_WINDOW", 60),
 		CORSOrigins:       getEnvAsSlice("CORS_ORIGINS", []string{"http://localhost:3000"}),
+
+		// Notifications
+		DiscordWebhookURL: os.Getenv("DISCORD_WEBHOOK_URL"),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
 		LogFormat:         getEnv("LOG_FORMAT", "json"),
 		LokiEnabled:       getEnvAsBool("LOKI_ENABLED", false),

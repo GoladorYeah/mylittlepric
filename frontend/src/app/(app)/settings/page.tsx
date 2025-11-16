@@ -160,7 +160,7 @@ export default function SettingsPage() {
                     className="w-full flex items-center justify-between px-4 py-3 bg-secondary hover:bg-secondary/80 border border-border rounded-lg transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{selectedCountry.flag}</span>
+                      <span className="text-2xl emoji-flag">{selectedCountry.flag}</span>
                       <span className="text-sm font-medium">{selectedCountry.name}</span>
                     </div>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isCountryDropdownOpen ? 'rotate-180' : ''}`} />
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                               }`}
                             >
                               <div className="flex items-center gap-3">
-                                <span className="text-xl">{c.flag}</span>
+                                <span className="text-xl emoji-flag">{c.flag}</span>
                                 <span className="text-sm font-medium">{c.name}</span>
                               </div>
                               {c.code === country.toLowerCase() && (

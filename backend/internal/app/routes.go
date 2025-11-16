@@ -53,6 +53,9 @@ func SetupRoutes(app *fiber.App, c *container.Container) {
 
 	// Stats routes
 	setupStatsRoutes(api, c)
+
+	// Bug report routes
+	setupBugReportRoutes(api, c)
 }
 
 func setupAuthRoutes(api fiber.Router, c *container.Container) {
@@ -244,4 +247,26 @@ func setupStatsRoutes(api fiber.Router, c *container.Container) {
 			"timestamp": time.Now(),
 		})
 	})
+}
+
+func setupBugReportRoutes(api fiber.Router, c *container.Container) {
+	bugReportHandler := handlers.NewBugReportHandler(c)
+	bugReportRateLimiter := middleware.RateLimiter(middleware.RateLimiterConfig{
+		Redis:      c.Redis,
+		Max:        5,
+		Window:     time.Minute,
+		KeyPrefix:  "bug_report_limit:",
+		Message:    "Too many bug reports, please try again later",
+		StatusCode: fiber.StatusTooManyRequests,
+		KeyGenerator: func(ctx *fiber.Ctx) string {
+			return ctx.IP()
+		},
+	})
+
+	// Public endpoint - anyone can submit bug reports
+	api.Post("/bug-report", bugReportRateLimiter, bugReportHandler.SubmitBugReport)
+
+	// Admin endpoint - requires authentication
+	// TODO: Add admin middleware when implemented
+	// api.Get("/bug-reports", authMiddleware, adminMiddleware, bugReportHandler.GetBugReports)
 }

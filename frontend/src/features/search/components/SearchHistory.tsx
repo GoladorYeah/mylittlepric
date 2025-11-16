@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 
 import { Logo } from "@/shared/components/ui";
 import { UserMenu } from "@/features/auth";
+import { BugReportButton } from "@/features/bug-report";
 
 interface SearchHistoryProps {
   isConnected?: boolean;
@@ -112,6 +113,9 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                   <Clock className="w-5 h-5" />
                   <span className="text-sm font-semibold">Search History</span>
                 </button>
+
+                {/* Bug Report Button */}
+                <BugReportButton variant="full" />
               </div>
             </div>
 
@@ -147,6 +151,9 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                   Search History
                 </div>
               </button>
+
+              {/* Bug Report Icon */}
+              <BugReportButton variant="icon" />
             </div>
           </div>
 
