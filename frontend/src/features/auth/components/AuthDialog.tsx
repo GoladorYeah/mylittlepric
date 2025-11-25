@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useAuthStore } from "@/shared/lib";
-import { authAPI } from "@/shared/lib";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import { useAuthStore, authAPI } from "@/shared/lib";
+import { AuthAPI } from "@/shared/lib/api/auth";
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
 interface AuthDialogProps {
   isOpen: boolean;
@@ -19,11 +22,55 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { setAuth, setLoading } = useAuthStore();
 
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (!credentialResponse.credential) {
+      setError("No credential in response");
+      return;
+    }
+
+    setIsLoading(true);
+    setLoading(true);
+
+    try {
+      const authResponse = await AuthAPI.googleLogin(credentialResponse.credential);
+
+      setAuth(authResponse.user, {
+        access_token: authResponse.access_token,
+        refresh_token: authResponse.refresh_token,
+        expires_in: authResponse.expires_in,
+      });
+
+      // Try to claim anonymous sessions
+      try {
+        await authAPI.claimSessions();
+      } catch (err) {
+        console.error("Failed to claim sessions:", err);
+      }
+
+      onClose();
+
+      // Reset form
+      setEmail("");
+      setPassword("");
+      setFullName("");
+    } catch (err: any) {
+      setError(err.message || "Failed to login with Google");
+    } finally {
+      setIsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError("Failed to login with Google");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,10 +112,11 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
   if (!isOpen || !mounted) return null;
 
   const modalContent = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm mobile-opaque-overlay overflow-y-auto py-4 px-4"
-      onClick={onClose}
-    >
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm mobile-opaque-overlay overflow-y-auto py-4 px-4"
+        onClick={onClose}
+      >
       <div
         className="relative w-full max-w-md my-auto rounded-2xl bg-background border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -94,6 +142,33 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
               {error}
             </div>
           )}
+
+          {/* Google Login */}
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="outline"
+                size="large"
+                text={mode === "signup" ? "signup_with" : "signin_with"}
+                shape="rectangular"
+                width="352"
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with email
+                </span>
+              </div>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "signup" && (
@@ -169,7 +244,8 @@ export default function AuthDialog({ isOpen, onClose, initialMode = "login" }: A
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </GoogleOAuthProvider>
   );
 
   return createPortal(modalContent, document.body);

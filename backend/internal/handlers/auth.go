@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 
 	"mylittleprice/internal/container"
 	"mylittleprice/internal/middleware"
@@ -260,5 +261,168 @@ func (h *AuthHandler) ClaimSessions(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Sessions claimed successfully",
 		"claimed": len(req.SessionIDs),
+	})
+}
+
+// ChangePassword handles password change for authenticated users
+// POST /api/auth/change-password
+func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
+		})
+	}
+
+	var req models.ChangePasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "invalid_request",
+			Message: "Invalid request body",
+		})
+	}
+
+	// Validate input
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "Current password and new password are required",
+		})
+	}
+
+	if len(req.NewPassword) < 8 {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "New password must be at least 8 characters",
+		})
+	}
+
+	// Change password
+	if err := h.container.AuthService.ChangePassword(userID, req.CurrentPassword, req.NewPassword); err != nil {
+		if errors.Is(err, services.ErrPasswordNotSet) {
+			return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+				Error:   "password_not_set",
+				Message: "Cannot change password for OAuth users",
+			})
+		}
+		if errors.Is(err, services.ErrInvalidPassword) {
+			return c.Status(fiber.StatusUnauthorized).JSON(models.ErrorResponse{
+				Error:   "invalid_password",
+				Message: "Current password is incorrect",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error:   "internal_error",
+			Message: "Failed to change password",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Password changed successfully",
+	})
+}
+
+// RequestPasswordReset generates a password reset token
+// POST /api/auth/request-password-reset
+func (h *AuthHandler) RequestPasswordReset(c *fiber.Ctx) error {
+	var req models.RequestPasswordResetRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "invalid_request",
+			Message: "Invalid request body",
+		})
+	}
+
+	if req.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "Email is required",
+		})
+	}
+
+	// Generate reset token
+	resetToken, err := h.container.AuthService.RequestPasswordReset(req.Email)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error:   "internal_error",
+			Message: "Failed to generate reset token",
+		})
+	}
+
+	// If token was generated (not empty), try to send email
+	if resetToken != "" {
+		// Send reset email
+		if err := h.container.EmailService.SendPasswordResetEmail(req.Email, resetToken); err != nil {
+			// Log error but don't fail the request - token is still valid
+			fmt.Printf("⚠️ Failed to send password reset email: %v\n", err)
+			// For testing, return the token if email fails
+			return c.JSON(fiber.Map{
+				"message": "Password reset token generated (email failed, using fallback)",
+				"token":   resetToken, // Fallback for testing
+			})
+		}
+	}
+
+	// Success response - don't reveal if user exists
+	return c.JSON(fiber.Map{
+		"message": "If an account exists with this email, a password reset link has been sent",
+	})
+}
+
+// ResetPassword resets the user's password using a reset token
+// POST /api/auth/reset-password
+func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
+	var req models.ResetPasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "invalid_request",
+			Message: "Invalid request body",
+		})
+	}
+
+	// Validate input
+	if req.Token == "" || req.NewPassword == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "Token and new password are required",
+		})
+	}
+
+	if len(req.NewPassword) < 8 {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error:   "validation_error",
+			Message: "New password must be at least 8 characters",
+		})
+	}
+
+	// Reset password
+	if err := h.container.AuthService.ResetPassword(req.Token, req.NewPassword); err != nil {
+		if errors.Is(err, services.ErrResetTokenNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(models.ErrorResponse{
+				Error:   "token_not_found",
+				Message: "Reset token not found",
+			})
+		}
+		if errors.Is(err, services.ErrTokenExpired) {
+			return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+				Error:   "token_expired",
+				Message: "Reset token has expired",
+			})
+		}
+		if errors.Is(err, services.ErrTokenAlreadyUsed) {
+			return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+				Error:   "token_used",
+				Message: "Reset token has already been used",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error:   "internal_error",
+			Message: "Failed to reset password",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Password reset successfully",
 	})
 }

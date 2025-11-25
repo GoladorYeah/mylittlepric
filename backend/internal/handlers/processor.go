@@ -37,6 +37,7 @@ type ChatRequest struct {
 	Currency          string
 	NewSearch         bool
 	CurrentCategory   string
+	BrowserID         string // Persistent browser identifier for anonymous tracking
 	UserMessageID     string // Pre-generated UUID for user message (for consistent sync)
 	AssistantMessageID string // Pre-generated UUID for assistant message (for consistent sync)
 }
@@ -133,6 +134,41 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		// Will be saved at the end with SaveSession()
 	}
 
+	// Check anonymous search limit (browser-based tracking)
+	anonymousLimit := p.container.Config.AnonymousSearchLimit
+	var anonymousSearchUsed int
+	if req.UserID == nil && req.BrowserID != "" {
+		// Get search count from Redis by browser ID
+		count, err := p.container.CacheService.GetAnonymousSearchCount(req.BrowserID)
+		if err != nil {
+			utils.LogError(ctx, "failed to get anonymous search count", err, slog.String("browser_id", req.BrowserID))
+			count = 0 // Continue on error, don't block user
+		}
+		anonymousSearchUsed = count
+
+		// Check if limit reached
+		if anonymousSearchUsed >= anonymousLimit {
+			response = &ChatProcessorResponse{
+				Type:         "text",
+				Output:       "You've used all 3 free searches! Please sign up or log in to continue searching for products.",
+				SessionID:    req.SessionID,
+				MessageCount: session.MessageCount,
+				SearchState: &models.SearchStateResponse{
+					Status:                 string(session.SearchState.Status),
+					Category:               session.SearchState.Category,
+					CanContinue:            false,
+					SearchCount:            session.SearchState.SearchCount,
+					MaxSearches:            p.container.SessionService.GetMaxSearches(),
+					AnonymousSearchUsed:    anonymousSearchUsed,
+					AnonymousSearchLimit:   anonymousLimit,
+					RequiresAuthentication: true,
+					Message:                "Anonymous search limit reached - authentication required",
+				},
+			}
+			return response
+		}
+	}
+
 	// Check search limit
 	if session.SearchState.SearchCount >= p.container.SessionService.GetMaxSearches() {
 		response = &ChatProcessorResponse{
@@ -141,12 +177,15 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 			SessionID:    req.SessionID,
 			MessageCount: session.MessageCount,
 			SearchState: &models.SearchStateResponse{
-				Status:      string(session.SearchState.Status),
-				Category:    session.SearchState.Category,
-				CanContinue: false,
-				SearchCount: session.SearchState.SearchCount,
-				MaxSearches: p.container.SessionService.GetMaxSearches(),
-				Message:     "Search limit reached",
+				Status:                 string(session.SearchState.Status),
+				Category:               session.SearchState.Category,
+				CanContinue:            false,
+				SearchCount:            session.SearchState.SearchCount,
+				MaxSearches:            p.container.SessionService.GetMaxSearches(),
+				AnonymousSearchUsed:    anonymousSearchUsed,
+				AnonymousSearchLimit:   anonymousLimit,
+				RequiresAuthentication: false,
+				Message:                "Search limit reached",
 			},
 		}
 		return response
@@ -346,6 +385,12 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 				}
 
 				session.SearchState.SearchCount++
+				// Track anonymous search usage in Redis by browser ID
+				if req.UserID == nil && req.BrowserID != "" {
+					if err := p.container.CacheService.IncrementAnonymousSearchCount(req.BrowserID); err != nil {
+						utils.LogError(ctx, "failed to increment anonymous search count", err, slog.String("browser_id", req.BrowserID))
+					}
+				}
 				// Add products to assistant message BEFORE saving
 				assistantMessage.Products = products
 
@@ -413,6 +458,12 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 					}
 
 					session.SearchState.SearchCount++
+					// Track anonymous search usage in Redis by browser ID
+					if req.UserID == nil && req.BrowserID != "" {
+						if err := p.container.CacheService.IncrementAnonymousSearchCount(req.BrowserID); err != nil {
+							utils.LogError(ctx, "failed to increment anonymous search count", err, slog.String("browser_id", req.BrowserID))
+						}
+					}
 					// Add products to assistant message BEFORE saving
 					assistantMessage.Products = products
 
@@ -531,13 +582,31 @@ func (p *ChatProcessor) ProcessChat(req *ChatRequest) *ChatProcessorResponse {
 		return response
 	}
 
-	// Build search state response
+	// Build search state response with real-time anonymous count
+	anonymousLimit = p.container.Config.AnonymousSearchLimit
+
+	// Get real-time anonymous search count from Redis
+	var currentAnonymousCount int
+	if req.UserID == nil && req.BrowserID != "" {
+		count, err := p.container.CacheService.GetAnonymousSearchCount(req.BrowserID)
+		if err != nil {
+			utils.LogError(ctx, "failed to get anonymous search count for response", err)
+			count = 0
+		}
+		currentAnonymousCount = count
+	}
+
+	requiresAuth := req.UserID == nil && currentAnonymousCount >= anonymousLimit
+
 	response.SearchState = &models.SearchStateResponse{
-		Status:      string(session.SearchState.Status),
-		Category:    session.SearchState.Category,
-		CanContinue: session.SearchState.SearchCount < p.container.SessionService.GetMaxSearches(),
-		SearchCount: session.SearchState.SearchCount,
-		MaxSearches: p.container.SessionService.GetMaxSearches(),
+		Status:                 string(session.SearchState.Status),
+		Category:               session.SearchState.Category,
+		CanContinue:            session.SearchState.SearchCount < p.container.SessionService.GetMaxSearches() && !requiresAuth,
+		SearchCount:            session.SearchState.SearchCount,
+		MaxSearches:            p.container.SessionService.GetMaxSearches(),
+		AnonymousSearchUsed:    currentAnonymousCount,
+		AnonymousSearchLimit:   anonymousLimit,
+		RequiresAuthentication: requiresAuth,
 	}
 
 	return response

@@ -79,13 +79,13 @@ export default function UserMenu({ showName = false }: UserMenuProps) {
 
   return (
     <>
-      <div className="relative w-full" ref={menuRef}>
+      <div className="relative w-full justify-items-center" ref={menuRef}>
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className={`flex items-center gap-3 p-2 hover:opacity-90 transition-all cursor-pointer ${
+          className={`flex items-center gap-3 hover:opacity-90 transition-all cursor-pointer ${
             showName
-              ? 'w-full rounded-lg hover:bg-secondary/50'
-              : 'h-9 w-9 justify-center rounded-full bg-primary text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'
+              ? 'w-full px-2 py-2 rounded-lg hover:bg-secondary/50'
+              : 'px-3 my-2 h-9 w-9 justify-center rounded-full bg-primary text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'
           }`}
         >
           <div className={`flex items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0 ${

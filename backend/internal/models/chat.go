@@ -12,6 +12,7 @@ type ChatRequest struct {
 	Currency        string `json:"currency"`
 	NewSearch       bool   `json:"new_search"`
 	CurrentCategory string `json:"current_category"`
+	BrowserID       string `json:"browser_id"` // Persistent browser identifier for anonymous tracking
 }
 
 type ChatResponse struct {
@@ -26,12 +27,15 @@ type ChatResponse struct {
 }
 
 type SearchStateResponse struct {
-	Status      string `json:"status"`
-	Category    string `json:"category,omitempty"`
-	CanContinue bool   `json:"can_continue"`
-	SearchCount int    `json:"search_count"`
-	MaxSearches int    `json:"max_searches"`
-	Message     string `json:"message,omitempty"`
+	Status                 string `json:"status"`
+	Category               string `json:"category,omitempty"`
+	CanContinue            bool   `json:"can_continue"`
+	SearchCount            int    `json:"search_count"`
+	MaxSearches            int    `json:"max_searches"`
+	Message                string `json:"message,omitempty"`
+	AnonymousSearchUsed    int    `json:"anonymous_search_used"`     // Number of searches used without auth
+	AnonymousSearchLimit   int    `json:"anonymous_search_limit"`    // Maximum allowed anonymous searches
+	RequiresAuthentication bool   `json:"requires_authentication"`   // True if user needs to login/signup
 }
 
 // ═══════════════════════════════════════════════════════════

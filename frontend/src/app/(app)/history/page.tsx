@@ -18,7 +18,7 @@ const localeMap: Record<string, any> = {
 
 export default function HistoryPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { isAuthenticated, isLoading: authLoading, _hasHydrated } = useAuthStore();
   const { language, isSidebarOpen } = useChatStore();
 
   const [history, setHistory] = useState<SearchHistoryRecord[]>([]);
@@ -32,9 +32,16 @@ export default function HistoryPage() {
 
   const locale = localeMap[language] || enUS;
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (_hasHydrated && !authLoading && !isAuthenticated) {
+      router.push("/login?redirect=/history");
+    }
+  }, [_hasHydrated, authLoading, isAuthenticated, router]);
+
   const loadHistory = async (resetOffset = false) => {
-    // Allow both authenticated and anonymous users to view history
-    if (authLoading) {
+    // Only load history for authenticated users
+    if (authLoading || !isAuthenticated) {
       setLoading(false);
       return;
     }
@@ -64,11 +71,11 @@ export default function HistoryPage() {
   };
 
   useEffect(() => {
-    // Load history for both authenticated and anonymous users
-    if (!authLoading) {
+    // Load history only for authenticated users
+    if (!authLoading && isAuthenticated) {
       loadHistory(true);
     }
-  }, [authLoading]);
+  }, [authLoading, isAuthenticated]);
 
   const toggleExpanded = (id: string) => {
     setExpandedItems((prev) => {

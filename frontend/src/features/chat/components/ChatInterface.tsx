@@ -9,8 +9,10 @@ import {
   useSavedSearchPrompt,
   useSessionActions,
   useMessageActions,
-  generateId
+  generateId,
+  useChatStore
 } from "@/shared/lib";
+import { useAuthStore } from "@/shared/lib";
 
 import { SearchHistory } from "@/features/search";
 import { ChatMessages } from "./chat-messages";
@@ -18,6 +20,7 @@ import { ChatInput } from "./chat-input";
 import { ChatHeader } from "./chat-header";
 import { SavedSearchPrompt } from "./SavedSearchPrompt";
 import { RateLimitNotification } from "./RateLimitNotification";
+import { AuthPrompt } from "@/features/auth/components/AuthPrompt";
 
 
 interface ChatInterfaceProps {
@@ -33,9 +36,15 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
   const { showSavedSearchPrompt, setShowSavedSearchPrompt } = useSavedSearchPrompt();
   const { setSessionId, newSearch, restoreSavedSearch, clearSavedSearch } = useSessionActions();
   const { removeMessage } = useMessageActions();
+  const searchState = useChatStore((state) => state.searchState);
+  const { isAuthenticated } = useAuthStore();
 
   const { sendMessage, handleNewSearch, connectionStatus, isConnected } =
     useChat({ initialQuery, sessionId });
+
+  // Check if user needs to authenticate (anonymous user hit search limit)
+  const showAuthPrompt = !isAuthenticated &&
+    searchState?.requires_authentication === true;
 
   const handleQuickReply = useCallback((reply: string) => {
     sendMessage(reply);
@@ -97,6 +106,14 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
             onContinue={handleContinueSearch}
             onNewSearch={handleStartNewSearch}
           />
+        ) : showAuthPrompt ? (
+          /* Auth Prompt - shown when anonymous user hits search limit */
+          <div className="container mx-auto flex min-h-[calc(100vh-200px)] max-w-2xl items-center justify-center px-4 py-8">
+            <AuthPrompt
+              searchesUsed={searchState?.anonymous_search_used || 0}
+              searchesLimit={searchState?.anonymous_search_limit || 3}
+            />
+          </div>
         ) : (
           <>
             {/* Messages - scrolls naturally with page */}
@@ -109,8 +126,8 @@ export function ChatInterface({ initialQuery, sessionId }: ChatInterfaceProps) {
           </>
         )}
 
-        {/* Fixed input field - always visible at bottom (hidden when showing prompt) */}
-        {!showSavedSearchPrompt && (
+        {/* Fixed input field - always visible at bottom (hidden when showing prompts) */}
+        {!showSavedSearchPrompt && !showAuthPrompt && (
           <div
             className={`fixed bottom-0 left-0 right-0 z-30 transition-[padding] duration-300 ease-in-out ${
               isSidebarOpen ? 'lg:pl-80' : 'lg:pl-16'

@@ -3,6 +3,7 @@
 import { useChatStore } from "@/shared/lib";
 import { Clock, Plus, PanelLeft, PanelLeftClose } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import Image from "next/image";
 
 import { Logo } from "@/shared/components/ui";
 import { UserMenu } from "@/features/auth";
@@ -94,7 +95,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                   <button
                     onClick={handleNewSearchClick}
                     disabled={!isConnected}
-                    className="w-full p-4 rounded-lg flex items-center gap-3 transition-colors bg-primary/10 hover:bg-primary/20 text-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full px-4 py-3 rounded-lg flex items-center gap-3 transition-colors bg-primary/10 hover:bg-primary/20 text-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <Plus className="w-5 h-5" />
                     <span className="text-sm font-semibold">New Search</span>
@@ -104,7 +105,7 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
                 {/* Search History Button */}
                 <button
                   onClick={handleHistoryClick}
-                  className={`w-full p-4 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${
+                  className={`w-full px-4 py-3 rounded-lg flex items-center gap-3 transition-colors cursor-pointer ${
                     pathname === '/history'
                       ? 'bg-secondary/80 text-foreground'
                       : 'hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
@@ -161,12 +162,52 @@ export function SearchHistory({ isConnected = true, connectionStatus = "Connecte
 
         {/* Bottom Controls - outside overflow context */}
         <div className="absolute bottom-0 left-0 right-0">
-          {/* Expanded - User Menu with name */}
-          <div className={`p-2 flex items-start justify-start transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
-            <UserMenu showName={true} />
+          {/* Expanded - Kickstarter + User Menu */}
+          <div className={`transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+            <div className="p-4 space-y-2">
+              {/* Kickstarter Button - Expanded */}
+              <a
+                href="https://www.kickstarter.com/projects/mylittleprice/mylittleprice-ai-find-ideal-solution-at-the-right-price"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full px-4 py-3 rounded-lg flex items-center gap-3 transition-colors bg-[#05CE78]/10 hover:bg-[#05CE78]/20 cursor-pointer"
+                title="Support us on Kickstarter"
+              >
+                <Image
+                  src="/kickstarter-logo-small-green.png"
+                  alt="Kickstarter"
+                  width={20}
+                  height={20}
+                  className="shrink-0 object-contain"
+                />
+                <span className="text-sm font-semibold text-[#05CE78]">
+                  Back Us on Kickstarter
+                </span>
+              </a>
+              <UserMenu showName={true} />
+            </div>
           </div>
           {/* Collapsed - Icons only (desktop only) */}
-          <div className={`hidden lg:flex flex-col items-start pl-4 py-4 transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+          <div className={`hidden lg:flex flex-col items-center gap-2 py-4 transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none absolute inset-0'}`}>
+            {/* Kickstarter Icon - Collapsed */}
+            <a
+              href="https://www.kickstarter.com/projects/mylittleprice/mylittleprice-ai-find-ideal-solution-at-the-right-price"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-3 rounded-lg bg-[#05CE78]/10 hover:bg-[#05CE78]/20 transition-colors cursor-pointer relative group"
+              title="Support us on Kickstarter"
+            >
+              <Image
+                src="/kickstarter-logo-small-green.png"
+                alt="Kickstarter"
+                width={20}
+                height={20}
+                className="object-contain"
+              />
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                Back Us on Kickstarter
+              </div>
+            </a>
             <UserMenu showName={false} />
           </div>
         </div>

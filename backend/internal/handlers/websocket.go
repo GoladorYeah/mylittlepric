@@ -66,6 +66,7 @@ type WSMessage struct {
 	NewSearch       bool                   `json:"new_search"`
 	PageToken       string                 `json:"page_token"`
 	CurrentCategory string                 `json:"current_category"`
+	BrowserID       string                 `json:"browser_id,omitempty"` // Persistent browser identifier for anonymous tracking
 	AccessToken     string                 `json:"access_token,omitempty"` // Optional JWT token for authentication
 	Preferences     map[string]interface{} `json:"preferences,omitempty"`  // For preferences sync
 	SavedSearch     *models.SavedSearch    `json:"saved_search,omitempty"` // For saved search sync
@@ -238,6 +239,7 @@ func (h *WSHandler) handleChat(c *websocket.Conn, msg *WSMessage, clientID strin
 		Currency:          msg.Currency,
 		NewSearch:         msg.NewSearch,
 		CurrentCategory:   msg.CurrentCategory,
+		BrowserID:         msg.BrowserID, // Pass browser ID for anonymous tracking
 		UserMessageID:     userMessageID,     // Pass pre-generated user message ID
 		AssistantMessageID: assistantMessageID, // Pass pre-generated assistant message ID
 	}

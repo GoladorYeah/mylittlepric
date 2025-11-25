@@ -53,9 +53,10 @@ type Config struct {
 	GoogleRedirectURL  string
 
 	// Session
-	SessionTTL            int
-	MaxMessagesPerSession int
-	MaxSearchesPerSession int // Added from .env
+	SessionTTL               int
+	MaxMessagesPerSession    int
+	MaxSearchesPerSession    int // Added from .env
+	AnonymousSearchLimit     int // Maximum searches allowed for anonymous users
 
 	// API Keys
 	GeminiAPIKeys []string
@@ -138,8 +139,18 @@ type Config struct {
 	// CORS
 	CORSOrigins []string
 
+	// Email (SMTP)
+	SMTPHost      string
+	SMTPPort      int
+	SMTPUsername  string
+	SMTPPassword  string
+	SMTPFromEmail string
+	SMTPFromName  string
+	FrontendURL   string
+
 	// Notifications
-	DiscordWebhookURL string
+	DiscordWebhookURL string // Bug reports webhook
+	ContactWebhookURL string // Contact form webhook
 
 	// Logging
 	LogLevel  string
@@ -184,6 +195,7 @@ func Load() (*Config, error) {
 		SessionTTL:            getEnvAsInt("SESSION_TTL", 86400),
 		MaxMessagesPerSession: getEnvAsInt("MAX_MESSAGES_PER_SESSION", 8),
 		MaxSearchesPerSession: getEnvAsInt("MAX_SEARCHES_PER_SESSION", 3),
+		AnonymousSearchLimit:  getEnvAsInt("ANONYMOUS_SEARCH_LIMIT", 3),
 		GeminiAPIKeys:         getEnvAsSlice("GEMINI_API_KEYS", []string{}),
 		SerpAPIKeys:           getEnvAsSlice("SERP_API_KEYS", []string{}),
 		GeminiModel:           getEnv("GEMINI_MODEL", "gemini-flash-latest"),
@@ -255,10 +267,20 @@ func Load() (*Config, error) {
 		CacheImmersiveTTL: getEnvAsInt("CACHE_IMMERSIVE_TTL", 43200),
 		RateLimitRequests: getEnvAsInt("RATE_LIMIT_REQUESTS", 100),
 		RateLimitWindow:   getEnvAsInt("RATE_LIMIT_WINDOW", 60),
-		CORSOrigins:       getEnvAsSlice("CORS_ORIGINS", []string{"http://localhost:3000"}),
+		CORSOrigins: getEnvAsSlice("CORS_ORIGINS", []string{"http://localhost:3000"}),
+
+		// Email (SMTP)
+		SMTPHost:      getEnv("SMTP_HOST", "smtp.zoho.eu"),
+		SMTPPort:      getEnvAsInt("SMTP_PORT", 587),
+		SMTPUsername:  getEnv("SMTP_USERNAME", ""),
+		SMTPPassword:  getEnv("SMTP_PASSWORD", ""),
+		SMTPFromEmail: getEnv("SMTP_FROM_EMAIL", "noreply@mylittleprice.com"),
+		SMTPFromName:  getEnv("SMTP_FROM_NAME", "MyLittlePrice"),
+		FrontendURL:   getEnv("FRONTEND_URL", "http://localhost:3000"),
 
 		// Notifications
 		DiscordWebhookURL: os.Getenv("DISCORD_WEBHOOK_URL"),
+		ContactWebhookURL: os.Getenv("CONTACT_WEBHOOK_URL"),
 		LogLevel:          getEnv("LOG_LEVEL", "info"),
 		LogFormat:         getEnv("LOG_FORMAT", "json"),
 		LokiEnabled:       getEnvAsBool("LOKI_ENABLED", false),

@@ -43,6 +43,7 @@ type Container struct {
 	CycleService            *services.CycleService
 	GoogleOAuthService      *services.GoogleOAuthService
 	AuthService             *services.AuthService
+	EmailService            *services.EmailService
 	SearchHistoryService    *services.SearchHistoryService
 	PreferencesService      *services.PreferencesService
 	CleanupService          *services.CleanupService
@@ -184,6 +185,10 @@ func (c *Container) initServices() error {
 	// Initialize Google OAuth Service
 	c.GoogleOAuthService = services.NewGoogleOAuthService(c.Config)
 	utils.LogInfo(c.ctx, "Google OAuth service initialized")
+
+	// Initialize Email Service
+	c.EmailService = services.NewEmailService(c.Config)
+	utils.LogInfo(c.ctx, "Email service initialized")
 
 	// Initialize Auth Service
 	c.AuthService = services.NewAuthService(c.Ent, c.Redis, c.JWTService, c.GoogleOAuthService)

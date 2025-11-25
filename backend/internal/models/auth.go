@@ -32,6 +32,15 @@ type RefreshToken struct {
 	RevokedAt *time.Time `json:"revoked_at,omitempty" db:"revoked_at"`
 }
 
+type PasswordResetToken struct {
+	ID        uuid.UUID  `json:"id" db:"id"`
+	UserID    uuid.UUID  `json:"user_id" db:"user_id"`
+	TokenHash string     `json:"-" db:"token_hash"`
+	ExpiresAt time.Time  `json:"expires_at" db:"expires_at"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	UsedAt    *time.Time `json:"used_at,omitempty" db:"used_at"`
+}
+
 // ═══════════════════════════════════════════════════════════
 // AUTH REQUEST/RESPONSE MODELS
 // ═══════════════════════════════════════════════════════════
@@ -88,4 +97,22 @@ type GoogleUserInfo struct {
 	GivenName     string `json:"given_name"`
 	FamilyName    string `json:"family_name"`
 	Locale        string `json:"locale"`
+}
+
+// ═══════════════════════════════════════════════════════════
+// PASSWORD MANAGEMENT MODELS
+// ═══════════════════════════════════════════════════════════
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,min=8"`
+}
+
+type RequestPasswordResetRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=8"`
 }

@@ -61,8 +61,8 @@ export function Header() {
           <ThemeToggle />
 
           <button
-            onClick={() => router.push("/login")}
-            className="hidden md:inline-flex px-4 py-2 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            onClick={() => router.push("/chat")}
+            className="px-4 py-2 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
           >
             Get Started
           </button>
@@ -70,7 +70,7 @@ export function Header() {
           {/* Mobile menu button */}
           <button
             type="button"
-            className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary"
+            className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? (
@@ -100,15 +100,6 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                router.push("/login");
-              }}
-              className="w-full px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Get Started
-            </button>
           </div>
         </div>
       )}

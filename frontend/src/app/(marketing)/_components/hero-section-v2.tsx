@@ -57,7 +57,7 @@ export function HeroSection() {
                   </div>
                 </div>
                 <a
-                  href="https://www.kickstarter.com/projects/mylittleprice/mylittleprice"
+                  href="https://www.kickstarter.com/projects/mylittleprice/mylittleprice-ai-find-ideal-solution-at-the-right-price"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-primary text-primary-foreground rounded-full font-medium hover:opacity-90 transition-all text-xs whitespace-nowrap shrink-0"
@@ -71,7 +71,7 @@ export function HeroSection() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => router.push("/chat")}
-                className="group px-8 py-3.5 bg-primary text-primary-foreground rounded-full font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg"
+                className="group px-8 py-3.5 bg-green-500 text-white rounded-full font-semibold hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
               >
                 Try Beta Version Free
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -80,7 +80,7 @@ export function HeroSection() {
                 onClick={() => {
                   document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="px-8 py-3.5 bg-secondary text-secondary-foreground rounded-full font-semibold hover:bg-secondary/80 transition-colors"
+                className="px-8 py-3.5 bg-secondary text-secondary-foreground rounded-full font-semibold hover:bg-secondary/80 transition-colors cursor-pointer"
               >
                 Watch Demo
               </button>

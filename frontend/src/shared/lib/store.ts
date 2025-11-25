@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { ChatMessage } from "@/shared/types";
+import { ChatMessage, SearchState } from "@/shared/types";
 import { detectCountry, detectLanguage, getCurrencyForCountry } from "./locale";
 
 export interface SavedSearch {
@@ -43,6 +43,9 @@ interface ChatStore {
   // Session ownership validation (signed sessions)
   signedSessionId: string | null;
 
+  // Search state from backend
+  searchState: SearchState | null;
+
   addMessage: (message: ChatMessage) => void;
   setMessages: (messages: ChatMessage[]) => void;
   setSessionId: (id: string) => void;
@@ -75,6 +78,7 @@ interface ChatStore {
   setSignedSessionId: (signedSessionId: string | null) => void;
   updateMessageStatus: (messageId: string, status: "pending" | "sent" | "failed", error?: string) => void;
   removeMessage: (messageId: string) => void;
+  setSearchState: (searchState: SearchState | null) => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -103,6 +107,7 @@ export const useChatStore = create<ChatStore>()(
         expiresAt: null,
       },
       signedSessionId: null,
+      searchState: null,
 
       addMessage: (message) =>
         set((state) => {
@@ -593,6 +598,10 @@ export const useChatStore = create<ChatStore>()(
         set((state) => ({
           messages: state.messages.filter((msg) => msg.id !== messageId),
         }));
+      },
+
+      setSearchState: (searchState) => {
+        set({ searchState });
       },
     }),
     {

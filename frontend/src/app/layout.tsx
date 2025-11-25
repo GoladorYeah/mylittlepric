@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Space_Grotesk, Montserrat } from "next/font/google";
 import { Providers } from "@/shared/lib/providers";
+import GoogleAnalytics from "@/shared/components/GoogleAnalytics";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -112,6 +113,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${montserrat.variable} antialiased`}
       >
+        <GoogleAnalytics />
         <Providers>{children}</Providers>
       </body>
     </html>

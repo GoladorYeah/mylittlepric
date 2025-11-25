@@ -4,10 +4,11 @@ const config = {
     [
       "postcss-preset-env",
       {
-        stage: 3,
+        stage: 2,
         features: {
           "oklab-function": true,
           "color-mix": true,
+          "custom-properties": false, // Don't transform CSS variables
         },
         autoprefixer: {
           flexbox: "no-2009",
@@ -20,8 +21,11 @@ const config = {
           "not dead",
           "not IE 11",
         ],
+        // Preserve custom properties for theme variables
+        preserve: true,
       },
     ],
+    "autoprefixer",
   ],
 };
 

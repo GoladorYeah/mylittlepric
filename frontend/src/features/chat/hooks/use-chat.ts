@@ -4,6 +4,7 @@ import { useChatStore } from "@/shared/lib";
 import { useAuthStore } from "@/shared/lib";
 import { SessionAPI } from "@/shared/lib";
 import { generateId } from "@/shared/lib";
+import { getBrowserId } from "@/shared/lib";
 import { reconnectManager } from "@/shared/lib/reconnect-manager";
 
 /**
@@ -131,6 +132,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     saveCurrentSearch,
     registerWebSocketSender,
     checkSavedSearchPrompt,
+    setSearchState,
   } = useChatStore();
 
   const { accessToken, isTokenExpired, refreshToken } = useAuthStore();
@@ -156,6 +158,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           hasRefreshToken: !!refreshToken,
           isExpired: isTokenExpired(),
         });
+
+        // Don't reconnect if user logged out (no refresh token available)
+        if (!refreshToken) {
+          console.log("🔌 Not reconnecting - user logged out (no refresh token)");
+          return false;
+        }
 
         // If token is expired and we have a refresh token, refresh before reconnecting
         if (isTokenExpired() && refreshToken) {
@@ -281,9 +289,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     }
 
     const checkAndRefreshToken = async () => {
-      // Check if token will expire in the next 2 minutes
-      const tokenExpiresAt = useAuthStore.getState().tokenExpiresAt;
-      if (!tokenExpiresAt) return;
+      // Double-check we still have refresh token (user might have logged out)
+      const { refreshToken: currentRefreshToken, tokenExpiresAt } = useAuthStore.getState();
+      if (!currentRefreshToken || !tokenExpiresAt) {
+        return;
+      }
 
       const timeUntilExpiry = tokenExpiresAt - Date.now();
       const twoMinutes = 2 * 60 * 1000;
@@ -691,6 +701,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
         if (data.search_state) {
           setSearchInProgress(data.search_state.status === "completed");
+          // Update search state in store for anonymous search tracking
+          setSearchState(data.search_state);
         }
         return;
       }
@@ -729,6 +741,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
         if (data.search_state) {
           setSearchInProgress(data.search_state.status === "completed");
+          // Update search state in store for anonymous search tracking
+          setSearchState(data.search_state);
         }
         return;
       }
@@ -877,6 +891,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       if (data.search_state) {
         setSearchInProgress(data.search_state.status === "completed");
+        // Update search state in store for anonymous search tracking
+        setSearchState(data.search_state);
       }
 
       // Note: Search history is now managed entirely by the backend
@@ -966,6 +982,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         currency,
         new_search: false,
         current_category: currentCategory,
+        browser_id: getBrowserId(),
         ...(accessToken && { access_token: accessToken }),
       });
 

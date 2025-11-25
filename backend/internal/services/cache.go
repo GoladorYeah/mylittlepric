@@ -180,3 +180,60 @@ func (c *CacheService) SetGeminiResponse(cacheKey string, response *models.Gemin
 	ttl := time.Duration(c.config.CacheGeminiTTL) * time.Second
 	return c.redis.Set(c.ctx, cacheKey, data, ttl).Err()
 }
+
+// ═══════════════════════════════════════════════════════════
+// ANONYMOUS BROWSER TRACKING
+// Track anonymous search usage across sessions by browser ID
+// ═══════════════════════════════════════════════════════════
+
+// GetAnonymousSearchCount returns the number of searches used by a browser ID
+func (c *CacheService) GetAnonymousSearchCount(browserID string) (int, error) {
+	if browserID == "" {
+		return 0, nil
+	}
+
+	cacheKey := fmt.Sprintf("anonymous_searches:%s", browserID)
+	count, err := c.redis.Get(c.ctx, cacheKey).Int()
+	if err == redis.Nil {
+		return 0, nil // No searches yet
+	}
+	if err != nil {
+		return 0, fmt.Errorf("redis error: %w", err)
+	}
+
+	return count, nil
+}
+
+// IncrementAnonymousSearchCount increments the search count for a browser ID
+// TTL: 24 hours (searches reset after a day)
+func (c *CacheService) IncrementAnonymousSearchCount(browserID string) error {
+	if browserID == "" {
+		return nil
+	}
+
+	cacheKey := fmt.Sprintf("anonymous_searches:%s", browserID)
+
+	// Increment counter
+	if err := c.redis.Incr(c.ctx, cacheKey).Err(); err != nil {
+		return fmt.Errorf("redis incr error: %w", err)
+	}
+
+	// Set expiration (24 hours)
+	ttl := 24 * time.Hour
+	if err := c.redis.Expire(c.ctx, cacheKey, ttl).Err(); err != nil {
+		return fmt.Errorf("redis expire error: %w", err)
+	}
+
+	return nil
+}
+
+// ResetAnonymousSearchCount resets the search count for a browser ID
+// This is called when a user authenticates to give them unlimited searches
+func (c *CacheService) ResetAnonymousSearchCount(browserID string) error {
+	if browserID == "" {
+		return nil
+	}
+
+	cacheKey := fmt.Sprintf("anonymous_searches:%s", browserID)
+	return c.redis.Del(c.ctx, cacheKey).Err()
+}

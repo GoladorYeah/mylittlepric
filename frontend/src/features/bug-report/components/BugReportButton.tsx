@@ -50,7 +50,7 @@ export function BugReportButton({ variant = "full", className = "" }: BugReportB
     <>
       <button
         onClick={() => setIsDialogOpen(true)}
-        className={`w-full p-4 rounded-lg flex items-center gap-3 transition-colors cursor-pointer hover:bg-secondary/50 text-muted-foreground hover:text-foreground ${className}`}
+        className={`w-full px-4 py-3 rounded-lg flex items-center gap-3 transition-colors cursor-pointer hover:bg-secondary/50 text-muted-foreground hover:text-foreground ${className}`}
       >
         <Bug className="w-5 h-5" />
         <span className="text-sm font-semibold">Report a Bug</span>

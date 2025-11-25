@@ -2,17 +2,25 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Globe, Languages, Check, ChevronDown, Moon, Sun, Monitor } from "lucide-react";
+import { ArrowLeft, Globe, Languages, Check, ChevronDown, Moon, Sun, Monitor, Lock, Eye, EyeOff } from "lucide-react";
 import { usePreferences, usePreferenceActions, getCurrencyForCountry, useAuthStore } from "@/shared/lib";
 import { useTheme } from "next-themes";
 import { COUNTRIES, LANGUAGES } from "@/shared/constants";
+import { AuthAPI } from "@/shared/lib/api/auth";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { country, language, currency } = usePreferences();
   const { setCountry, setLanguage, setCurrency, syncPreferencesToServer } = usePreferenceActions();
-  const { accessToken } = useAuthStore();
+  const { accessToken, user, isAuthenticated, _hasHydrated } = useAuthStore();
   const { theme, setTheme } = useTheme();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (_hasHydrated && !isAuthenticated) {
+      router.push("/login?redirect=/settings");
+    }
+  }, [_hasHydrated, isAuthenticated, router]);
   const [mounted, setMounted] = useState(false);
   const [countrySearchQuery, setCountrySearchQuery] = useState("");
   const [languageSearchQuery, setLanguageSearchQuery] = useState("");
@@ -21,6 +29,20 @@ export default function SettingsPage() {
 
   const countrySearchRef = useRef<HTMLInputElement>(null);
   const languageSearchRef = useRef<HTMLInputElement>(null);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState("");
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Check if user is using email provider (not Google OAuth)
+  const isEmailUser = user?.provider === "email";
 
   const selectedCountry = useMemo(
     () => COUNTRIES.find((c) => c.code === country.toLowerCase()) || COUNTRIES[0],
@@ -119,6 +141,42 @@ export default function SettingsPage() {
 
   const handleBack = () => {
     router.back();
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeError("");
+    setPasswordChangeSuccess("");
+
+    // Validation
+    if (newPassword.length < 8) {
+      setPasswordChangeError("New password must be at least 8 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordChangeError("New passwords do not match");
+      return;
+    }
+
+    if (!accessToken) {
+      setPasswordChangeError("You must be logged in to change password");
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      await AuthAPI.changePassword(accessToken, currentPassword, newPassword);
+      setPasswordChangeSuccess("Password changed successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      setPasswordChangeError(error instanceof Error ? error.message : "Failed to change password");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -356,6 +414,136 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {/* Security Settings Section */}
+          {isEmailUser && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">Security</h2>
+              </div>
+
+              <div className="space-y-4 pl-7">
+                {/* Change Password Form */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Change Password
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Update your password to keep your account secure
+                  </p>
+
+                  <form onSubmit={handlePasswordChange} className="space-y-4 pt-2">
+                    {/* Success Message */}
+                    {passwordChangeSuccess && (
+                      <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30">
+                        <p className="text-sm text-green-800 dark:text-green-200">{passwordChangeSuccess}</p>
+                      </div>
+                    )}
+
+                    {/* Error Message */}
+                    {passwordChangeError && (
+                      <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
+                        <p className="text-sm text-red-800 dark:text-red-200">{passwordChangeError}</p>
+                      </div>
+                    )}
+
+                    {/* Current Password */}
+                    <div className="space-y-2">
+                      <label htmlFor="current-password" className="block text-sm font-medium">
+                        Current Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="current-password"
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          required
+                          disabled={isChangingPassword}
+                          className="w-full px-3 py-2 pr-10 rounded-md bg-secondary border border-border focus:border-primary focus:outline-none transition-colors text-sm disabled:opacity-50"
+                          placeholder="Enter current password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        >
+                          {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* New Password */}
+                    <div className="space-y-2">
+                      <label htmlFor="new-password" className="block text-sm font-medium">
+                        New Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="new-password"
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                          minLength={8}
+                          disabled={isChangingPassword}
+                          className="w-full px-3 py-2 pr-10 rounded-md bg-secondary border border-border focus:border-primary focus:outline-none transition-colors text-sm disabled:opacity-50"
+                          placeholder="Enter new password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Must be at least 8 characters
+                      </p>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div className="space-y-2">
+                      <label htmlFor="confirm-password" className="block text-sm font-medium">
+                        Confirm New Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="confirm-password"
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                          minLength={8}
+                          disabled={isChangingPassword}
+                          className="w-full px-3 py-2 pr-10 rounded-md bg-secondary border border-border focus:border-primary focus:outline-none transition-colors text-sm disabled:opacity-50"
+                          placeholder="Confirm new password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isChangingPassword}
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isChangingPassword ? "Changing Password..." : "Change Password"}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

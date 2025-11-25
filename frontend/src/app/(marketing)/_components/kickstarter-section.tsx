@@ -87,7 +87,7 @@ export function KickstarterSection() {
           </p>
 
           <a
-            href="https://www.kickstarter.com/projects/mylittleprice/mylittleprice"
+            href="https://www.kickstarter.com/projects/mylittleprice/mylittleprice-ai-find-ideal-solution-at-the-right-price"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 px-10 py-5 bg-primary text-primary-foreground rounded-full font-bold text-lg hover:opacity-90 transition-all shadow-lg hover:shadow-xl"
@@ -314,7 +314,7 @@ export function KickstarterSection() {
 
           <div className="text-center mt-8">
             <a
-              href="https://www.kickstarter.com/projects/mylittleprice/mylittleprice"
+              href="https://www.kickstarter.com/projects/mylittleprice/mylittleprice-ai-find-ideal-solution-at-the-right-price"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-primary hover:underline font-medium"

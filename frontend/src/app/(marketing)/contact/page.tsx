@@ -17,9 +17,18 @@ export default function ContactPage() {
     setStatus("loading");
 
     try {
-      // TODO: Implement actual API endpoint for contact form
-      // For now, simulate submission
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${apiUrl}/api/contact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit contact form');
+      }
 
       setStatus("success");
       setFormData({ name: "", email: "", subject: "", message: "" });
@@ -27,6 +36,7 @@ export default function ContactPage() {
       // Reset success message after 5 seconds
       setTimeout(() => setStatus("idle"), 5000);
     } catch (error) {
+      console.error('Contact form error:', error);
       setStatus("error");
       setTimeout(() => setStatus("idle"), 5000);
     }

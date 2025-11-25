@@ -45,17 +45,22 @@ export interface SessionMessage {
   search_type?: string;
 }
 
+export interface SearchState {
+  status: string;
+  category?: string;
+  can_continue: boolean;
+  search_count: number;
+  max_searches: number;
+  message?: string;
+  anonymous_search_used: number;
+  anonymous_search_limit: number;
+  requires_authentication: boolean;
+}
+
 export interface SessionResponse {
   session_id: string;
   messages: SessionMessage[];
-  search_state?: {
-    category?: string;
-    status?: string;
-    last_product?: {
-      name: string;
-      price: string;
-    };
-  };
+  search_state?: SearchState;
 }
 
 export interface ChatResponse {

@@ -56,6 +56,9 @@ func SetupRoutes(app *fiber.App, c *container.Container) {
 
 	// Bug report routes
 	setupBugReportRoutes(api, c)
+
+	// Contact form routes
+	setupContactRoutes(api, c)
 }
 
 func setupAuthRoutes(api fiber.Router, c *container.Container) {
@@ -71,9 +74,14 @@ func setupAuthRoutes(api fiber.Router, c *container.Container) {
 	auth.Post("/refresh", authRateLimiter, authHandler.RefreshToken)
 	auth.Post("/logout", authHandler.Logout)
 
+	// Password reset routes (public)
+	auth.Post("/request-password-reset", authRateLimiter, authHandler.RequestPasswordReset)
+	auth.Post("/reset-password", authRateLimiter, authHandler.ResetPassword)
+
 	// Protected routes
 	auth.Get("/me", authMiddleware, authHandler.GetMe)
 	auth.Post("/claim-sessions", authMiddleware, authHandler.ClaimSessions)
+	auth.Post("/change-password", authMiddleware, authHandler.ChangePassword)
 }
 
 func setupWebSocketRoutes(app *fiber.App, c *container.Container) {
@@ -269,4 +277,22 @@ func setupBugReportRoutes(api fiber.Router, c *container.Container) {
 	// Admin endpoint - requires authentication
 	// TODO: Add admin middleware when implemented
 	// api.Get("/bug-reports", authMiddleware, adminMiddleware, bugReportHandler.GetBugReports)
+}
+
+func setupContactRoutes(api fiber.Router, c *container.Container) {
+	contactHandler := handlers.NewContactHandler(c)
+	contactRateLimiter := middleware.RateLimiter(middleware.RateLimiterConfig{
+		Redis:      c.Redis,
+		Max:        3,
+		Window:     time.Minute,
+		KeyPrefix:  "contact_limit:",
+		Message:    "Too many contact form submissions, please try again later",
+		StatusCode: fiber.StatusTooManyRequests,
+		KeyGenerator: func(ctx *fiber.Ctx) string {
+			return ctx.IP()
+		},
+	})
+
+	// Public endpoint - anyone can submit contact forms
+	api.Post("/contact", contactRateLimiter, contactHandler.SubmitContactForm)
 }

@@ -30,11 +30,12 @@ type ChatSession struct {
 }
 
 type SearchState struct {
-	Status         SearchStatus `json:"status"`
-	Category       string       `json:"category"`
-	LastSearchTime time.Time    `json:"last_search_time,omitempty"`
-	SearchCount    int          `json:"search_count"`
-	LastProduct    *ProductInfo `json:"last_product,omitempty"`
+	Status              SearchStatus `json:"status"`
+	Category            string       `json:"category"`
+	LastSearchTime      time.Time    `json:"last_search_time,omitempty"`
+	SearchCount         int          `json:"search_count"`
+	AnonymousSearchUsed int          `json:"anonymous_search_used"` // Tracks searches made without auth
+	LastProduct         *ProductInfo `json:"last_product,omitempty"`
 }
 
 // Scan implements sql.Scanner for JSONB scanning

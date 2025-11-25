@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PanelLeft } from "lucide-react";
-import { useChatStore } from "@/shared/lib";
+import { PanelLeft, LogIn } from "lucide-react";
+import { useChatStore, useAuthStore } from "@/shared/lib";
 import { RateLimitIndicator } from "./RateLimitIndicator";
 import { LastSearchSaved } from "./LastSearchSaved";
 import { BugReportButton } from "@/features/bug-report";
+import { AuthDialog } from "@/features/auth/components";
 
 interface ChatHeaderProps {
   isConnected: boolean;
@@ -18,8 +19,10 @@ export function ChatHeader({
   connectionStatus,
   onNewSearch,
 }: ChatHeaderProps) {
-  const { isSidebarOpen, toggleSidebar, isLoading, rateLimitState } = useChatStore();
+  const { isSidebarOpen, toggleSidebar, isLoading, rateLimitState, searchState } = useChatStore();
+  const { isAuthenticated } = useAuthStore();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   // Detect syncing state (when connected but loading after reconnect)
   useEffect(() => {
@@ -74,6 +77,24 @@ export function ChatHeader({
 
         {/* Connection Status and Rate Limit Indicator */}
         <div className="flex items-center gap-3 shrink-0">
+          {/* Anonymous User - Show Search Count and Sign In */}
+          {!isAuthenticated && (
+            <div className="flex items-center gap-2">
+              {searchState && (
+                <span className="text-sm text-muted-foreground">
+                  {searchState.anonymous_search_used}/{searchState.anonymous_search_limit} free searches
+                </span>
+              )}
+              <button
+                onClick={() => setShowAuthDialog(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign In</span>
+              </button>
+            </div>
+          )}
+
           {/* Rate Limit Indicator */}
           <RateLimitIndicator />
 
@@ -89,6 +110,9 @@ export function ChatHeader({
           <BugReportButton variant="header" />
         </div>
       </div>
+
+      {/* Auth Dialog */}
+      <AuthDialog isOpen={showAuthDialog} onClose={() => setShowAuthDialog(false)} />
     </header>
   );
 }

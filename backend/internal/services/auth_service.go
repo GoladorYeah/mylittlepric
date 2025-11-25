@@ -21,10 +21,14 @@ import (
 )
 
 var (
-	ErrUserExists      = errors.New("user with this email already exists")
-	ErrUserNotFound    = errors.New("user not found")
-	ErrInvalidPassword = errors.New("invalid password")
-	ErrInvalidToken    = errors.New("invalid or expired token")
+	ErrUserExists           = errors.New("user with this email already exists")
+	ErrUserNotFound         = errors.New("user not found")
+	ErrInvalidPassword      = errors.New("invalid password")
+	ErrInvalidToken         = errors.New("invalid or expired token")
+	ErrPasswordNotSet       = errors.New("password not set for OAuth users")
+	ErrTokenExpired         = errors.New("reset token has expired")
+	ErrTokenAlreadyUsed     = errors.New("reset token has already been used")
+	ErrResetTokenNotFound   = errors.New("reset token not found")
 )
 
 type AuthService struct {
@@ -405,8 +409,14 @@ func (s *AuthService) SaveUserToPostgres(userModel *models.User) error {
 			SetName(userModel.FullName).
 			SetAvatarURL(userModel.Picture).
 			SetProvider(userModel.Provider).
-			SetGoogleID(userModel.ProviderID).
 			SetUpdatedAt(userModel.UpdatedAt)
+
+		// Only set google_id if it's not empty (to avoid unique constraint violation)
+		if userModel.ProviderID != "" {
+			updateBuilder.SetGoogleID(userModel.ProviderID)
+		} else {
+			updateBuilder.ClearGoogleID()
+		}
 
 		// Set optional last_login
 		if userModel.LastLoginAt != nil {
@@ -426,9 +436,13 @@ func (s *AuthService) SaveUserToPostgres(userModel *models.User) error {
 			SetName(userModel.FullName).
 			SetAvatarURL(userModel.Picture).
 			SetProvider(userModel.Provider).
-			SetGoogleID(userModel.ProviderID).
 			SetCreatedAt(userModel.CreatedAt).
 			SetUpdatedAt(userModel.UpdatedAt)
+
+		// Only set google_id if it's not empty (to avoid unique constraint violation)
+		if userModel.ProviderID != "" {
+			createBuilder.SetGoogleID(userModel.ProviderID)
+		}
 
 		// Set optional last_login
 		if userModel.LastLoginAt != nil {
@@ -771,4 +785,254 @@ func (s *AuthService) toUserInfo(user *models.User) *models.UserInfo {
 		Provider:  user.Provider,
 		CreatedAt: user.CreatedAt,
 	}
+}
+
+// ==================== Password Management Methods ====================
+
+// ChangePassword updates the user's password after verifying the current password
+func (s *AuthService) ChangePassword(userID uuid.UUID, currentPassword, newPassword string) error {
+	// Get user
+	user, err := s.getUserByID(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Check if user is using OAuth (Google)
+	if user.Provider != "email" {
+		return ErrPasswordNotSet
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+		return ErrInvalidPassword
+	}
+
+	// Validate new password
+	if err := validatePassword(newPassword); err != nil {
+		return fmt.Errorf("invalid new password: %w", err)
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Update password in database
+	user.PasswordHash = string(hashedPassword)
+	user.UpdatedAt = time.Now()
+
+	// Save to database
+	if err := s.saveUser(user); err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	// Revoke all existing refresh tokens to force re-login on all devices
+	if err := s.revokeAllUserRefreshTokens(userID); err != nil {
+		fmt.Printf("Warning: failed to revoke refresh tokens: %v\n", err)
+		// Don't fail the password change if token revocation fails
+	}
+
+	return nil
+}
+
+// RequestPasswordReset generates a password reset token and returns it
+// In production, this token should be sent via email, not returned directly
+func (s *AuthService) RequestPasswordReset(email string) (string, error) {
+	// Get user by email
+	user, err := s.getUserByEmail(email)
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			// Don't reveal if user exists or not for security
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Check if user is using OAuth
+	if user.Provider != "email" {
+		// Don't reveal OAuth users for security
+		return "", nil
+	}
+
+	// Generate reset token (random secure token)
+	resetToken, err := s.jwtService.GenerateRefreshToken()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate reset token: %w", err)
+	}
+
+	// Hash token for storage
+	tokenHash := s.hashToken(resetToken)
+
+	// Save reset token to database (expires in 1 hour)
+	resetTokenData := &models.PasswordResetToken{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		TokenHash: tokenHash,
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.savePasswordResetToken(resetTokenData); err != nil {
+		return "", fmt.Errorf("failed to save reset token: %w", err)
+	}
+
+	return resetToken, nil
+}
+
+// ResetPassword resets the user's password using a reset token
+func (s *AuthService) ResetPassword(resetToken, newPassword string) error {
+	// Validate new password
+	if err := validatePassword(newPassword); err != nil {
+		return fmt.Errorf("invalid new password: %w", err)
+	}
+
+	// Hash token
+	tokenHash := s.hashToken(resetToken)
+
+	// Get reset token from database
+	resetTokenData, err := s.getPasswordResetToken(tokenHash)
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return ErrResetTokenNotFound
+		}
+		return fmt.Errorf("failed to get reset token: %w", err)
+	}
+
+	// Check if token is already used
+	if resetTokenData.UsedAt != nil {
+		return ErrTokenAlreadyUsed
+	}
+
+	// Check if token is expired
+	if time.Now().After(resetTokenData.ExpiresAt) {
+		return ErrTokenExpired
+	}
+
+	// Get user
+	user, err := s.getUserByID(resetTokenData.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Update password
+	user.PasswordHash = string(hashedPassword)
+	user.UpdatedAt = time.Now()
+
+	// Save to database
+	if err := s.saveUser(user); err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	// Mark token as used
+	now := time.Now()
+	resetTokenData.UsedAt = &now
+	if err := s.markPasswordResetTokenAsUsed(tokenHash); err != nil {
+		fmt.Printf("Warning: failed to mark token as used: %v\n", err)
+	}
+
+	// Revoke all existing refresh tokens to force re-login
+	if err := s.revokeAllUserRefreshTokens(user.ID); err != nil {
+		fmt.Printf("Warning: failed to revoke refresh tokens: %v\n", err)
+	}
+
+	return nil
+}
+
+// ==================== Password Reset Token Helpers ====================
+
+func (s *AuthService) savePasswordResetToken(token *models.PasswordResetToken) error {
+	key := fmt.Sprintf("password_reset:%s", token.TokenHash)
+	tokenData := map[string]interface{}{
+		"id":         token.ID.String(),
+		"user_id":    token.UserID.String(),
+		"token_hash": token.TokenHash,
+		"expires_at": token.ExpiresAt.Format(time.RFC3339),
+		"created_at": token.CreatedAt.Format(time.RFC3339),
+	}
+
+	ttl := time.Until(token.ExpiresAt)
+	if err := s.redis.HSet(s.ctx, key, tokenData).Err(); err != nil {
+		return err
+	}
+	return s.redis.Expire(s.ctx, key, ttl).Err()
+}
+
+func (s *AuthService) getPasswordResetToken(tokenHash string) (*models.PasswordResetToken, error) {
+	key := fmt.Sprintf("password_reset:%s", tokenHash)
+	tokenData, err := s.redis.HGetAll(s.ctx, key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tokenData) == 0 {
+		return nil, redis.Nil
+	}
+
+	token := &models.PasswordResetToken{}
+	if id, err := uuid.Parse(tokenData["id"]); err == nil {
+		token.ID = id
+	}
+	if userID, err := uuid.Parse(tokenData["user_id"]); err == nil {
+		token.UserID = userID
+	}
+	token.TokenHash = tokenData["token_hash"]
+
+	if expiresAt, err := time.Parse(time.RFC3339, tokenData["expires_at"]); err == nil {
+		token.ExpiresAt = expiresAt
+	}
+	if createdAt, err := time.Parse(time.RFC3339, tokenData["created_at"]); err == nil {
+		token.CreatedAt = createdAt
+	}
+	if usedAtStr, ok := tokenData["used_at"]; ok && usedAtStr != "" {
+		if usedAt, err := time.Parse(time.RFC3339, usedAtStr); err == nil {
+			token.UsedAt = &usedAt
+		}
+	}
+
+	return token, nil
+}
+
+func (s *AuthService) markPasswordResetTokenAsUsed(tokenHash string) error {
+	key := fmt.Sprintf("password_reset:%s", tokenHash)
+	now := time.Now().Format(time.RFC3339)
+	return s.redis.HSet(s.ctx, key, "used_at", now).Err()
+}
+
+func (s *AuthService) revokeAllUserRefreshTokens(userID uuid.UUID) error {
+	// In Redis, we need to find all refresh tokens for this user
+	// This is a simplification - in production you might want to maintain a user->tokens index
+	pattern := "refresh_token:*"
+	var cursor uint64
+	for {
+		keys, nextCursor, err := s.redis.Scan(s.ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return err
+		}
+
+		for _, key := range keys {
+			tokenData, err := s.redis.HGetAll(s.ctx, key).Result()
+			if err != nil {
+				continue
+			}
+
+			if tokenData["user_id"] == userID.String() {
+				now := time.Now().Format(time.RFC3339)
+				s.redis.HSet(s.ctx, key, "revoked_at", now)
+			}
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return nil
 }
